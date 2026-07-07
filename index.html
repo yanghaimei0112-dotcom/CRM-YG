@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM 客户管理系统</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#1f2430; --muted:#6b7280; --line:#e5e7eb;
+    --brand:#2563eb; --brand-d:#1d4ed8; --green:#16a34a; --red:#dc2626; --orange:#ea580c;
+    --yellow:#ca8a04; --purple:#7c3aed; --gray:#6b7280; --blue:#2563eb;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:#fff;border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;
+         gap:18px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+  .logo{font-size:17px;font-weight:700;padding:14px 0;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  nav{display:flex;gap:4px;flex:1}
+  nav button{background:none;border:none;padding:14px 14px;cursor:pointer;font-size:14px;color:var(--muted);
+             border-bottom:2px solid transparent;font-weight:500}
+  nav button.active{color:var(--brand);border-bottom-color:var(--brand)}
+  nav button:hover{color:var(--ink)}
+  .top-actions{display:flex;gap:8px}
+  main{max-width:none;margin:0;padding:16px 22px}
+  .btn{background:var(--brand);color:#fff;border:none;padding:8px 14px;border-radius:7px;cursor:pointer;
+       font-size:13px;font-weight:600}
+  .btn:hover{background:var(--brand-d)}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{background:#f3f4f6}
+  .btn.danger{background:var(--red)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  .view{display:none}.view.active{display:block}
+
+  /* dashboard */
+  .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:18px}
+  @media(max-width:1100px){.cards{grid-template-columns:repeat(3,1fr)}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card .k{font-size:13px;color:var(--muted)}
+  .card .v{font-size:30px;font-weight:700;margin-top:6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:14px}
+  .panel h3{margin:0 0 14px;font-size:15px}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .bar-row .lbl{width:84px;font-size:13px;color:var(--muted);text-align:right;flex-shrink:0}
+  .bar-track{flex:1;background:#f1f3f5;border-radius:6px;height:22px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;
+            padding-right:8px;color:#fff;font-size:12px;font-weight:600;min-width:24px;transition:width .4s}
+  .followup-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0f1f3;font-size:13px}
+  .followup-item:last-child{border:none}
+  .followup-item .date{font-weight:700;width:90px;flex-shrink:0}
+  .overdue{color:var(--red)} .soon{color:var(--orange)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+
+  /* toolbar */
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:0;flex-wrap:wrap;position:sticky;top:53px;z-index:30;background:var(--bg);padding:12px 0 10px}
+  .toolbar input[type=text],.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#fff}
+  .toolbar input[type=text]{min-width:200px}
+  .spacer{flex:1}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+  .seg button{background:#fff;border:none;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--muted)}
+  .seg button.active{background:var(--brand);color:#fff}
+
+  /* table */
+  .tbl-wrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:visible;box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #f0f1f3}
+  th{background:#fafbfc;font-weight:600;color:var(--muted);position:sticky;top:100px;z-index:10;cursor:pointer;user-select:none}
+  th:hover{color:var(--ink)}
+  tbody tr:hover{background:#f8faff}
+  .clip{display:block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  td.namecol .link{display:inline-block;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+  td .row-act{opacity:0;display:flex;gap:6px}
+  tr:hover .row-act{opacity:1}
+  .link{color:var(--brand);cursor:pointer;font-weight:600}
+  .empty{text-align:center;color:var(--muted);padding:50px 0}
+
+  /* kanban */
+  .kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+  .kcol{background:#eef0f3;border-radius:12px;min-width:230px;width:230px;flex-shrink:0;padding:10px}
+  .kcol h4{margin:2px 4px 10px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .kcol h4 .cnt{background:#fff;border-radius:20px;padding:1px 8px;font-size:11px;color:var(--muted)}
+  .kcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;cursor:grab;box-shadow:var(--shadow)}
+  .kcard:active{cursor:grabbing}
+  .kcard .name{font-weight:600;margin-bottom:5px}
+  .kcard .meta{font-size:12px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .kcol.drag-over{outline:2px dashed var(--brand);outline-offset:-2px}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-start;
+            justify-content:center;z-index:100;padding:30px 16px;overflow:auto}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;border-radius:14px;width:100%;max-width:720px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .modal-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .modal-head h3{margin:0;font-size:16px}
+  .modal-body{padding:18px 20px;max-height:65vh;overflow:auto}
+  .modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+  .x{cursor:pointer;font-size:22px;color:var(--muted);line-height:1;border:none;background:none}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12px;color:var(--muted);font-weight:600}
+  .field input,.field select,.field textarea{padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px;font-family:inherit}
+  .field textarea{resize:vertical;min-height:60px}
+  .detail-section{margin-top:18px}
+  .detail-section h4{font-size:14px;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 14px;font-size:13px}
+  .kv .k{color:var(--muted)}
+  .visit-log{border-left:2px solid var(--line);padding-left:14px;margin-left:4px}
+  .visit-log .vitem{margin-bottom:14px;position:relative}
+  .visit-log .vitem::before{content:"";position:absolute;left:-21px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--brand)}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2430;color:#fff;
+         padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
+  .toast.show{opacity:1}
+  .hint{font-size:12px;color:var(--muted);line-height:1.7}
+  @media(max-width:880px){.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="loginScreen" style="position:fixed;inset:0;z-index:300;background:linear-gradient(135deg,#e0e7ff,#eef2f7);display:none;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.18);padding:34px 30px;width:340px">
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px">🗂️ CRM 客户管理系统</div>
+    <div class="hint" style="margin-bottom:18px">请登录后使用</div>
+    <div class="field" style="margin-bottom:12px"><label>邮箱</label><input id="login_user" type="email" autocomplete="username" placeholder="如 yhm@yg.crm"></div>
+    <div class="field" style="margin-bottom:6px"><label>密码</label><input id="login_pass" type="password" autocomplete="current-password"></div>
+    <div id="loginErr" style="color:var(--red);font-size:12px;min-height:16px;margin:4px 0"></div>
+    <button class="btn" style="width:100%;padding:10px" onclick="login()">登 录</button>
+    <p class="hint" style="margin-top:14px">管理员：<b>yhm@yg.crm / YG081020</b>（云端账号，数据全团队共享）</p>
+  </div>
+</div>
+<header>
+  <div class="logo">🗂️ CRM 客户管理系统</div>
+  <nav>
+    <button data-view="dash" class="active">📊 仪表盘</button>
+    <button data-view="customers">👥 潜在客户</button>
+    <button data-view="mobai">🚪 陌拜客户</button>
+    <button data-view="pool">🌊 公海客户</button>
+    <button data-view="visits">📍 客户跟进记录</button>
+    <button data-view="visited">✅ 已拜访客户</button>
+    <button data-view="won">💰 成交客户</button>
+    <button data-view="users" data-admin="1">👤 用户管理</button>
+    <button data-view="data" data-admin="1">⚙️ 数据管理</button>
+  </nav>
+  <div class="top-actions" id="userBox"></div>
+</header>
+
+<main>
+  <!-- ============ DASHBOARD ============ -->
+  <section id="view-dash" class="view active">
+    <div class="cards" id="statCards"></div>
+    <div class="grid2">
+      <div class="panel"><h3>📈 销售漏斗（按阶段）</h3><div id="funnel"></div></div>
+      <div class="panel"><h3>🗺️ 区域分布</h3><div id="regionChart"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="panel"><h3>⭐ 客户属性分布</h3><div id="attrChart"></div></div>
+      <div class="panel"><h3>🔔 待跟进提醒（近期 / 逾期）</h3><div id="followups"></div></div>
+    </div>
+    <div class="panel"><h3>👤 团队业绩（按负责人）</h3><div id="teamChart"></div></div>
+  </section>
+
+  <!-- ============ CUSTOMERS ============ -->
+  <section id="view-customers" class="view">
+    <div class="toolbar">
+      <input type="text" id="custSearch" placeholder="🔍 搜索公司 / 联系人 / 电话 / 产品">
+      <select id="filterOwner"><option value="">全部负责人</option></select>
+      <select id="filterStage"><option value="">全部阶段</option></select>
+      <select id="filterRegion"><option value="">全部区域</option></select>
+      <select id="filterAttr"><option value="">全部属性</option></select>
+      <div class="spacer"></div>
+      <div class="seg"><button id="segList" class="active">列表</button><button id="segKanban">看板</button></div>
+      <button class="btn" onclick="openCustomer()">＋ 新增客户</button>
+    </div>
+    <div id="custList" class="tbl-wrap"></div>
+    <div id="custKanban" class="kanban" style="display:none"></div>
+  </section>
+
+  <!-- ============ POOL (公海客户) ============ -->
+  <section id="view-pool" class="view">
+    <div class="toolbar">
+      <input type="text" id="poolSearch" placeholder="🔍 搜索公司 / 联系人 / 产品 / 区域">
+      <select id="poolRegion"><option value="">全部区域</option></select>
+      <select id="poolAttr"><option value="">全部属性</option></select>
+      <div class="spacer"></div>
+      <button class="btn" onclick="openPool()">＋ 新增公海客户</button>
+    </div>
+    <div id="poolList" class="tbl-wrap"></div>
+  </section>
+
+  <!-- ============ VISITS ============ -->
+  <section id="view-visits" class="view">
+    <div class="toolbar">
+      <input type="text" id="visitSearch" placeholder="🔍 搜索拜访主题 / 客户 / 拜访人">
+      <select id="filterResult"><option value="">全部结果</option></select>
+      <div class="spacer"></div>
+      <button class="btn" onclick="openVisit()">＋ 新增拜访</button>
+    </div>
+    <div id="visitList" class="tbl-wrap"></div>
+  </section>
+
+  <!-- ============ DATA ============ -->
+  <section id="view-data" class="view">
+    <div class="panel" style="border-color:#c7d2fe;background:#f5f7ff">
+      <h3>🔄 同步 YG 团队数据（Notion）</h3>
+      <p class="hint">一键导入从 Notion「YG客户数据库 → 姚子泓潜在客户」<b>全量同步的 117 家</b>潜在客户（负责人＝姚子泓）。会按公司名去重，可反复点不会重复添加。<br>
+      <b>后续 Notion 有更新时</b>：在 Notion 打开该数据库 →「•••」→ 导出 → 选「CSV」→ 再用下方「导入客户」上传即可增量更新（已自动适配 YG 表头与「负责人」列）。</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn" onclick="loadYG()">🔄 导入 YG 团队数据（姚子泓潜在客户 · 117 家）</button>
+        <button class="btn" onclick="loadYGVisits()">🏅 导入 YG 拜访记录（31 条 → 已拜访客户）</button>
+        <button class="btn" onclick="loadYGPool()">🌊 导入 YG 公共资料区（→ 公海客户）</button>
+        <label class="btn ghost">📁 导入公海（Excel/CSV）<input type="file" id="poolImportFile" accept=".csv,.xlsx,.xls" style="display:none"></label>
+      </div>
+      <p class="hint" style="margin-top:8px">公海客户为<b>独立资料库</b>（已按公司去重），可与潜在客户同时存在同一公司。公共资料区 6 张表数据量较大，完整同步建议在 Notion 把每张表「导出 CSV」后用上方「导入公海 CSV」上传（已适配各表表头）。</p>
+    </div>
+    <div class="panel">
+      <h3>📥 导入客户（Excel / CSV）</h3>
+      <p class="hint">支持 <b>Excel（.xlsx/.xls）</b> 和 <b>.csv</b> 文件批量导入客户（CSV 自动识别 UTF-8 / GBK 编码）。表头需包含「公司名字」列（其余列名与系统字段一致即可自动匹配）。可先下载模板照着填。</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn ghost" onclick="downloadTemplate()">⬇️ 下载导入模板</button>
+        <label class="btn">📁 选择文件导入（Excel/CSV）<input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none"></label>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>📤 导出数据</h3>
+      <p class="hint">导出为 CSV 可用 Excel 打开；导出 JSON 备份可完整保存全部数据（含客户与拜访关联），换电脑时用「恢复备份」导回。</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn ghost" onclick="exportCustomersCSV()">导出客户 CSV</button>
+        <button class="btn ghost" onclick="exportVisitsCSV()">导出拜访 CSV</button>
+        <button class="btn ghost" onclick="exportBackup()">💾 导出 JSON 备份</button>
+        <label class="btn ghost">♻️ 恢复备份<input type="file" id="restoreFile" accept=".json" style="display:none"></label>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>🧪 示例数据 / 清空</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn ghost" onclick="loadSample()">载入示例数据</button>
+        <button class="btn danger" onclick="clearAll()">清空全部数据</button>
+      </div>
+      <p class="hint" style="margin-top:10px">数据保存在本浏览器本地（localStorage），不上传任何服务器。建议定期「导出 JSON 备份」。</p>
+    </div>
+  </section>
+
+  <!-- ============ VISITED CUSTOMERS ============ -->
+  <section id="view-visited" class="view">
+    <div class="toolbar">
+      <input type="text" id="visitedSearch" placeholder="🔍 搜索公司 / 决策人 / 拜访人">
+      <select id="visitedOwner"><option value="">全部负责人</option></select>
+      <div class="spacer"></div>
+      <div class="hint">已拜访客户＝潜在客户中标记「已拜访」的客户（含从 YG 拜访记录同步的）。</div>
+    </div>
+    <div id="visitedList" class="tbl-wrap"></div>
+  </section>
+
+  <!-- ============ WON CUSTOMERS ============ -->
+  <section id="view-won" class="view">
+    <div class="toolbar">
+      <input type="text" id="wonSearch" placeholder="🔍 搜索公司 / 联系人 / 产品">
+      <select id="wonOwner"><option value="">全部负责人</option></select>
+      <div class="spacer"></div>
+      <div class="hint">成交客户＝阶段标记为「已成交」的客户，自动归到此处。</div>
+    </div>
+    <div id="wonList" class="tbl-wrap"></div>
+  </section>
+
+  <!-- ============ 陌拜客户 ============ -->
+  <section id="view-mobai" class="view">
+    <div class="toolbar">
+      <input type="text" id="mobaiSearch" placeholder="🔍 搜索公司 / 联系人 / 产品">
+      <select id="mobaiOwner"><option value="">全部负责人</option></select>
+      <div class="spacer"></div>
+      <button class="btn" onclick="openCustomer(null,'陌拜客户')">＋ 新增陌拜客户</button>
+      <div class="hint">陌拜客户＝阶段标记为「陌拜客户」的客户，自动归到此处。</div>
+    </div>
+    <div id="mobaiList" class="tbl-wrap"></div>
+  </section>
+
+  <!-- ============ USERS (admin) ============ -->
+  <section id="view-users" class="view">
+    <div class="toolbar">
+      <div class="hint" style="flex:1">每个业务员登录后只能看到「自己新增的客户」+「公共客户」；管理员（YG主管）可见全部并管理用户与数据。</div>
+      <button class="btn" onclick="openUser()">＋ 新增用户</button>
+    </div>
+    <div id="userList" class="tbl-wrap"></div>
+  </section>
+</main>
+
+<!-- ===== Customer Modal ===== -->
+<div class="modal-bg" id="custModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="custModalTitle">新增客户</h3><button class="x" onclick="closeModal('custModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>公司名字 *</label><input id="c_name" oninput="checkDupHint()"><div id="c_dupHint" style="font-size:12px;min-height:16px;margin-top:2px"></div></div>
+        <div class="field"><label>负责人（业务员）</label><select id="c_owner"></select></div>
+        <div class="field full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="c_public" style="width:auto"> 设为公共客户（团队所有人可见）</label></div>
+        <div class="field"><label>客户阶段</label><select id="c_stage"></select></div>
+        <div class="field"><label>客户属性 (A=等级 / M=意向)</label><select id="c_attr"></select></div>
+        <div class="field"><label>区域</label><select id="c_region"></select></div>
+        <div class="field"><label>是否拜访</label><select id="c_visited"><option>未拜访</option><option>已拜访</option></select></div>
+        <div class="field"><label>客户来源</label><select id="c_source"></select></div>
+        <div class="field"><label>联系人 (A)</label><input id="c_contact"></div>
+        <div class="field"><label>职位</label><select id="c_position"></select></div>
+        <div class="field"><label>电话</label><input id="c_phone"></div>
+        <div class="field"><label>外贸部联系人</label><input id="c_tradeContact"></div>
+        <div class="field"><label>外贸部联系电话</label><input id="c_tradePhone"></div>
+        <div class="field"><label>主营产品</label><input id="c_product"></div>
+        <div class="field full"><label>客户地址</label><input id="c_address"></div>
+        <div class="field"><label>平台网址</label><input id="c_platformUrl"></div>
+        <div class="field"><label>独立站网址</label><input id="c_siteUrl"></div>
+        <div class="field"><label>建立日期</label><input id="c_createDate" type="date"></div>
+        <div class="field"><label>下次跟进</label><input id="c_nextFollow" type="date"></div>
+        <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
+        <div class="field full"><label>备注</label><textarea id="c_note"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="custDeleteBtn" style="margin-right:auto;display:none" onclick="deleteCustomer()">删除</button>
+      <button class="btn ghost" onclick="closeModal('custModal')">取消</button>
+      <button class="btn" onclick="saveCustomer()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Visit Modal ===== -->
+<div class="modal-bg" id="visitModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="visitModalTitle">新增拜访</h3><button class="x" onclick="closeModal('visitModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full"><label>拜访主题 *</label><input id="v_title"></div>
+        <div class="field"><label>关联客户（输入公司名搜索，可留空）</label><input id="v_customer" list="vCustList" placeholder="输入公司名搜索…" autocomplete="off"><datalist id="vCustList"></datalist></div>
+        <div class="field"><label>拜访日期</label><input id="v_date" type="date"></div>
+        <div class="field"><label>拜访人</label><input id="v_visitor"></div>
+        <div class="field"><label>决策人 (A)</label><input id="v_decider"></div>
+        <div class="field"><label>职位</label><select id="v_position"></select></div>
+        <div class="field"><label>电话</label><input id="v_phone"></div>
+        <div class="field"><label>跟进结果</label><select id="v_result"></select></div>
+        <div class="field"><label>下次跟进</label><input id="v_nextFollow" type="date"></div>
+        <div class="field full"><label>公司地址</label><input id="v_address"></div>
+        <div class="field full"><label>拜访情况</label><textarea id="v_situation"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="visitDeleteBtn" style="margin-right:auto;display:none" onclick="deleteVisit()">删除</button>
+      <button class="btn ghost" onclick="closeModal('visitModal')">取消</button>
+      <button class="btn" onclick="saveVisit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Detail Modal ===== -->
+<div class="modal-bg" id="detailModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="detailTitle">客户详情</h3><button class="x" onclick="closeModal('detailModal')">×</button></div>
+    <div class="modal-body" id="detailBody"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('detailModal')">关闭</button>
+      <button class="btn ghost" id="detailPoolBtn" style="display:none"></button>
+      <button class="btn" id="detailEditBtn">编辑客户</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Pool Modal ===== -->
+<div class="modal-bg" id="poolModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="poolModalTitle">编辑公海客户</h3><button class="x" onclick="closeModal('poolModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>公司名字 *</label><input id="p_name"></div>
+        <div class="field"><label>客户属性</label><select id="p_attr"></select></div>
+        <div class="field"><label>区域</label><select id="p_region"></select></div>
+        <div class="field"><label>来源表</label><input id="p_origin" placeholder="如：赵孟菲潜在客户（公共）"></div>
+        <div class="field"><label>联系人 (A)</label><input id="p_contact"></div>
+        <div class="field"><label>电话</label><input id="p_phone"></div>
+        <div class="field"><label>外贸部联系人</label><input id="p_tradeContact"></div>
+        <div class="field"><label>外贸部电话</label><input id="p_tradePhone"></div>
+        <div class="field full"><label>主营产品</label><input id="p_product"></div>
+        <div class="field full"><label>客户地址</label><input id="p_address"></div>
+        <div class="field"><label>平台网址</label><input id="p_platformUrl"></div>
+        <div class="field"><label>独立站网址</label><input id="p_siteUrl"></div>
+        <div class="field"><label>客户来源</label><select id="p_source"></select></div>
+        <div class="field"><label>建立日期</label><input id="p_createDate" type="date"></div>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+        <label style="font-weight:600;font-size:13px;color:var(--muted)">跟进记录</label>
+        <div style="display:flex;gap:6px;margin:8px 0">
+          <input id="p_followInput" placeholder="填写本次跟进内容，回车或点「添加」" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:6px" onkeydown="if(event.key==='Enter'){event.preventDefault();addPoolFollow();}">
+          <button class="btn sm" type="button" onclick="addPoolFollow()">＋ 添加</button>
+        </div>
+        <div id="p_followLog" style="max-height:200px;overflow:auto;font-size:13px"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="poolDeleteBtn" style="margin-right:auto;display:none" onclick="deletePool()">删除</button>
+      <button class="btn ghost" onclick="closeModal('poolModal')">取消</button>
+      <button class="btn ghost" id="poolClaimBtn" style="display:none">🌊 捡入到我的潜在客户</button>
+      <button class="btn" onclick="savePool()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== User Modal ===== -->
+<div class="modal-bg" id="userModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head"><h3 id="userModalTitle">新增用户</h3><button class="x" onclick="closeModal('userModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full"><label>姓名（用作客户负责人）*</label><input id="u_name" placeholder="如：姚子泓"></div>
+        <div class="field"><label>登录邮箱 *</label><input id="u_username" type="email" autocomplete="off" placeholder="如 yzh@yg.crm"></div>
+        <div class="field"><label>密码 *（≥6位）</label><input id="u_password" autocomplete="off"></div>
+        <div class="field full"><label>角色</label><select id="u_role"><option value="sales">业务员（仅看自己+公共客户）</option><option value="admin">管理员 / YG主管（全部+用户与数据管理）</option></select></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="userDeleteBtn" style="margin-right:auto;display:none" onclick="deleteUser()">删除</button>
+      <button class="btn ghost" onclick="closeModal('userModal')">取消</button>
+      <button class="btn" onclick="saveUser()">保存</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="ownerList"></datalist>
+<datalist id="sourceList"></datalist>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="yg-data.js"></script>
+<script src="yg-visits.js"></script>
+<script src="yg-pool.js"></script>
+<script>
+/* ===================== Config / options ===================== */
+const STAGES = ["陌拜客户","潜在客户","初步接触","跟进中","已拜访","已成交","已流失"];
+const STAGE_COLOR = {"陌拜客户":"#7c3aed","潜在客户":"#6b7280","初步接触":"#2563eb","跟进中":"#ca8a04","已拜访":"#ea580c","已成交":"#16a34a","已流失":"#dc2626"};
+const ATTRS = ["A+M+","A+M-","A-M+","A-M-"];
+const ATTR_COLOR = {"A+M+":"#7c3aed","A+M-":"#dc2626","A-M+":"#ea580c","A-M-":"#6b7280"};
+const REGIONS = ["市区","海曙","江北","镇海","北仑","余姚","慈溪","奉化","宁海","象山","绍兴","舟山","市外"];
+const SOURCES = ["其他部门合作","膜拜客户","自查资料","公共资料","转介绍","资源分配","微信转入","展会客户"];
+const POSITIONS = ["A+","A","A-","非A","外贸经理","小老板","监事"];
+const RESULTS = ["有意向","继续跟进","暂无意向","已成交","已流失"];
+const RESULT_COLOR = {"有意向":"#16a34a","继续跟进":"#2563eb","暂无意向":"#6b7280","已成交":"#7c3aed","已流失":"#dc2626"};
+
+/* ===================== State / storage ===================== */
+let DB = {customers:[], visits:[], users:[], pool:[], seq:0};
+let CURRENT = null;                       // 当前登录用户
+const LS_KEY = "crm_local_db_v1";
+const SESS_KEY = "crm_session_user";
+function load(){ try{const r=localStorage.getItem(LS_KEY); if(r) DB=JSON.parse(r);}catch(e){}
+  if(!DB.users) DB.users=[];
+  if(!DB.pool) DB.pool=[];
+  (DB.customers||[]).forEach(c=>{if(c.stage==="已报价")c.stage="已拜访"; if(c.owner==="社媒主管")c.owner="YG主管"; if(c.inPool)delete c.inPool;});
+  (DB.users||[]).forEach(u=>{if(u.name==="社媒主管")u.name="YG主管";});
+  // 首次使用：建默认用户（管理员=YG主管，业务员=姚子泓）
+  if(DB.users.length===0){
+    DB.users=[
+      {id:uid(),name:"YG主管",username:"yhm",password:"YG081020",role:"admin"},
+      {id:uid(),name:"姚子泓",username:"yzh",password:"123456",role:"sales"}
+    ];
+    save();
+  }
+  // 迁移：把旧默认管理员 admin/admin888 更新为 yhm/YG081020（不影响已自定义的账号）
+  const oldAdmin=DB.users.find(u=>u.username==="admin"&&u.password==="admin888"&&u.role==="admin");
+  if(oldAdmin){ oldAdmin.username="yhm"; oldAdmin.password="YG081020"; save(); }
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); cloudSync(); }
+
+/* ===================== Supabase 云端 ===================== */
+const SB_URL="https://ebucmilrvgonfxchkzvx.supabase.co";
+const SB_KEY="sb_publishable_UXuJxsvKNTZLoCgY3yyjbw_Jfe6QD2H";
+const SB=(window.supabase)?window.supabase.createClient(SB_URL,SB_KEY):null;
+let nameToId={}, idToName={};
+function buildNameMaps(){ nameToId={}; idToName={}; (DB.users||[]).forEach(u=>{ if(u.name){nameToId[u.name]=u.id;} idToName[u.id]=u.name; }); }
+const D=v=>v?v:null;   // 空日期转 null
+// 字段映射（前端 camelCase <-> 云端 snake_case）
+function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
+function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:r.created_at||""};}
+function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
+function rowToVisit(r){return{id:r.id,customerId:r.customer_id,type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
+function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
+function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
+
+const _snap={customers:new Map(),visits:new Map(),pool:new Map()};
+async function loadFromCloud(){
+  if(!SB)return;
+  const [pf,cu,vi,po]=await Promise.all([
+    SB.from("profiles").select("*"),
+    SB.from("customers").select("*").limit(5000),
+    SB.from("visits").select("*").limit(10000),
+    SB.from("pool").select("*").limit(10000)
+  ]);
+  DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,username:r.name}));
+  buildNameMaps();
+  DB.customers=(cu.data||[]).map(rowToCust);
+  DB.visits=(vi.data||[]).map(rowToVisit);
+  DB.pool=(po.data||[]).map(rowToPool);
+  _snap.customers=new Map(DB.customers.map(c=>[c.id,JSON.stringify(custToRow(c))]));
+  _snap.visits=new Map(DB.visits.map(v=>[v.id,JSON.stringify(visitToRow(v))]));
+  _snap.pool=new Map(DB.pool.map(p=>[p.id,JSON.stringify(poolToRow(p))]));
+  localStorage.setItem(LS_KEY,JSON.stringify(DB));
+}
+let _syncing=false,_syncPending=false;
+let _lastErr="",_lastErrAt=0;
+async function cloudSync(){
+  if(!SB||!CURRENT)return;
+  if(_syncing){_syncPending=true;return;}
+  _syncing=true;
+  // 公海按公司名去重（去掉空名/重名，防唯一约束冲突）
+  const seen=new Set(); DB.pool=(DB.pool||[]).filter(p=>{const k=(p.name||"").trim(); if(!k||seen.has(k))return false; seen.add(k); return true;});
+  let errMsg=null;
+  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow]]){
+    try{ await syncTable(tbl,arr,fn); }catch(e){ errMsg=errMsg||(e.message||String(e)); console.error("cloudSync "+tbl,e); }
+  }
+  _syncing=false;
+  if(errMsg && (errMsg!==_lastErr || Date.now()-_lastErrAt>15000)){ _lastErr=errMsg; _lastErrAt=Date.now(); toast("⚠️ 云端同步失败："+errMsg); }
+  if(_syncPending){_syncPending=false;cloudSync();}
+}
+async function syncTable(tbl,arr,toRow){
+  const snap=_snap[tbl], now=new Map(), ups=[];
+  arr.forEach(o=>{const row=toRow(o);const j=JSON.stringify(row);now.set(o.id,j);if(snap.get(o.id)!==j)ups.push({o,row});});
+  const dels=[...snap.keys()].filter(id=>!now.has(id));
+  let thrown=null;
+  if(ups.length){
+    const {error}=await SB.from(tbl).upsert(ups.map(u=>u.row));
+    if(error){ // 整批失败→逐条定位；成功的记快照，失败的保留旧快照下次重试
+      for(const u of ups){ const {error:e}=await SB.from(tbl).upsert([u.row]);
+        if(e){ now.set(u.o.id, snap.get(u.o.id)||"__RETRY__"); if(!thrown)thrown=new Error(tbl+"「"+(u.row.name||u.row.title||u.o.id)+"」"+e.message); } }
+    }
+  }
+  for(let i=0;i<dels.length;i+=50){ const {error}=await SB.from(tbl).delete().in("id",dels.slice(i,i+50)); if(error)console.warn("del",tbl,error); }
+  _snap[tbl]=now;
+  if(thrown)throw thrown;
+}
+
+/* ===== 权限 / 可见范围 ===== */
+function isAdmin(){ return CURRENT && CURRENT.role==="admin"; }
+// 潜在客户（按权限）
+function visibleCustomers(){
+  if(!CURRENT) return [];
+  return isAdmin()? DB.customers : DB.customers.filter(c=> c.owner===CURRENT.name || c.isPublic);
+}
+// 公海客户（独立资料库，全员可见；可与潜在客户同时存在同一公司）
+function poolCustomers(){
+  if(!CURRENT) return [];
+  return DB.pool||[];
+}
+function visibleCustIds(){ return new Set(visibleCustomers().map(c=>c.id)); }
+function visibleVisits(){
+  if(isAdmin()) return DB.visits;
+  const ids=visibleCustIds();
+  return DB.visits.filter(v=> !v.customerId || ids.has(v.customerId));
+}
+function uid(){ return (crypto&&crypto.randomUUID)?crypto.randomUUID():('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);})); }
+function nextCode(){ DB.seq=(DB.seq||0)+1; return "CUS-"+String(DB.seq).padStart(3,"0"); }
+
+/* ===================== Helpers ===================== */
+const $=s=>document.querySelector(s);
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+function fillSelect(el,arr,blank){el.innerHTML=(blank?`<option value="">${blank}</option>`:"")+arr.map(o=>`<option>${o}</option>`).join("");}
+// 客户来源固定下拉：8个标准项 + 若记录有旧的非标准来源则保留为额外选项
+function setSourceSelect(sel,val){const el=$(sel);if(!el)return;el.innerHTML=`<option value="">未设置</option>`+SOURCES.map(s=>`<option>${esc(s)}</option>`).join("")+((val&&!SOURCES.includes(val))?`<option>${esc(val)}</option>`:"");el.value=val||"";}
+function pill(text,color){return text?`<span class="pill" style="background:${color}22;color:${color}">${esc(text)}</span>`:"";}
+function today(){return new Date().toISOString().slice(0,10);}
+function daysFromNow(d){if(!d)return null;return Math.round((new Date(d)-new Date(today()))/86400000);}
+function custName(id){const c=DB.customers.find(x=>x.id===id);return c?c.name:"";}
+
+/* ===================== 分页（每页20条） ===================== */
+let PAGE_SIZE=20;
+const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1};
+const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai()};
+function gotoPage(key,n){ PAGE[key]=n; PAGE_RENDER[key](); }
+function setPageSize(key,val){ PAGE_SIZE=parseInt(val)||20; Object.keys(PAGE).forEach(k=>PAGE[k]=1); PAGE_RENDER[key](); }
+
+/* ===================== 勾选 / 批量操作 ===================== */
+const SEL={customers:new Set(), pool:new Set(), visited:new Set(), won:new Set(), mobai:new Set()};
+function toggleSel(view,id,on){ on?SEL[view].add(id):SEL[view].delete(id); PAGE_RENDER[view](); }
+function toggleSelAll(view,ids,on){ ids.forEach(id=>{on?SEL[view].add(id):SEL[view].delete(id);}); PAGE_RENDER[view](); }
+function clearSel(view){ SEL[view].clear(); PAGE_RENDER[view](); }
+function bulkBar(view){
+  const n=SEL[view].size; if(!n)return "";
+  // 管理员：批量分配给已有业务员（公海除外）
+  const assign = (view!=="pool" && isAdmin())
+    ? `<select onchange="bulkAssign('${view}',this.value);this.value=''" style="padding:5px 8px;border:1px solid var(--brand);border-radius:6px;color:var(--brand);font-size:13px;background:#fff"><option value="">👤 分配给…</option>${(DB.users||[]).map(u=>u.name).filter(Boolean).map(nm=>`<option value="${esc(nm)}">${esc(nm)}</option>`).join("")}</select>`
+    : "";
+  const acts = view==="pool"
+    ? `<button class="btn sm" onclick="bulkClaimPool()">捡入到我的潜在客户</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeletePool()">🗑 删除</button>`
+    : `${assign}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`;
+  return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#eef2ff;border-bottom:1px solid var(--line);flex-wrap:wrap">
+    <span style="font-size:13px">已选 <b style="color:var(--brand)">${n}</b> 家</span>${acts}
+    <button class="btn ghost sm" onclick="clearSel('${view}')">取消选择</button></div>`;
+}
+function bulkAssign(view,name){
+  if(!name)return;
+  if(!isAdmin()){toast("仅管理员可分配客户");return;}
+  const sel=SEL[view]; const ids=[...sel]; if(!ids.length)return;
+  if(!confirm("确定把选中的 "+ids.length+" 家客户分配给「"+name+"」？"))return;
+  let n=0; ids.forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(c){c.owner=name;c.updatedAt=new Date().toISOString();n++;} });
+  sel.clear();
+  save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderVisited();renderDash();toast("已把 "+n+" 家分配给「"+name+"」");
+}
+function selCell(view,id){ return `<td style="width:34px;text-align:center"><input type="checkbox" ${SEL[view].has(id)?"checked":""} onclick="event.stopPropagation();toggleSel('${view}','${id}',this.checked)"></td>`; }
+function selHead(view,ids){ const all=ids.length&&ids.every(id=>SEL[view].has(id)); return `<th style="width:34px;text-align:center"><input type="checkbox" ${all?"checked":""} onclick="toggleSelAll('${view}',[${ids.map(id=>`'${id}'`).join(",")}],this.checked)"></th>`; }
+function bulkReleaseToPool(view){
+  view=view||"customers"; const sel=SEL[view]; const ids=[...sel]; if(!ids.length)return;
+  if(!confirm("确定把选中的 "+ids.length+" 家放入公海？将从潜在客户移除。"))return;
+  ids.forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(!c)return;
+    const flog=customerVisitsToNote(id);
+    let p=(DB.pool||[]).find(x=>x.name===c.name);
+    if(!p){ p={id:uid(),origin:"手动放入"}; ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||""); DB.pool.push(p);}
+    if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
+    p.updatedAt=new Date().toISOString();
+    DB.visits=DB.visits.filter(v=>v.customerId!==id);   // 记录已转存公海
+  });
+  DB.customers=DB.customers.filter(c=>!sel.has(c.id)); sel.clear();
+  save();refreshDynamic();renderCustomers();renderPool();renderVisits();renderDash();renderVisited();toast("已放入公海（跟进记录一并带走）");
+}
+function bulkDeleteCustomers(view){
+  view=view||"customers"; const sel=SEL[view]; const n=sel.size; if(!n)return;
+  if(!confirm("确定删除选中的 "+n+" 家客户？此操作不可恢复。"))return;
+  DB.customers=DB.customers.filter(c=>!sel.has(c.id)); sel.clear();
+  save();refreshDynamic();renderCustomers();renderDash();renderVisited();toast("已删除 "+n+" 家");
+}
+function bulkClaimPool(){
+  const ids=[...SEL.pool]; if(!ids.length)return;
+  let added=0;
+  ids.forEach(id=>{ const p=(DB.pool||[]).find(x=>x.id===id); if(!p)return;
+    let c=DB.customers.find(x=>x.name===p.name&&x.owner===CURRENT.name);
+    if(!c){
+      c={id:uid(),code:nextCode(),owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
+      ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c); added++;
+    }
+    if(p.note) poolNoteToVisits(p.note, c.id);   // 公海跟进记录 → 客户跟进记录
+  });
+  DB.pool=(DB.pool||[]).filter(p=>!SEL.pool.has(p.id));   // 从公海移除已捡入的
+  SEL.pool.clear();
+  save();refreshDynamic();renderPool();renderCustomers();renderVisits();renderVisited();renderDash();toast("已捡入 "+added+" 家（含跟进记录，已从公海移除）");
+}
+function bulkDeletePool(){
+  const n=SEL.pool.size; if(!n)return;
+  if(!confirm("确定从公海删除选中的 "+n+" 家？（不影响已捡入的潜在客户）"))return;
+  DB.pool=DB.pool.filter(p=>!SEL.pool.has(p.id)); SEL.pool.clear();
+  save();renderPool();toast("已删除 "+n+" 家");
+}
+function pageSlice(rows,key){
+  const pages=Math.max(1,Math.ceil(rows.length/PAGE_SIZE));
+  if(PAGE[key]>pages)PAGE[key]=pages; if(PAGE[key]<1)PAGE[key]=1;
+  const s=(PAGE[key]-1)*PAGE_SIZE; return rows.slice(s,s+PAGE_SIZE);
+}
+function pageBar(total,key){
+  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  const cur=Math.min(PAGE[key],pages);
+  let nums=[];
+  for(let i=1;i<=pages;i++){ if(i===1||i===pages||Math.abs(i-cur)<=2)nums.push(i); else if(nums[nums.length-1]!=="…")nums.push("…"); }
+  const btns=pages<=1?"":`
+    <button class="btn ghost sm" ${cur<=1?"disabled":""} onclick="gotoPage('${key}',${cur-1})">上一页</button>
+    ${nums.map(n=>n==="…"?'<span style="color:var(--muted);padding:0 2px">…</span>':`<button class="btn ${n===cur?"":"ghost"} sm" onclick="gotoPage('${key}',${n})">${n}</button>`).join("")}
+    <button class="btn ghost sm" ${cur>=pages?"disabled":""} onclick="gotoPage('${key}',${cur+1})">下一页</button>`;
+  const sizeSel=`每页 <select onchange="setPageSize('${key}',this.value)" style="padding:2px 4px;border:1px solid var(--line);border-radius:5px;font-size:12px;background:#fff">${[20,50,100].map(n=>`<option value="${n}" ${n===PAGE_SIZE?"selected":""}>${n}</option>`).join("")}</select> 条`;
+  return `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end;padding:10px 12px;flex-wrap:wrap;border-top:1px solid #f0f1f3">
+    <span style="color:var(--muted);font-size:12px;margin-right:auto">共 ${total} 条 · 第 ${cur}/${pages} 页　${sizeSel}</span>${btns}</div>`;
+}
+
+/* ===================== Navigation ===================== */
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  $("#view-"+b.dataset.view).classList.add("active");
+  if(b.dataset.view==="dash")renderDash();
+  if(b.dataset.view==="customers")renderCustomers();
+  if(b.dataset.view==="pool")renderPool();
+  if(b.dataset.view==="visits")renderVisits();
+  if(b.dataset.view==="visited")renderVisited();
+  if(b.dataset.view==="mobai")renderMobai();
+  if(b.dataset.view==="won")renderWon();
+  if(b.dataset.view==="users")renderUsers();
+});
+
+/* ===================== Auth（Supabase） ===================== */
+async function login(){
+  if(!SB){$("#loginErr").textContent="Supabase 未加载，请检查网络";return;}
+  const email=$("#login_user").value.trim(), pass=$("#login_pass").value;
+  if(!email||!pass){$("#loginErr").textContent="请输入邮箱和密码";return;}
+  $("#loginErr").textContent="登录中…";
+  const {data,error}=await SB.auth.signInWithPassword({email,password:pass});
+  if(error){$("#loginErr").textContent="登录失败："+error.message;return;}
+  try{ await afterAuth(data.user); }catch(e){$("#loginErr").textContent="加载数据失败："+e.message;}
+}
+async function afterAuth(user){
+  const {data:prof}=await SB.from("profiles").select("*").eq("id",user.id).single();
+  CURRENT={id:user.id,name:(prof&&prof.name)||user.email,role:(prof&&prof.role)||"sales"};
+  await loadFromCloud();
+  $("#login_pass").value=""; $("#loginErr").textContent="";
+  enterApp();
+}
+async function logout(){ if(SB)await SB.auth.signOut(); CURRENT=null; showLogin(); }
+function showLogin(){ $("#loginScreen").style.display="flex"; }
+function enterApp(){
+  $("#loginScreen").style.display="none";
+  renderUserBox();
+  // 管理员专属页：用户管理 / 数据管理
+  document.querySelectorAll('nav button[data-admin]').forEach(b=>b.style.display=isAdmin()?"":"none");
+  // 若当前停留在无权限页，则回到仪表盘
+  const active=document.querySelector('nav button.active');
+  if(active && active.dataset.admin && !isAdmin()){ active.classList.remove('active'); document.querySelector('nav button[data-view=dash]').classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); $("#view-dash").classList.add('active'); }
+  refreshDynamic(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderUsers();
+}
+
+/* ===================== Dashboard ===================== */
+function renderDash(){
+  const cs=visibleCustomers();
+  const won=cs.filter(c=>c.stage==="已成交").length;
+  const active=cs.filter(c=>!["已成交","已流失"].includes(c.stage)).length;
+  // upcoming follow ups within 7 days (customers + visits)
+  const ups=collectFollowups().filter(f=>f.days!=null && f.days<=7).length;
+  const poolN=poolCustomers().length;
+  const vset=new Set();
+  visibleVisits().filter(v=>(v.type||"拜访")==="拜访").forEach(v=>vset.add(v.customerId||("name:"+(v.company||custName(v.customerId)))));
+  visibleCustomers().filter(c=>c.visited==="已拜访").forEach(c=>vset.add(c.id));
+  $("#statCards").innerHTML=[
+    ["潜在客户",cs.length,"var(--brand)"],
+    ["公海客户",poolN,"#0ea5e9"],
+    ["已拜访客户",vset.size,"var(--purple)"],
+    ["跟进中客户",active,"var(--yellow)"],
+    ["已成交",won,"var(--green)"],
+    ["7天内待跟进",ups,"var(--orange)"]
+  ].map(([k,v,c])=>`<div class="card"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div></div>`).join("");
+
+  // funnel
+  const fmax=Math.max(1,...STAGES.map(s=>cs.filter(c=>c.stage===s).length));
+  $("#funnel").innerHTML=STAGES.map(s=>{
+    const n=cs.filter(c=>c.stage===s).length;
+    return `<div class="bar-row"><div class="lbl">${s}</div><div class="bar-track">
+      <div class="bar-fill" style="width:${Math.max(n/fmax*100,n?6:0)}%;background:${STAGE_COLOR[s]}">${n||""}</div></div></div>`;
+  }).join("");
+
+  // region
+  drawDist("#regionChart", REGIONS, "#2563eb", c=>c.region);
+  // attr
+  $("#attrChart").innerHTML=ATTRS.map(a=>{
+    const n=cs.filter(c=>c.attr===a).length;
+    const max=Math.max(1,...ATTRS.map(x=>cs.filter(c=>c.attr===x).length));
+    return `<div class="bar-row"><div class="lbl">${a}</div><div class="bar-track">
+      <div class="bar-fill" style="width:${Math.max(n/max*100,n?6:0)}%;background:${ATTR_COLOR[a]}">${n||""}</div></div></div>`;
+  }).join("") || `<div class="empty">暂无数据</div>`;
+
+  // team performance by owner
+  const owners=[...new Set(cs.map(c=>c.owner).filter(Boolean))];
+  if(owners.length){
+    const omax=Math.max(1,...owners.map(o=>cs.filter(c=>c.owner===o).length));
+    $("#teamChart").innerHTML=owners.map(o=>{
+      const list=cs.filter(c=>c.owner===o);
+      const w=list.filter(c=>c.stage==="已成交").length;
+      return `<div class="bar-row"><div class="lbl">${esc(o)}</div><div class="bar-track">
+        <div class="bar-fill" style="width:${Math.max(list.length/omax*100,8)}%;background:#0ea5e9">${list.length} 家${w?'｜成交'+w:''}</div></div></div>`;
+    }).join("");
+  } else $("#teamChart").innerHTML=`<div class="empty">暂无负责人数据（在客户里填写「负责人」即可按业务员统计）</div>`;
+
+  // followups
+  const fu=collectFollowups().filter(f=>f.days!=null).sort((a,b)=>a.days-b.days).slice(0,12);
+  $("#followups").innerHTML = fu.length? fu.map(f=>{
+    const cls=f.days<0?"overdue":(f.days<=3?"soon":"");
+    const tag=f.days<0?`逾期${-f.days}天`:(f.days===0?"今天":`${f.days}天后`);
+    return `<div class="followup-item"><span class="date ${cls}">${f.date}</span>
+      <span style="flex:1">${esc(f.label)}</span>
+      <span class="${cls}" style="font-weight:600">${tag}</span></div>`;
+  }).join("") : `<div class="empty">暂无待跟进</div>`;
+}
+function drawDist(sel,keys,color,getter){
+  const cs=visibleCustomers();
+  const counts=keys.map(k=>cs.filter(c=>getter(c)===k).length);
+  const max=Math.max(1,...counts);
+  const rows=keys.map((k,i)=>counts[i]?`<div class="bar-row"><div class="lbl">${k}</div><div class="bar-track">
+    <div class="bar-fill" style="width:${Math.max(counts[i]/max*100,6)}%;background:${color}">${counts[i]}</div></div></div>`:"").join("");
+  $(sel).innerHTML=rows||`<div class="empty">暂无数据</div>`;
+}
+function collectFollowups(){
+  const list=[];
+  visibleCustomers().forEach(c=>{ if(c.nextFollow) list.push({date:c.nextFollow,days:daysFromNow(c.nextFollow),label:"客户｜"+c.name+(c.contact?"（"+c.contact+"）":"")}); });
+  visibleVisits().forEach(v=>{ if(v.nextFollow) list.push({date:v.nextFollow,days:daysFromNow(v.nextFollow),label:(v.type||"拜访")+"｜"+(custName(v.customerId)||v.title)}); });
+  return list;
+}
+
+/* ===================== Customers ===================== */
+let custView="list";
+function renderCustomers(){
+  const q=($("#custSearch").value||"").toLowerCase();
+  const fo=$("#filterOwner").value, fs=$("#filterStage").value, fr=$("#filterRegion").value, fa=$("#filterAttr").value;
+  let rows=visibleCustomers().filter(c=>{
+    if(fo&&(c.owner||"")!==fo)return false;
+    if(fs&&c.stage!==fs)return false;
+    if(fr&&c.region!==fr)return false;
+    if(fa&&c.attr!==fa)return false;
+    if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
+    return true;
+  });
+  if(custView==="list"){ $("#custList").style.display=""; $("#custKanban").style.display="none"; renderCustTable(rows.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交")); }
+  else { $("#custList").style.display="none"; $("#custKanban").style.display="flex"; renderKanban(rows); }
+}
+let sortKey="recency",sortDir=-1;
+// 最近活动时间：取「最后编辑 / 最后跟进拜访 / 建立日期」三者中最新的，用于各列表默认置顶
+function lastFollowDate(cid){ let m=""; (DB.visits||[]).forEach(v=>{ if(v.customerId===cid && (v.date||"")>m) m=v.date; }); return m; }
+function recency(c){ let x=c.updatedAt||""; const cd=c.createDate||""; const f=lastFollowDate(c.id); if(cd>x)x=cd; if(f>x)x=f; return x; }
+function poolRecency(p){ let x=p.updatedAt||""; const cd=p.createDate||""; if(cd>x)x=cd; return x; }
+function renderCustTable(rows){
+  rows=rows.slice().sort((a,b)=>{
+    if(sortKey==="recency"){ const x=recency(a),y=recency(b); return x>y?-1:x<y?1:0; }
+    let x=a[sortKey]||"",y=b[sortKey]||""; return (x>y?1:x<y?-1:0)*sortDir;
+  });
+  if(!rows.length){$("#custList").innerHTML=`<div class="empty">暂无客户，点击右上角「＋ 新增客户」或到「数据管理」导入 / 载入示例</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"customers");
+  const pageIds=pageRows.map(c=>c.id);
+  const cols=[["code","编号"],["name","公司名字"],["owner","负责人"],["stage","阶段"],["attr","属性"],["region","区域"],
+             ["contact","联系人"],["phone","电话"],["product","主营产品"],["nextFollow","下次跟进"]];
+  $("#custList").innerHTML=bulkBar("customers")+`<table><thead><tr>${selHead("customers",pageIds)}${cols.map(c=>`<th data-k="${c[0]}">${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>${
+    pageRows.map(c=>{
+      const d=daysFromNow(c.nextFollow);
+      const fcls=d!=null&&d<0?"overdue":(d!=null&&d<=3?"soon":"");
+      return `<tr>
+        ${selCell("customers",c.id)}
+        <td style="color:var(--muted)">${esc(c.code)}</td>
+        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
+        <td>${pill(c.stage,STAGE_COLOR[c.stage])}</td>
+        <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
+        <td>${esc(c.region||"")}</td>
+        <td>${esc(c.contact||"")}</td>
+        <td>${esc(c.phone||"")}</td>
+        <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
+        <td class="${fcls}">${esc(c.nextFollow||"")}</td>
+        <td><div class="row-act">
+          <button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>
+          <button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button>
+        </div></td></tr>`;
+    }).join("")
+  }</tbody></table>`+pageBar(total,"customers");
+  $("#custList").querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1;} renderCustomers();
+  });
+}
+function renderKanban(rows){
+  $("#custKanban").innerHTML=STAGES.map(s=>{
+    const items=rows.filter(c=>c.stage===s);
+    return `<div class="kcol" data-stage="${s}">
+      <h4><span>${pill(s,STAGE_COLOR[s])}</span><span class="cnt">${items.length}</span></h4>
+      ${items.map(c=>`<div class="kcard" draggable="true" data-id="${c.id}" onclick="showDetail('${c.id}')">
+        <div class="name">${esc(c.name)}</div>
+        <div class="meta">${pill(c.attr,ATTR_COLOR[c.attr])}${c.owner?pill(c.owner,"#0ea5e9"):''}${c.region?'<span>'+esc(c.region)+'</span>':''}</div>
+      </div>`).join("")}
+    </div>`;
+  }).join("");
+  // drag and drop
+  let dragId=null;
+  $("#custKanban").querySelectorAll(".kcard").forEach(card=>{
+    card.addEventListener("dragstart",e=>{dragId=card.dataset.id;e.stopPropagation();});
+  });
+  $("#custKanban").querySelectorAll(".kcol").forEach(col=>{
+    col.addEventListener("dragover",e=>{e.preventDefault();col.classList.add("drag-over");});
+    col.addEventListener("dragleave",()=>col.classList.remove("drag-over"));
+    col.addEventListener("drop",e=>{e.preventDefault();col.classList.remove("drag-over");
+      const c=DB.customers.find(x=>x.id===dragId);
+      if(c){c.stage=col.dataset.stage;c.updatedAt=new Date().toISOString();save();renderCustomers();renderMobai();renderWon();renderDash();toast("已移动到「"+col.dataset.stage+"」");}
+    });
+  });
+}
+
+/* ===================== Customer modal ===================== */
+let editCustId=null;
+// 负责人下拉：列出所有已有用户；current 若不在名单里也补进去，避免丢选中
+function fillOwnerSelect(sel,current,blank){
+  blank=(blank===undefined)?"（未分配 / 公共）":blank;
+  const names=[...new Set((DB.users||[]).map(u=>u.name).filter(Boolean).concat(current?[current]:[]))];
+  const el=$(sel); if(!el)return;
+  el.innerHTML=`<option value="">${blank}</option>`+names.map(n=>`<option value="${esc(n)}"${n===current?" selected":""}>${esc(n)}</option>`).join("");
+  el.value=current||"";
+}
+// 跟进对象：客户方对接人（取该客户的联系人 / 外贸部联系人，可留空）
+function fillTargetSelect(cid,current,inputSel,listSel){
+  inputSel=inputSel||"#lf_target"; listSel=listSel||"#lf_targetList";
+  const c=DB.customers.find(x=>x.id===cid)||{};
+  const names=[...new Set([c.contact,c.tradeContact].filter(Boolean))];
+  const dl=$(listSel); if(dl)dl.innerHTML=names.map(n=>`<option value="${esc(n)}"></option>`).join("");
+  const el=$(inputSel); if(el)el.value=current||c.contact||"";
+}
+function openCustomer(id,defaultStage){
+  editCustId=id||null;
+  const c=id?DB.customers.find(x=>x.id===id):{};
+  $("#custModalTitle").textContent=id?"编辑客户":"新增客户";
+  $("#custDeleteBtn").style.display=id?"":"none";
+  $("#c_name").value=c.name||"";
+  const ownerNow=c.owner||(id?"":(CURRENT?CURRENT.name:""));
+  fillOwnerSelect("#c_owner",ownerNow);
+  // 业务员不能改负责人（默认自己）；管理员可从已有用户里指定
+  $("#c_owner").disabled=!isAdmin();
+  $("#c_public").checked=!!c.isPublic;
+  $("#c_stage").value=c.stage||defaultStage||"潜在客户"; $("#c_attr").value=c.attr||"";
+  $("#c_region").value=c.region||""; $("#c_visited").value=c.visited||"未拜访"; setSourceSelect("#c_source",c.source||"");
+  $("#c_contact").value=c.contact||""; $("#c_position").value=c.position||""; $("#c_phone").value=c.phone||"";
+  $("#c_tradeContact").value=c.tradeContact||""; $("#c_tradePhone").value=c.tradePhone||"";
+  $("#c_product").value=c.product||""; $("#c_address").value=c.address||""; $("#c_platformUrl").value=c.platformUrl||"";
+  $("#c_siteUrl").value=c.siteUrl||""; $("#c_createDate").value=c.createDate||today(); $("#c_nextFollow").value=c.nextFollow||"";
+  $("#c_peerCase").value=c.peerCase||""; $("#c_note").value=c.note||"";
+  checkDupHint();
+  openModal("custModal");
+}
+function saveCustomer(){
+  const name=$("#c_name").value.trim();
+  if(!name){toast("请填写公司名字");return;}
+  const wasNew=!editCustId;
+  // 新建时查重：提示已在谁的潜在客户 / 是否在公海；在公海可直接捡入
+  if(!editCustId){
+    const dupCust=DB.customers.filter(c=>c.name===name);
+    const dupPool=(DB.pool||[]).find(p=>p.name===name);
+    if(dupCust.length||dupPool){
+      let msg="⚠️ 系统中已存在「"+name+"」：\n";
+      if(dupCust.length){const os=[...new Set(dupCust.map(c=>c.owner||"（未分配）"))];msg+="· 已在潜在客户中，负责人："+os.join("、")+"\n";}
+      if(dupPool)msg+="· 该客户在公海客户中\n";
+      if(dupPool){
+        if(confirm(msg+"\n是否直接从公海「捡入」到你的潜在客户？\n（确定＝捡入领取；取消＝返回，不新建）")){ closeModal("custModal"); claimPool(dupPool.id); return; }
+        return;
+      }
+      if(!confirm(msg+"\n仍要新建一条重复记录吗？")) return;
+    }
+  }
+  const ownerVal=isAdmin()?$("#c_owner").value.trim():(editCustId?DB.customers.find(x=>x.id===editCustId).owner:(CURRENT?CURRENT.name:""));
+  const data={name,owner:ownerVal,isPublic:$("#c_public").checked,stage:$("#c_stage").value,attr:$("#c_attr").value,region:$("#c_region").value,
+    visited:$("#c_visited").value,source:$("#c_source").value,contact:$("#c_contact").value,
+    position:$("#c_position").value,phone:$("#c_phone").value,tradeContact:$("#c_tradeContact").value,tradePhone:$("#c_tradePhone").value,
+    product:$("#c_product").value,address:$("#c_address").value,platformUrl:$("#c_platformUrl").value,siteUrl:$("#c_siteUrl").value,
+    createDate:$("#c_createDate").value,nextFollow:$("#c_nextFollow").value,peerCase:$("#c_peerCase").value,
+    note:$("#c_note").value};
+  data.updatedAt=new Date().toISOString();
+  if(editCustId){Object.assign(DB.customers.find(x=>x.id===editCustId),data);}
+  else{DB.customers.push(Object.assign({id:uid(),code:nextCode()},data));}
+  save();refreshDynamic();closeModal("custModal");
+  if(wasNew){ const tgt=(data.stage==="陌拜客户")?"mobai":"customers"; const b=document.querySelector('nav button[data-view='+tgt+']'); if(b)b.click(); }
+  renderCustomers();renderMobai();renderWon();renderDash();toast("已保存");
+}
+function deleteCustomer(){
+  if(!editCustId)return;
+  if(!confirm("确定删除该客户？其拜访记录的关联将清空。"))return;
+  DB.customers=DB.customers.filter(c=>c.id!==editCustId);
+  DB.visits.forEach(v=>{if(v.customerId===editCustId)v.customerId=null;});
+  save();closeModal("custModal");renderCustomers();toast("已删除");
+}
+// 新建客户时实时查重提示
+function checkDupHint(){
+  const el=$("#c_dupHint"); if(!el)return;
+  if(editCustId){el.innerHTML="";return;}
+  const name=$("#c_name").value.trim();
+  if(!name){el.innerHTML="";return;}
+  const exactCust=DB.customers.filter(c=>c.name===name);
+  const exactPool=(DB.pool||[]).find(p=>p.name===name);
+  if(exactCust.length||exactPool){
+    const parts=[];
+    if(exactCust.length){const os=[...new Set(exactCust.map(c=>c.owner||"（未分配）"))];parts.push("已在潜在客户 · 负责人："+os.join("、"));}
+    if(exactPool)parts.push("在公海客户中");
+    el.innerHTML=`<span style="color:var(--red)">⚠️ 已存在：${esc(parts.join("；"))}</span>`+(exactPool?` <span class="link" onclick="claimFromHint('${exactPool.id}')">立即捡入</span>`:"");
+    return;
+  }
+  if(name.length>=4){
+    const sim=[...new Set([...DB.customers.map(c=>c.name),...(DB.pool||[]).map(p=>p.name)])].filter(n=>n&&n!==name&&(n.includes(name)||name.includes(n))).slice(0,3);
+    if(sim.length){el.innerHTML=`<span style="color:var(--orange)">可能已存在相似客户：${esc(sim.join("、"))}</span>`;return;}
+  }
+  el.innerHTML=`<span style="color:var(--green)">✓ 系统中暂无此客户</span>`;
+}
+function claimFromHint(poolId){ closeModal("custModal"); claimPool(poolId); }
+
+/* ===================== Detail ===================== */
+function showDetail(id){
+  const c=DB.customers.find(x=>x.id===id);if(!c)return;
+  $("#detailTitle").textContent=c.name;
+  const vs=DB.visits.filter(v=>v.customerId===id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const kv=(k,v)=>v?`<div class="k">${k}</div><div>${esc(v)}</div>`:"";
+  $("#detailBody").innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="color:var(--muted)">${esc(c.code)}</span>
+      ${pill(c.stage,STAGE_COLOR[c.stage])}${pill(c.attr,ATTR_COLOR[c.attr])}
+      ${pill(c.visited,c.visited==="已拜访"?"#16a34a":"#dc2626")}
+      ${c.isPublic?pill("公共客户","#0ea5e9"):""}
+    </div>
+    <div class="kv">
+      ${kv("负责人",c.owner)}${kv("区域",c.region)}
+      ${kv("客户来源",c.source)}${kv("联系人(A)",c.contact)}
+      ${kv("职位",c.position)}${kv("电话",c.phone)}
+      ${kv("外贸部联系人",c.tradeContact)}${kv("外贸部电话",c.tradePhone)}
+      ${kv("主营产品",c.product)}${kv("客户地址",c.address)}
+      ${c.platformUrl?`<div class="k">平台网址</div><div><a href="${esc(c.platformUrl)}" target="_blank">${esc(c.platformUrl)}</a></div>`:""}
+      ${c.siteUrl?`<div class="k">独立站</div><div><a href="${esc(c.siteUrl)}" target="_blank">${esc(c.siteUrl)}</a></div>`:""}
+      ${kv("同行案例",c.peerCase)}${kv("建立日期",c.createDate)}${kv("下次跟进",c.nextFollow)}
+      ${kv("备注",c.note)}
+    </div>
+    <div class="detail-section">
+      <h4 style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span>📍 跟进 / 拜访记录（${vs.length}）</span>
+        <span style="display:flex;gap:6px">
+          <button class="btn sm" onclick="showLogForm('${id}','拜访')">＋ 新增拜访</button>
+          <button class="btn ghost sm" onclick="showFollowForm('${id}')">＋ 跟进记录</button>
+        </span>
+      </h4>
+      <div id="logForm" style="display:none;background:#f5f7ff;border:1px solid #c7d2fe;border-radius:10px;padding:14px;margin-bottom:14px">
+        <input type="hidden" id="lf_id">
+        <div class="form-grid">
+          <div class="field"><label>类型</label><select id="lf_type"><option>拜访</option><option>跟进</option></select></div>
+          <div class="field"><label>日期</label><input id="lf_date" type="date"></div>
+          <div class="field"><label>拜访人 / 跟进人</label><select id="lf_visitor"></select></div>
+          <div class="field"><label>跟进对象（客户方对接人）</label><input id="lf_target" list="lf_targetList" placeholder="可下拉选择，也可直接输入"><datalist id="lf_targetList"></datalist></div>
+          <div class="field"><label>跟进结果</label><select id="lf_result"></select></div>
+          <div class="field full"><label>内容（拜访情况 / 跟进内容）</label><textarea id="lf_situation" placeholder="例如：电话沟通了独立站建站意向，客户要求下周报价…"></textarea></div>
+          <div class="field full" style="border-top:1px dashed #c7d2fe;padding-top:8px"><label style="color:#4f46e5;font-weight:700">客户评估（ANMT）— 新增拜访时必填</label></div>
+          <div class="field full"><label>A · 决策权 *（是否决策人 / 股权 / 能否拍板）</label><input id="lf_A" placeholder="如：非独立决策人，需与合伙人商量"></div>
+          <div class="field full"><label>M · 资金实力 *（工厂 / 规模 / 营收 / 预算）</label><input id="lf_M" placeholder="如：有自己工厂，业务员3人，年营收约2.5亿"></div>
+          <div class="field full"><label>N · 需求 *（痛点 / 关注点 / 现状）</label><input id="lf_N" placeholder="如：在意效果与ROI，关注AI赛道是否适合"></div>
+          <div class="field full"><label>T · 采购时机 *（预计成交 / 决策时间）</label><input id="lf_T" placeholder="如：本月内 / 18号前回复"></div>
+          <div class="field"><label>下次跟进</label><input id="lf_next" type="date"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+          <button class="btn ghost sm" onclick="cancelLog()">取消</button>
+          <button class="btn sm" onclick="saveLog('${id}')">保存</button>
+        </div>
+      </div>
+      <div id="logFollowForm" style="display:none;background:#f5f7ff;border:1px solid #c7d2fe;border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <div style="flex:1;min-width:150px"><label style="font-size:12px;color:var(--muted)">跟进人</label><select id="ff_visitor" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px"></select></div>
+          <div style="flex:1;min-width:150px"><label style="font-size:12px;color:var(--muted)">跟进对象</label><input id="ff_target" list="ff_targetList" placeholder="可下拉可手输" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px"><datalist id="ff_targetList"></datalist></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <input id="ff_content" placeholder="填写本次跟进内容，回车或点「添加」" style="flex:1;padding:9px;border:1px solid var(--line);border-radius:6px" onkeydown="if(event.key==='Enter'){event.preventDefault();addFollowLog('${id}');}">
+          <button class="btn sm" onclick="addFollowLog('${id}')">＋ 添加</button>
+          <button class="btn ghost sm" onclick="cancelFollow()">取消</button>
+        </div>
+      </div>
+      <div class="visit-log">${vs.length? vs.map(v=>`<div class="vitem">
+        <div style="color:${v.type==='拜访'?'#7c3aed':'var(--brand)'};font-size:13px;font-weight:600;margin-bottom:3px">${esc(v.date||"")}${v.visitor?' '+esc(v.visitor):''}${v.decider?' <span style="color:var(--muted);font-weight:400">→ '+esc(v.decider)+'</span>':''} ${pill(v.type||'跟进',(v.type==='拜访')?'#7c3aed':'#0ea5e9')} ${pill(v.result,RESULT_COLOR[v.result])}</div>
+        <div>${esc(v.situation||"")}</div>
+        ${(v.A||v.M||v.N||v.T)?`<div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.7;background:#f5f7ff;border-radius:6px;padding:6px 9px">
+          ${v.A?`<div><b style="color:#4f46e5">A</b> 决策权：${esc(v.A)}</div>`:``}
+          ${v.M?`<div><b style="color:#4f46e5">M</b> 资金：${esc(v.M)}</div>`:``}
+          ${v.N?`<div><b style="color:#4f46e5">N</b> 需求：${esc(v.N)}</div>`:``}
+          ${v.T?`<div><b style="color:#4f46e5">T</b> 时机：${esc(v.T)}</div>`:``}
+        </div>`:``}
+        ${v.nextFollow?`<div style="font-size:12px;color:var(--muted);margin-top:2px">下次跟进：${esc(v.nextFollow)}</div>`:``}
+        <div style="margin-top:6px;display:flex;gap:6px"><button class="btn ghost sm" onclick="showLogForm('${id}',null,'${v.id}')">编辑</button><button class="btn ghost sm" onclick="deleteLog('${id}','${v.id}')">删除</button></div>
+      </div>`).join("") : `<p class="hint">暂无记录，点击上方「新增拜访 / 跟进记录」直接添加。</p>`}</div>
+    </div>`;
+  $("#detailEditBtn").onclick=()=>{closeModal("detailModal");openCustomer(id);};
+  const pb=$("#detailPoolBtn"); pb.style.display="";
+  pb.textContent="🌊 放入公海"; pb.onclick=()=>releaseToPool(id);
+  openModal("detailModal");
+}
+
+/* ===================== Visits ===================== */
+function renderVisits(){
+  const q=($("#visitSearch").value||"").toLowerCase();
+  const fr=$("#filterResult").value;
+  let rows=visibleVisits().filter(v=>{
+    if(fr&&v.result!==fr)return false;
+    if(q){const hay=[v.title,custName(v.customerId),v.visitor,v.decider].join(" ").toLowerCase();if(!hay.includes(q))return false;}
+    return true;
+  }).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  if(!rows.length){$("#visitList").innerHTML=`<div class="empty">暂无拜访记录</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"visits");
+  $("#visitList").innerHTML=`<table><thead><tr>
+    <th>拜访日期</th><th>主题</th><th>关联客户</th><th>拜访人</th><th>决策人</th><th>结果</th><th>下次跟进</th><th></th>
+    </tr></thead><tbody>${pageRows.map(v=>{
+      const d=daysFromNow(v.nextFollow);const fcls=d!=null&&d<0?"overdue":(d!=null&&d<=3?"soon":"");
+      return `<tr>
+        <td>${esc(v.date||"")}</td>
+        <td>${pill(v.type||'拜访',(v.type==='跟进')?'#0ea5e9':'#7c3aed')} <span class="link" onclick="openVisit('${v.id}')">${esc(v.title)}</span></td>
+        <td>${v.customerId?`<span class="link" onclick="showDetail('${v.customerId}')">${esc(custName(v.customerId))}</span>`:'<span style="color:var(--muted)">-</span>'}</td>
+        <td>${esc(v.visitor||"")}</td>
+        <td>${esc(v.decider||"")}</td>
+        <td>${pill(v.result,RESULT_COLOR[v.result])}</td>
+        <td class="${fcls}">${esc(v.nextFollow||"")}</td>
+        <td><div class="row-act"><button class="btn ghost sm" onclick="openVisit('${v.id}')">编辑</button></div></td>
+      </tr>`;
+    }).join("")}</tbody></table>`+pageBar(total,"visits");
+}
+let editVisitId=null;
+function openVisit(id,presetCust){
+  editVisitId=id||null;
+  const v=id?DB.visits.find(x=>x.id===id):{};
+  $("#visitModalTitle").textContent=id?"编辑拜访":"新增拜访";
+  $("#visitDeleteBtn").style.display=id?"":"none";
+  // 关联客户：可输入搜索的下拉（仅自己的+公共客户；管理员全部）
+  $("#vCustList").innerHTML=visibleCustomers().map(c=>`<option value="${esc(c.name)}">`).join("");
+  const cid=v.customerId||presetCust||"";
+  const cc=cid?DB.customers.find(x=>x.id===cid):null;
+  $("#v_customer").value=cc?cc.name:"";
+  $("#v_title").value=v.title||""; $("#v_date").value=v.date||today(); $("#v_visitor").value=v.visitor||"";
+  $("#v_decider").value=v.decider||""; $("#v_position").value=v.position||""; $("#v_phone").value=v.phone||"";
+  $("#v_address").value=v.address||""; $("#v_situation").value=v.situation||""; $("#v_result").value=v.result||"";
+  $("#v_nextFollow").value=v.nextFollow||"";
+  // auto-fill from customer if new
+  if(!id&&cid){const c=DB.customers.find(x=>x.id===cid);if(c){if(!$("#v_phone").value)$("#v_phone").value=c.phone||"";if(!$("#v_address").value)$("#v_address").value=c.address||"";if(!$("#v_decider").value)$("#v_decider").value=c.contact||"";if(!$("#v_title").value)$("#v_title").value="拜访"+c.name;}}
+  openModal("visitModal");
+}
+function saveVisit(){
+  const title=$("#v_title").value.trim();
+  if(!title){toast("请填写拜访主题");return;}
+  const cName=$("#v_customer").value.trim();
+  const matched=cName?visibleCustomers().find(c=>c.name===cName):null;
+  const data={title,customerId:matched?matched.id:null,company:matched?"":cName,date:$("#v_date").value,visitor:$("#v_visitor").value,
+    decider:$("#v_decider").value,position:$("#v_position").value,phone:$("#v_phone").value,
+    address:$("#v_address").value,situation:$("#v_situation").value,result:$("#v_result").value,
+    nextFollow:$("#v_nextFollow").value};
+  if(editVisitId){Object.assign(DB.visits.find(x=>x.id===editVisitId),data);}
+  else{DB.visits.push(Object.assign({id:uid()},data));}
+  // mark customer visited
+  if(data.customerId){const c=DB.customers.find(x=>x.id===data.customerId);if(c){c.visited="已拜访";c.updatedAt=new Date().toISOString();}}
+  save();closeModal("visitModal");renderVisits();renderVisited();renderCustomers();renderDash();toast("已保存");
+}
+function deleteVisit(){
+  if(!editVisitId)return;
+  if(!confirm("确定删除该拜访记录？"))return;
+  DB.visits=DB.visits.filter(v=>v.id!==editVisitId);
+  save();closeModal("visitModal");renderVisits();toast("已删除");
+}
+
+/* ===== 详情内：内联跟进 / 拜访记录（不跳转） ===== */
+function showLogForm(cid,type,visitId){
+  const f=$("#logForm"); if(!f)return;
+  fillSelect($("#lf_result"),RESULTS,"未设置");
+  const v=visitId?(DB.visits.find(x=>x.id===visitId)||{}):{};
+  $("#lf_id").value=visitId||"";
+  $("#lf_type").value=v.type||type||"拜访";
+  $("#lf_date").value=v.date||today();
+  fillOwnerSelect("#lf_visitor", v.visitor||(CURRENT?CURRENT.name:""), "（选择跟进人）");
+  fillTargetSelect(cid, v.decider||"");
+  $("#lf_result").value=v.result||"";
+  $("#lf_situation").value=v.situation||"";
+  $("#lf_A").value=v.A||""; $("#lf_M").value=v.M||""; $("#lf_N").value=v.N||""; $("#lf_T").value=v.T||"";
+  $("#lf_next").value=v.nextFollow||"";
+  f.style.display="block";
+  f.scrollIntoView({behavior:"smooth",block:"nearest"});
+  $("#lf_situation").focus();
+}
+function cancelLog(){const f=$("#logForm");if(f)f.style.display="none";}
+// 简洁跟进表单（公海同款卡片模式）：内容 + 跟进人 + 跟进对象
+function showFollowForm(cid){
+  const f=$("#logFollowForm"); if(!f)return;
+  $("#ff_content").value="";
+  fillOwnerSelect("#ff_visitor", CURRENT?CURRENT.name:"", "（选择跟进人）");
+  fillTargetSelect(cid, "", "#ff_target", "#ff_targetList");
+  cancelLog();
+  f.style.display="block"; f.scrollIntoView({behavior:"smooth",block:"nearest"}); $("#ff_content").focus();
+}
+function cancelFollow(){const f=$("#logFollowForm");if(f)f.style.display="none";}
+function addFollowLog(cid){
+  const content=($("#ff_content").value||"").trim(); if(!content){toast("请填写跟进内容");return;}
+  const c=DB.customers.find(x=>x.id===cid);
+  DB.visits.push({id:uid(),type:"跟进",customerId:cid,date:today(),visitor:$("#ff_visitor").value,decider:$("#ff_target").value,
+    situation:content,title:"跟进｜"+(c?c.name:"")+" "+today()});
+  if(c)c.updatedAt=new Date().toISOString();
+  save();showDetail(cid);renderVisits();renderVisited();renderCustomers();renderDash();toast("已添加跟进记录");
+}
+function saveLog(cid){
+  const id=$("#lf_id").value, type=$("#lf_type").value;
+  const c=DB.customers.find(x=>x.id===cid);
+  const A=$("#lf_A").value.trim(), M=$("#lf_M").value.trim(), N=$("#lf_N").value.trim(), T=$("#lf_T").value.trim();
+  if(type==="拜访"&&(!A||!M||!N||!T)){toast("新增拜访需填写 A / M / N / T 四项评估");return;}
+  const title=(type==="跟进"?"跟进":"拜访")+"｜"+(c?c.name:"")+" "+$("#lf_date").value;
+  const data={type,title,date:$("#lf_date").value,visitor:$("#lf_visitor").value,decider:$("#lf_target").value,
+    result:$("#lf_result").value,situation:$("#lf_situation").value,A,M,N,T,nextFollow:$("#lf_next").value,customerId:cid};
+  if(id){Object.assign(DB.visits.find(x=>x.id===id),data);}
+  else{Object.assign(data,{id:uid(),phone:c?c.phone:"",address:c?c.address:"",position:c?c.position:""});DB.visits.push(data);}
+  if(c){ if(type==="拜访")c.visited="已拜访"; c.updatedAt=new Date().toISOString(); }
+  save();showDetail(cid);renderVisits();renderVisited();renderCustomers();renderDash();
+  toast("已保存"+type+"记录");
+}
+function deleteLog(cid,vid){
+  if(!confirm("确定删除该记录？"))return;
+  DB.visits=DB.visits.filter(v=>v.id!==vid);
+  save();showDetail(cid);renderVisits();renderDash();toast("已删除");
+}
+
+/* ===================== Modal util ===================== */
+function openModal(id){$("#"+id).classList.add("show");}
+function closeModal(id){$("#"+id).classList.remove("show");}
+document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("mousedown",e=>{if(e.target===m)m.classList.remove("show");}));
+
+/* ===================== CSV import / export ===================== */
+const CSV_FIELDS=[["code","编号"],["name","公司名字"],["owner","负责人"],["stage","客户阶段"],["attr","客户属性"],["region","区域"],
+  ["visited","是否拜访"],["contact","联系人"],["position","职位"],["phone","电话"],
+  ["tradeContact","外贸部联系人"],["tradePhone","外贸部联系电话"],["product","主营产品"],
+  ["address","客户地址"],["source","客户来源"],["platformUrl","平台网址"],["siteUrl","独立站网址"],
+  ["peerCase","同行案例"],["createDate","建立日期"],["nextFollow","下次跟进"],["note","备注"]];
+// 兼容 Notion / YG 导出表头的别名（全角括号、冒号、不同叫法）
+const HEADER_ALIASES={
+  "name":["公司名称","公司"],"owner":["业务员","跟进人","负责业务员"],
+  "contact":["联系人（A)","联系人(A)","联系人（A）","老板","决策人"],
+  "attr":["客户属性 "],"source":["客户来源 ","资料来源"],
+  "peerCase":["同行案例：","同行案例:"],"createDate":["建立日期 ","创建日期"],
+  "tradeContact":["外贸联系人"],"tradePhone":["外贸联系电话","外贸部电话"]
+};
+function findCol(header,key,label){
+  let i=header.indexOf(label); if(i>=0)return i;
+  const al=HEADER_ALIASES[key]||[]; for(const a of al){i=header.indexOf(a);if(i>=0)return i;}
+  return -1;
+}
+function csvCell(s){s=s==null?"":String(s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function toCSV(headers,rows){return "﻿"+[headers.join(",")].concat(rows.map(r=>r.map(csvCell).join(","))).join("\r\n");}
+function downloadFile(name,content,type){const b=new Blob([content],{type:type||"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}
+function exportCustomersCSV(){
+  const rows=DB.customers.map(c=>CSV_FIELDS.map(f=>c[f[0]]||""));
+  downloadFile("客户库.csv",toCSV(CSV_FIELDS.map(f=>f[1]),rows));toast("已导出客户 CSV");
+}
+function exportVisitsCSV(){
+  const h=["拜访主题","关联客户","拜访日期","拜访人","决策人","职位","电话","公司地址","拜访情况","跟进结果","下次跟进"];
+  const rows=DB.visits.map(v=>[v.title,custName(v.customerId),v.date,v.visitor,v.decider,v.position,v.phone,v.address,v.situation,v.result,v.nextFollow]);
+  downloadFile("拜访记录.csv",toCSV(h,rows));toast("已导出拜访 CSV");
+}
+function downloadTemplate(){
+  const sample=["示例公司有限公司","跟进中","A+M+","慈溪","未拜访","张三","A+","13800000000","家用电器","××路1号","阿里巴巴","","","","2026-06-01","2026-07-01","备注示例"];
+  const headers=CSV_FIELDS.filter(f=>f[0]!=="code").map(f=>f[1]);
+  downloadFile("客户导入模板.csv",toCSV(headers,[sample]));toast("模板已下载");
+}
+function parseCSV(text){
+  text=text.replace(/^﻿/,"");
+  const rows=[];let row=[],cur="",q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}
+    else{if(ch==='"')q=true;else if(ch===','){row.push(cur);cur="";}
+      else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+      else if(ch==='\r'){}else cur+=ch;}
+  }
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==""));
+}
+/* 读取表格文件：支持 .xlsx/.xls（Excel）与 .csv（自动识别 UTF-8 / GBK 编码） */
+function readTableFile(file){
+  return new Promise((resolve,reject)=>{
+    const rd=new FileReader();
+    rd.onerror=()=>reject(new Error("文件读取失败"));
+    rd.onload=()=>{
+      try{
+        const buf=rd.result;
+        if(/\.xlsx?$|\.xls$/i.test(file.name)){
+          if(typeof XLSX==="undefined")return reject(new Error("Excel 解析库未加载，请检查网络后重试"));
+          const wb=XLSX.read(buf,{type:"array"});
+          const ws=wb.Sheets[wb.SheetNames[0]];
+          const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""}).map(r=>r.map(c=>String(c==null?"":c)));
+          return resolve(rows.filter(r=>r.some(c=>String(c).trim()!=="")));
+        }
+        // CSV：先按 UTF-8 解码，若乱码或找不到关键表头则回退 GBK
+        let text=new TextDecoder("utf-8").decode(buf);
+        const looksBad=t=>{const first=(t.split(/\r?\n/)[0]||"");return t.includes("�")||!(first.includes("公司")||first.includes("名称")||first.includes("name"));};
+        if(looksBad(text)){
+          try{ const gbk=new TextDecoder("gb18030").decode(buf); if(!looksBad(gbk))text=gbk; else if(text.includes("�"))text=gbk; }catch(_){}
+        }
+        resolve(parseCSV(text));
+      }catch(err){reject(err);}
+    };
+    rd.readAsArrayBuffer(file);
+  });
+}
+/* 日期归一化：2026/6/1、2026.6.1、2026年6月1日 → 2026-06-01；无效 → 空 */
+function normDate(s){
+  s=String(s||"").trim(); if(!s)return "";
+  const m=s.match(/(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+  if(m)return m[1]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[3]).padStart(2,"0");
+  return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:"";
+}
+$("#importFile").addEventListener("change",async e=>{
+  const file=e.target.files[0];if(!file)return;
+  {
+    try{
+      const rows=await readTableFile(file);
+      if(rows.length<2){toast("文件为空或无数据行");return;}
+      const header=rows[0].map(h=>h.trim());
+      const map={};CSV_FIELDS.forEach(f=>{const i=findCol(header,f[0],f[1]);if(i>=0)map[f[0]]=i;});
+      if(map.name==null){toast("未找到「公司名字」列，请检查表头");return;}
+      const existing=new Set(DB.customers.map(c=>c.name));
+      let added=0,skip=0;
+      for(let i=1;i<rows.length;i++){
+        const r=rows[i];let name=(r[map.name]||"").trim().replace(/\*/g,"");if(!name)continue;
+        if(existing.has(name)){skip++;continue;}
+        const obj={id:uid(),code:nextCode()};
+        CSV_FIELDS.forEach(f=>{if(f[0]==="code")return;const idx=map[f[0]];if(idx!=null)obj[f[0]]=(r[idx]||"").trim();});
+        obj.name=name;
+        if(obj.visited==="已见访")obj.visited="已拜访"; if(obj.visited==="未见访")obj.visited="未拜访";
+        if(!STAGES.includes(obj.stage))obj.stage="潜在客户";
+        if(!obj.visited)obj.visited="未拜访";
+        obj.createDate=normDate(obj.createDate); obj.nextFollow=normDate(obj.nextFollow);
+        if(!obj.owner) obj.owner=CURRENT?CURRENT.name:"";   // 未指定负责人 → 归导入人
+        DB.customers.push(obj);existing.add(name);added++;
+      }
+      save();refreshDynamic();renderCustomers();renderDash();toast("导入完成：新增 "+added+" 家"+(skip?"，跳过重复 "+skip+" 家":""));
+    }catch(err){toast("导入失败："+err.message);}
+    e.target.value="";
+  }
+});
+$("#poolImportFile").addEventListener("change",async e=>{
+  const file=e.target.files[0];if(!file)return;
+  try{
+    const rows=await readTableFile(file);
+    const origin=file.name.replace(/\.(csv|xlsx?|xls)$/i,"").replace(/\s+[0-9a-f]{32}$/i,"").trim();
+    const res=importPoolCSV(rows, origin);
+    if(res.error){toast(res.error);} else { save();renderPool();toast("公海导入完成：新增 "+res.added+" 家"+(res.updated?"，补全 "+res.updated+" 家":"")+(res.skip?"，跳过 "+res.skip+" 家":"")); }
+  }catch(err){toast("导入失败："+err.message);}
+  e.target.value="";
+});
+
+/* ===================== Backup ===================== */
+function exportBackup(){downloadFile("CRM备份_"+today()+".json",JSON.stringify(DB,null,2),"application/json");toast("备份已导出");}
+$("#restoreFile").addEventListener("change",e=>{
+  const file=e.target.files[0];if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{try{const d=JSON.parse(rd.result);
+    if(!d.customers)throw new Error("格式不正确");
+    if(!confirm("恢复备份将覆盖当前全部数据，确定？"))return;
+    DB=Object.assign({customers:[],visits:[],seq:0},d);save();initSelects();renderDash();renderCustomers();renderVisits();toast("已恢复备份");
+  }catch(err){toast("恢复失败："+err.message);}e.target.value="";};
+  rd.readAsText(file,"utf-8");
+});
+
+/* ===================== Sample / clear ===================== */
+function loadSample(){
+  if(DB.customers.length && !confirm("将追加示例数据，继续？"))return;
+  const samples=[
+    {name:"宁波示例进出口有限公司",stage:"跟进中",attr:"A+M+",region:"慈溪",visited:"已拜访",contact:"张总",position:"A+",phone:"13800000001",product:"家用电器",address:"宁波市慈溪市××工业园1号",source:"阿里巴巴",platformUrl:"https://example.1688.com",siteUrl:"https://example.com",peerCase:"已合作同类客户A、B",createDate:"2026-06-01",nextFollow:addDays(2),note:"对独立站建站有意向，需二次报价"},
+    {name:"余姚某塑料制品厂",stage:"潜在客户",attr:"A-M+",region:"余姚",visited:"未拜访",contact:"李经理",position:"外贸经理",phone:"13800000002",product:"塑料注塑件",address:"宁波市余姚市××路66号",source:"展会",createDate:"2026-06-20",nextFollow:addDays(-1),note:"展会换名片，待电话回访"},
+    {name:"北仑精密机械有限公司",stage:"已报价",attr:"A+M-",region:"北仑",visited:"已拜访",contact:"王厂长",position:"小老板",phone:"13800000003",product:"精密五金件",address:"宁波市北仑区××大道88号",source:"转介绍",createDate:"2026-05-12",nextFollow:addDays(5),note:"已报价待回复"},
+    {name:"慈溪小家电出口商",stage:"已成交",attr:"A+M+",region:"慈溪",visited:"已拜访",contact:"陈总",position:"A",phone:"13800000004",product:"小家电",address:"宁波市慈溪市观海卫镇",source:"官网",createDate:"2026-03-08",note:"已签年度合作"}
+  ];
+  samples.forEach(s=>DB.customers.push(Object.assign({id:uid(),code:nextCode()},s)));
+  const c0=DB.customers[DB.customers.length-4];
+  DB.visits.push({id:uid(),title:"首次上门拜访—"+c0.name,customerId:c0.id,date:"2026-06-15",visitor:"业务一部",decider:"张总",position:"A+",phone:c0.phone,address:c0.address,situation:"面谈顺利，客户对独立站建站及推广感兴趣，现以阿里平台为主。",result:"有意向",nextFollow:addDays(2)});
+  save();renderDash();renderCustomers();renderVisits();toast("示例数据已载入");
+}
+function addDays(n){const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+
+/* 一键导入 YG 团队数据（姚子泓潜在客户） */
+function loadYG(){
+  if(typeof window.YG_SEED==="undefined"){toast("未找到 yg-data.js，请确认它与本页面在同一文件夹");return;}
+  const seed=window.YG_SEED, owner=seed.owner||"姚子泓";
+  const existing=new Set(DB.customers.map(c=>c.name));
+  let added=0,skip=0;
+  seed.customers.forEach(s=>{
+    if(existing.has(s.name)){skip++;return;}
+    DB.customers.push(Object.assign({
+      id:uid(),code:nextCode(),owner:owner,stage:"潜在客户",source:s.custSource||seed.source||""
+    },s,{source:s.custSource||seed.source||""}));
+    existing.add(s.name);added++;
+  });
+  save();refreshDynamic();renderDash();renderCustomers();
+  toast("YG 同步完成：新增 "+added+" 家"+(skip?"，跳过重复 "+skip+" 家":"")+"（负责人："+owner+"）");
+}
+
+/* 从字符串里提取干净的网址 */
+function cleanUrl(s){ if(!s)return""; s=String(s);
+  const m=s.match(/https?:\/\/[^\s)\]，、）]+/); if(m)return m[0];
+  const m2=s.match(/www\.[^\s)\]，、）]+/); return m2?("http://"+m2[0]):""; }
+
+/* 一键导入 YG 拜访记录：写入拜访时间线 + 标记/建档「已拜访客户」 */
+function loadYGVisits(){
+  if(typeof window.YG_VISITS==="undefined"){toast("未找到 yg-visits.js，请确认它与本页面在同一文件夹");return;}
+  const recs=window.YG_VISITS.records;
+  let custNew=0,custUpd=0,visAdd=0;
+  recs.forEach(r=>{
+    let c=DB.customers.find(x=>x.name===r.company);
+    if(!c){
+      c={id:uid(),code:nextCode(),name:r.company,owner:r.owner||"",attr:r.attr||"",region:"",
+         contact:r.decider||r.otherContact||"",phone:r.deciderPhone||r.otherPhone||"",
+         product:r.product||"",address:r.address||"",source:r.source||"",
+         platformUrl:cleanUrl(r.platform),siteUrl:cleanUrl(r.site),
+         tradeContact:r.otherContact||"",tradePhone:r.otherPhone||"",
+         stage:"已拜访",visited:"已拜访",isPublic:false};
+      DB.customers.push(c);custNew++;
+    } else {
+      c.visited="已拜访";
+      if(!["已成交","已流失"].includes(c.stage)) c.stage="已拜访";
+      if(!c.owner&&r.owner) c.owner=r.owner;
+      custUpd++;
+    }
+    // 仅防止「同一条记录」重复导入（公司+日期+拜访人），不同记录/同公司多次拜访均保留，不做公司去重
+    const dup=DB.visits.some(v=>v._yg&&v.customerId===c.id&&v.date===r.date&&(v.visitor||"")===(r.visitor||"")&&(v.company||"")===r.company);
+    if(!dup){
+      const sit=[r.notes,r.signed?("是否签收："+r.signed):"",r.otherContact?("其他联系人："+r.otherContact+(r.otherPhone?" "+r.otherPhone:"")):"",r.source?("客户来源："+r.source):""].filter(Boolean).join("\n");
+      DB.visits.push({id:uid(),_yg:true,type:"拜访",title:"拜访｜"+r.company,date:r.date,
+        company:r.company,owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",
+        visitor:r.visitor||"",decider:r.decider||"",phone:r.deciderPhone||"",address:r.address||"",
+        situation:sit,result:(r.signed==="已签收"?"已成交":""),nextFollow:"",customerId:c.id});
+      visAdd++;
+    }
+  });
+  save();refreshDynamic();renderDash();renderCustomers();renderVisits();renderVisited();
+  toast("YG拜访记录同步完成：拜访 "+visAdd+" 条；客户新建 "+custNew+"、更新 "+custUpd+"（已标记已拜访）");
+}
+
+/* 已拜访客户类目 —— 按公司去重，每家一行（取最近一次拜访 + 拜访次数） */
+function renderVisited(){
+  if(!CURRENT)return;
+  const q=($("#visitedSearch").value||"").toLowerCase(), fo=$("#visitedOwner").value;
+  const lastVisit=c=>DB.visits.filter(v=>v.customerId===c.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+  let rows=visibleCustomers().filter(c=>c.visited==="已拜访");
+  const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
+  const cur=$("#visitedOwner").value;
+  $("#visitedOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
+  $("#visitedOwner").value=cur;
+  if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
+  if(q)rows=rows.filter(c=>{const lv=lastVisit(c)||{};return [c.name,c.contact,c.phone,c.product,lv.visitor||""].join(" ").toLowerCase().includes(q);});
+  rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
+  if(!rows.length){$("#visitedList").innerHTML=`<div class="empty">暂无已拜访客户。到「数据管理 → 导入 YG 拜访记录」即可同步，或在客户详情里新增拜访。</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"visited"), pageIds=pageRows.map(c=>c.id);
+  const cols=["公司名字","负责人","阶段","属性","区域","联系人","电话"];
+  $("#visitedList").innerHTML=bulkBar("visited")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家已拜访客户</div><table><thead><tr>${selHead("visited",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最近拜访</th><th>拜访次数</th><th></th></tr></thead><tbody>${
+    pageRows.map(c=>{const vs=DB.visits.filter(v=>v.customerId===c.id);const lv=lastVisit(c)||{};
+      return `<tr>
+        ${selCell("visited",c.id)}
+        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
+        <td>${pill(c.stage,STAGE_COLOR[c.stage])}</td>
+        <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
+        <td>${esc(c.region||"")}</td>
+        <td>${esc(c.contact||"")}</td>
+        <td>${esc(c.phone||"")}</td>
+        <td>${esc(lv.date||"")}</td>
+        <td>${vs.length}</td>
+        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+      </tr>`;}).join("")
+  }</tbody></table>`+pageBar(total,"visited");
+}
+
+/* 成交客户类目 —— 阶段=已成交 的客户，展示模式同潜在客户 */
+function renderWon(){
+  if(!CURRENT)return;
+  const q=($("#wonSearch").value||"").toLowerCase(), fo=$("#wonOwner").value;
+  let rows=visibleCustomers().filter(c=>c.stage==="已成交");
+  const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
+  const cur=$("#wonOwner").value;
+  $("#wonOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
+  $("#wonOwner").value=cur;
+  if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
+  if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
+  if(!rows.length){$("#wonList").innerHTML=`<div class="empty">暂无成交客户。把客户「阶段」改为「已成交」即会归到这里。</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"won"), pageIds=pageRows.map(c=>c.id);
+  const cols=["公司名字","负责人","属性","区域","联系人","电话","建立日期"];
+  $("#wonList").innerHTML=bulkBar("won")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家成交客户</div><table><thead><tr>${selHead("won",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>主营产品</th><th></th></tr></thead><tbody>${
+    pageRows.map(c=>{
+      return `<tr>
+        ${selCell("won",c.id)}
+        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
+        <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
+        <td>${esc(c.region||"")}</td>
+        <td>${esc(c.contact||"")}</td>
+        <td>${esc(c.phone||"")}</td>
+        <td>${esc(c.createDate||"")}</td>
+        <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
+        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+      </tr>`;}).join("")
+  }</tbody></table>`+pageBar(total,"won");
+}
+
+function renderMobai(){
+  if(!CURRENT)return;
+  const q=($("#mobaiSearch").value||"").toLowerCase(), fo=$("#mobaiOwner").value;
+  let rows=visibleCustomers().filter(c=>c.stage==="陌拜客户");
+  const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
+  const cur=$("#mobaiOwner").value;
+  $("#mobaiOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
+  $("#mobaiOwner").value=cur;
+  if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
+  if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
+  if(!rows.length){$("#mobaiList").innerHTML=`<div class="empty">暂无陌拜客户。点右上角「＋ 新增陌拜客户」，或把客户「阶段」改为「陌拜客户」即会归到这里。</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"mobai"), pageIds=pageRows.map(c=>c.id);
+  const cols=["公司名字","负责人","属性","区域","联系人","电话","建立日期"];
+  $("#mobaiList").innerHTML=bulkBar("mobai")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家陌拜客户</div><table><thead><tr>${selHead("mobai",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>主营产品</th><th></th></tr></thead><tbody>${
+    pageRows.map(c=>{
+      return `<tr>
+        ${selCell("mobai",c.id)}
+        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
+        <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
+        <td>${esc(c.region||"")}</td>
+        <td>${esc(c.contact||"")}</td>
+        <td>${esc(c.phone||"")}</td>
+        <td>${esc(c.createDate||"")}</td>
+        <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
+        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+      </tr>`;}).join("")
+  }</tbody></table>`+pageBar(total,"mobai");
+}
+
+/* 刷新「负责人 / 来源」动态下拉与筛选 */
+function refreshDynamic(){
+  const base=CURRENT?visibleCustomers():DB.customers;
+  const owners=[...new Set(base.map(c=>c.owner).filter(Boolean))].sort();
+  const sources=[...SOURCES,...new Set(base.map(c=>c.source).filter(Boolean))];
+  const cur=$("#filterOwner").value;
+  $("#filterOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
+  $("#filterOwner").value=cur;
+  $("#ownerList").innerHTML=owners.map(o=>`<option value="${esc(o)}">`).join("");
+  $("#sourceList").innerHTML=[...new Set(sources)].map(s=>`<option value="${esc(s)}">`).join("");
+}
+
+/* ===================== 公海客户（独立资料库） ===================== */
+function poolFields(){return ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate","note","origin"];}
+function renderPool(){
+  if(!CURRENT)return;
+  const q=($("#poolSearch").value||"").toLowerCase(), fr=$("#poolRegion").value, fa=$("#poolAttr").value;
+  let rows=poolCustomers().slice();
+  if(fr)rows=rows.filter(c=>c.region===fr);
+  if(fa)rows=rows.filter(c=>c.attr===fa);
+  if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.origin].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>{const x=poolRecency(a),y=poolRecency(b);return x>y?-1:x<y?1:0;});
+  if(!rows.length){$("#poolList").innerHTML=`<div class="empty">公海暂无客户。到「数据管理 → 导入 YG 公共资料区」一键导入，或在客户详情里点「放入公海」。</div>`;return;}
+  const mine=new Set(DB.customers.filter(c=>c.owner===CURRENT.name).map(c=>c.name));
+  const total=rows.length, pageRows=pageSlice(rows,"pool");
+  const pageIds=pageRows.map(c=>c.id);
+  $("#poolList").innerHTML=bulkBar("pool")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家公海客户（已按公司去重；点「捡入」领入你的潜在客户，捡入后从公海移除）</div><table><thead><tr>${selHead("pool",pageIds)}<th>公司名字</th><th>区域</th><th>属性</th><th>联系人</th><th>电话</th><th>主营产品</th><th></th></tr></thead><tbody>${
+    pageRows.map(c=>`<tr>
+      ${selCell("pool",c.id)}
+      <td class="namecol"><span class="link" onclick="openPool('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span>${(c.note&&c.note.trim())?` <span title="有跟进记录（${c.note.split("\n").filter(s=>s.trim()).length} 条）" style="cursor:default">💬</span>`:''}</td>
+      <td>${esc(c.region||"")}</td>
+      <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
+      <td>${esc(c.contact||"")}</td>
+      <td>${esc(c.phone||"")}</td>
+      <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
+      <td><div style="display:flex;gap:6px;align-items:center">${mine.has(c.name)?'<span style="color:var(--muted);font-size:12px">已捡入</span>':`<button class="btn sm" onclick="claimPool('${c.id}')">捡入</button>`}<button class="btn ghost sm" onclick="openPool('${c.id}')">编辑</button></div></td>
+    </tr>`).join("")
+  }</tbody></table>`+pageBar(total,"pool");
+}
+// 捡入（领取）：把公海客户归入「我的潜在客户」，并从公海移除
+/* ===== 跟进/拜访记录随客户流转：公海(note 文本) <-> 潜在(visits) 双向互转 ===== */
+function customerVisitsToNote(cid){
+  const vs=DB.visits.filter(v=>v.customerId===cid).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  return vs.map(v=>{
+    const who=[v.visitor||"", v.decider?("→ "+v.decider):""].filter(Boolean).join(" ");
+    const head=[v.date||"", v.type||"跟进", who].filter(Boolean).join(" ");
+    let body=v.situation||"";
+    const extra=[v.result?("结果:"+v.result):"", v.A?("A:"+v.A):"", v.M?("M:"+v.M):"", v.N?("N:"+v.N):"", v.T?("T:"+v.T):"", v.nextFollow?("下次:"+v.nextFollow):""].filter(Boolean).join("；");
+    if(extra) body=(body?body+"｜":"")+extra;
+    return `【${head}】${body}`;
+  }).join("\n");
+}
+function poolNoteToVisits(noteText,cid){
+  (noteText||"").split("\n").map(s=>s.trim()).filter(Boolean).forEach(l=>{
+    const m=l.match(/^【(.+?)】([\s\S]*)$/);
+    const head=m?m[1]:"", raw=m?m[2]:l;
+    const dm=head.match(/\d{4}-\d{2}-\d{2}/); const date=dm?dm[0]:today();
+    const type=/拜访/.test(head)?"拜访":"跟进";
+    let rest=head.replace(/\d{4}-\d{2}-\d{2}/,"").replace(/拜访|跟进/g,"").trim();
+    let visitor=rest, decider="";
+    const am=rest.match(/^(.*?)→\s*(.*)$/); if(am){visitor=am[1].trim();decider=am[2].trim();}
+    const parts=raw.split("｜");
+    const rec={id:uid(),type,customerId:cid,date,visitor,decider,situation:(parts[0]||""),title:type+"｜"+date};
+    if(parts[1]){ parts[1].split("；").forEach(kv=>{ const mm=kv.match(/^(结果|A|M|N|T|下次)\s*[:：]\s*([\s\S]+)$/); if(!mm)return; const k=mm[1],val=mm[2].trim(); if(k==="结果")rec.result=val; else if(k==="下次")rec.nextFollow=val; else rec[k]=val; }); }
+    DB.visits.push(rec);
+  });
+}
+function claimPool(poolId){
+  const p=(DB.pool||[]).find(x=>x.id===poolId);if(!p)return;
+  let c=DB.customers.find(x=>x.name===p.name && x.owner===CURRENT.name);
+  if(!c){
+    c={id:uid(),code:nextCode(),owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
+    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||"");
+    DB.customers.push(c);
+  }
+  if(p.note) poolNoteToVisits(p.note, c.id);   // 公海跟进记录 → 客户跟进记录
+  DB.pool=(DB.pool||[]).filter(x=>x.id!==poolId);   // 从公海移除
+  save();refreshDynamic();renderPool();renderCustomers();renderVisits();renderVisited();renderDash();
+  toast("已捡入「"+p.name+"」到你的潜在客户（含跟进记录）");
+}
+// 放入公海：把潜在客户移入公海资料库（去重），并从潜在客户中移除（不再保留）
+function releaseToPool(id){
+  const c=DB.customers.find(x=>x.id===id);if(!c)return;
+  if(!confirm("确定把「"+c.name+"」放入公海？放入后将从你的潜在客户中移除，团队任何人都可在公海捡入。"))return;
+  const flog=customerVisitsToNote(id);
+  let p=(DB.pool||[]).find(x=>x.name===c.name);
+  if(!p){
+    p={id:uid(),origin:"手动放入"};
+    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||"");
+    DB.pool.push(p);
+  }
+  if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
+  p.updatedAt=new Date().toISOString();
+  DB.visits=DB.visits.filter(v=>v.customerId!==id);   // 记录已转存公海
+  DB.customers=DB.customers.filter(x=>x.id!==id);   // 从潜在客户移除
+  save();refreshDynamic();closeModal("detailModal");renderPool();renderCustomers();renderVisits();renderDash();renderVisited();
+  toast("已放入公海（跟进记录一并带走）");
+}
+
+/* 公海客户编辑（与潜在客户一致的编辑体验） */
+let editPoolId=null, poolNote="";
+// 跟进记录：一条条时间戳记录，存进公海记录的 note 字段（云端已映射，持久化）
+function renderPoolFollow(){
+  const box=$("#p_followLog"); if(!box)return;
+  const lines=(poolNote||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){box.innerHTML=`<div style="color:var(--muted)">暂无跟进记录</div>`;return;}
+  box.innerHTML=lines.map(l=>{
+    const m=l.match(/^【(.+?)】([\s\S]*)$/);
+    const head=m?m[1]:"", body=m?m[2]:l;
+    return `<div style="padding:7px 9px;margin-bottom:6px;background:#f6f8ff;border:1px solid var(--line);border-radius:6px">
+      ${head?`<div style="color:var(--brand);font-size:12px;margin-bottom:2px">${esc(head)}</div>`:""}
+      <div>${esc(body)}</div></div>`;
+  }).join("");
+}
+function addPoolFollow(){
+  const inp=$("#p_followInput"); const txt=(inp.value||"").trim().replace(/\n/g," "); if(!txt)return;
+  const who=CURRENT?CURRENT.name:""; const head=today()+(who?" "+who:"");
+  poolNote=`【${head}】${txt}`+(poolNote?"\n"+poolNote:"");   // 新记录置顶
+  inp.value=""; renderPoolFollow();
+  // 编辑已存在的公海客户时立即持久化，无需等「保存」
+  if(editPoolId){ const p=(DB.pool||[]).find(x=>x.id===editPoolId); if(p){p.note=poolNote;p.updatedAt=new Date().toISOString();save();renderPool();} }
+}
+function openPool(id){
+  editPoolId=id||null;
+  const p=id?(DB.pool||[]).find(x=>x.id===id):{};
+  poolNote=(p&&p.note)||""; if($("#p_followInput"))$("#p_followInput").value=""; renderPoolFollow();
+  $("#poolModalTitle").textContent=id?"编辑公海客户":"新增公海客户";
+  $("#poolDeleteBtn").style.display=id?"":"none";
+  $("#poolClaimBtn").style.display=id?"":"none";
+  $("#p_name").value=p.name||""; $("#p_attr").value=p.attr||""; $("#p_region").value=p.region||""; $("#p_origin").value=p.origin||"";
+  $("#p_contact").value=p.contact||""; $("#p_phone").value=p.phone||""; $("#p_tradeContact").value=p.tradeContact||""; $("#p_tradePhone").value=p.tradePhone||"";
+  $("#p_product").value=p.product||""; $("#p_address").value=p.address||""; $("#p_platformUrl").value=p.platformUrl||""; $("#p_siteUrl").value=p.siteUrl||"";
+  setSourceSelect("#p_source",p.source||""); $("#p_createDate").value=p.createDate||"";
+  $("#poolClaimBtn").onclick=()=>{ if(editPoolId){closeModal("poolModal");claimPool(editPoolId);} };
+  openModal("poolModal");
+}
+function savePool(){
+  const name=$("#p_name").value.trim(); if(!name){toast("请填写公司名字");return;}
+  if((DB.pool||[]).some(p=>p.name===name && p.id!==editPoolId)){toast("公海已有同名公司");return;}
+  const data={name,attr:$("#p_attr").value,region:$("#p_region").value,origin:$("#p_origin").value,
+    contact:$("#p_contact").value,phone:$("#p_phone").value,tradeContact:$("#p_tradeContact").value,tradePhone:$("#p_tradePhone").value,
+    product:$("#p_product").value,address:$("#p_address").value,platformUrl:$("#p_platformUrl").value,siteUrl:$("#p_siteUrl").value,
+    source:$("#p_source").value,createDate:$("#p_createDate").value,note:poolNote};
+  data.updatedAt=new Date().toISOString();
+  if(editPoolId){Object.assign(DB.pool.find(x=>x.id===editPoolId),data);}
+  else{DB.pool.push(Object.assign({id:uid()},data));}
+  save();closeModal("poolModal");renderPool();toast("已保存");
+}
+function deletePool(){
+  if(!editPoolId)return;
+  if(!confirm("确定从公海删除该客户？（不影响已捡入的潜在客户）"))return;
+  DB.pool=DB.pool.filter(p=>p.id!==editPoolId);
+  save();closeModal("poolModal");renderPool();toast("已删除");
+}
+// 一键导入 YG 公共资料区样本到公海
+function loadYGPool(){
+  if(typeof window.YG_POOL==="undefined"){toast("未找到 yg-pool.js，请确认它与本页面在同一文件夹");return;}
+  const recs=window.YG_POOL.records; let added=0,skip=0;
+  const have=new Set([...(DB.pool||[]).map(p=>p.name), ...DB.customers.map(c=>c.name)]); // 公海+潜在客户去重
+  recs.forEach(r=>{ if(!r.name||have.has(r.name)){skip++;return;} DB.pool.push(Object.assign({id:uid()},r)); have.add(r.name); added++; });
+  save();renderPool();toast("公海资料导入完成：新增 "+added+" 家"+(skip?"，跳过重复 "+skip+" 家":""));
+}
+// 公海 CSV 导入（适配公共资料区各表表头）
+const POOL_ALIASES={
+  name:["公司名字","名称","公司名称","公司"],
+  contact:["联系人（A)","联系人(A)","决策人（A)","决策人(A）","决策人(A)","老板","股东"],
+  phone:["电话","决策人（A)电话","决策人(A)电话","联系电话","股东联系方式"],
+  attr:["客户属性"], region:["区域"], product:["主营产品"],
+  address:["客户地址","公司地址","地址"], source:["客户来源","资料来源"],
+  platformUrl:["平台网址","阿里网址","平台"], siteUrl:["独立站网址","独立站"],
+  tradeContact:["外贸部联系人","外贸部经理","其他联系人"],
+  tradePhone:["外贸部联系电话","外贸部经理人联系电话","其他联系人电话"],
+  peerCase:["同行案例：","同行案例:","同行案例"], createDate:["建立日期","日期","创建日期"]
+};
+function importPoolCSV(input,originName){
+  const rows=Array.isArray(input)?input:parseCSV(input); if(rows.length<2)return {added:0,skip:0};
+  const header=rows[0].map(h=>String(h||"").trim());
+  const col={}; Object.keys(POOL_ALIASES).forEach(k=>{for(const a of POOL_ALIASES[k]){const i=header.indexOf(a);if(i>=0){col[k]=i;break;}}});
+  if(col.name==null)return {error:"未找到「公司名字 / 名称」列"};
+  const potentialNames=new Set(DB.customers.map(c=>c.name)); // 与潜在客户重复则跳过
+  const poolByName={}; (DB.pool||[]).forEach(p=>poolByName[p.name]=p);
+  const grabPhone=s=>{const m=String(s||"").match(/1[3-9]\d{9}/);return m?m[0]:"";};
+  let added=0,updated=0,skip=0;
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]; const name=(r[col.name]||"").trim().replace(/\*/g,""); if(!name){continue;}
+    if(potentialNames.has(name)){skip++;continue;}
+    const f={};
+    Object.keys(POOL_ALIASES).forEach(k=>{if(k!=="name"&&col[k]!=null)f[k]=String(r[col[k]]||"").trim();});
+    if(!ATTRS.includes(f.attr))f.attr=f.attr||"";
+    f.createDate=normDate(f.createDate);
+    // 智能补全联系人/电话：优先取决策人栏"姓名 手机号"里的号，其次联系电话栏，再兜底外贸/其他联系人
+    f.phone = grabPhone(f.contact) || grabPhone(f.phone) || grabPhone(f.tradePhone) || grabPhone(f.tradeContact) || f.phone || "";
+    if(!f.contact) f.contact = f.tradeContact || "";
+    if(f.contact) f.contact = f.contact.replace(/1[3-9]\d{9}/g,"").replace(/\s{2,}/g," ").trim();
+    if(!f.tradePhone) f.tradePhone = grabPhone(f.tradeContact) || "";
+    const ex=poolByName[name];
+    if(ex){ // 已存在：补全空字段（不覆盖已有内容）
+      let changed=false;
+      ["contact","phone","attr","region","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","createDate"].forEach(k=>{ if(!ex[k]&&f[k]){ex[k]=f[k];changed=true;} });
+      changed?updated++:skip++;
+    } else {
+      const p=Object.assign({id:uid(),name,origin:originName||"CSV导入"},f);
+      DB.pool.push(p); poolByName[name]=p; added++;
+    }
+  }
+  return {added,updated,skip};
+}
+
+/* ===================== 用户管理（管理员） ===================== */
+function renderUserBox(){
+  if(!CURRENT){$("#userBox").innerHTML="";return;}
+  $("#userBox").innerHTML=`<span style="font-size:13px;color:var(--muted)">${esc(CURRENT.name)}（${isAdmin()?"YG主管":"业务员"}）</span>
+    <button class="btn ghost sm" onclick="logout()">退出</button>`;
+}
+function renderUsers(){
+  if(!isAdmin()){ $("#userList").innerHTML=`<div class="empty">仅管理员（YG主管）可访问</div>`; return; }
+  $("#userList").innerHTML=`<table><thead><tr><th>姓名</th><th>登录用户名</th><th>角色</th><th>名下客户</th><th></th></tr></thead><tbody>${
+    DB.users.map(u=>{
+      const cnt=DB.customers.filter(c=>c.owner===u.name).length;
+      return `<tr>
+        <td style="font-weight:600">${esc(u.name)}</td>
+        <td>${esc(u.username)}</td>
+        <td>${pill(u.role==='admin'?'YG主管':'业务员', u.role==='admin'?'#7c3aed':'#0ea5e9')}</td>
+        <td>${cnt}</td>
+        <td><div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="openUser('${u.id}')">编辑</button>${(CURRENT&&u.id!==CURRENT.id)?`<button class="btn ghost sm" style="color:var(--red)" onclick="delUser('${u.id}','${esc(u.name)}')">删除</button>`:'<span style="color:var(--muted);font-size:12px;align-self:center">（当前登录）</span>'}</div></td>
+      </tr>`;
+    }).join("")
+  }</tbody></table>`;
+}
+let editUserId=null;
+function openUser(id){
+  if(!isAdmin())return;
+  editUserId=id||null;
+  const u=id?DB.users.find(x=>x.id===id):{};
+  $("#userModalTitle").textContent=id?"编辑成员（姓名/角色）":"新增业务员账号";
+  $("#userDeleteBtn").style.display="none";
+  $("#u_name").value=u.name||""; $("#u_username").value=""; $("#u_password").value=""; $("#u_role").value=u.role||"sales";
+  // 新增时填邮箱+密码建账号；编辑时只改姓名/角色（登录凭据不在这改）
+  const uu=$("#u_username").parentElement, up=$("#u_password").parentElement;
+  if(uu)uu.style.display=id?"none":""; if(up)up.style.display=id?"none":"";
+  openModal("userModal");
+}
+async function saveUser(){
+  const name=$("#u_name").value.trim(), role=$("#u_role").value;
+  if(!name){toast("请填写姓名");return;}
+  if(editUserId){ // 编辑：更新档案
+    const old=DB.users.find(x=>x.id===editUserId), oldName=old.name;
+    const {error}=await SB.from("profiles").update({name,role}).eq("id",editUserId);
+    if(error){toast("保存失败："+error.message);return;}
+    Object.assign(old,{name,role}); buildNameMaps();
+    if(oldName!==name){ DB.customers.forEach(c=>{if(c.owner===oldName)c.owner=name;}); save(); }
+    if(CURRENT&&CURRENT.id===editUserId){CURRENT=old;renderUserBox();}
+    closeModal("userModal");renderUsers();refreshDynamic();renderCustomers();toast("已保存");
+    return;
+  }
+  // 新增账号：用独立客户端注册，避免顶掉当前管理员登录
+  const email=$("#u_username").value.trim(), pass=$("#u_password").value;
+  if(!email||!pass){toast("请填写登录邮箱和密码");return;}
+  if(pass.length<6){toast("密码至少 6 位");return;}
+  toast("正在创建账号…");
+  const tmp=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+  const {data,error}=await tmp.auth.signUp({email,password:pass,options:{data:{name}}});
+  if(error){toast("创建失败："+error.message);return;}
+  const nid=data.user&&data.user.id;
+  if(!nid){toast("创建失败：未返回用户");return;}
+  await new Promise(r=>setTimeout(r,500));
+  const {error:e2}=await SB.from("profiles").update({name,role}).eq("id",nid);
+  if(e2)console.warn("set profile",e2);
+  const pf=await SB.from("profiles").select("*");
+  DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,username:r.name})); buildNameMaps();
+  closeModal("userModal");renderUsers();refreshDynamic();
+  toast("账号已创建："+email+"（"+name+" · "+(role==="admin"?"主管":"业务员")+"）");
+}
+function deleteUser(){ toast("请在用户列表里点该成员的「删除」按钮"); }
+async function delUser(id,name){
+  if(!isAdmin())return;
+  if(CURRENT&&CURRENT.id===id){toast("不能删除当前登录的自己");return;}
+  const cnt=DB.customers.filter(c=>c.owner===name).length;
+  if(!confirm("确定删除账号「"+name+"」？\n删除后该账号无法再登录。"+(cnt?"\n其名下 "+cnt+" 家客户不会被删除，会保留（可由管理员转交他人）。":"")))return;
+  toast("正在删除…");
+  const {data:{session}}=await SB.auth.getSession();
+  let r,j;
+  try{
+    r=await fetch(SB_URL+"/functions/v1/admin-user",{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+(session?session.access_token:"")},body:JSON.stringify({action:"delete",userId:id})});
+    j=await r.json().catch(()=>({}));
+  }catch(e){toast("删除失败："+e.message);return;}
+  if(!r.ok||j.error){toast("删除失败："+(j.error||("HTTP "+r.status)));return;}
+  DB.users=DB.users.filter(u=>u.id!==id); buildNameMaps(); renderUsers(); refreshDynamic();
+  toast("已删除账号："+name);
+}
+function clearAll(){if(!confirm("确定清空全部数据？此操作不可恢复（建议先导出备份）。"))return;
+  DB={customers:[],visits:[],seq:0};save();refreshDynamic();renderDash();renderCustomers();renderVisits();toast("已清空");}
+
+/* ===================== Init ===================== */
+function initSelects(){
+  fillSelect($("#c_stage"),STAGES);fillSelect($("#c_attr"),ATTRS,"未设置");fillSelect($("#c_region"),REGIONS,"未设置");
+  fillSelect($("#c_position"),POSITIONS,"未设置");
+  fillSelect($("#p_attr"),ATTRS,"未设置");fillSelect($("#p_region"),REGIONS,"未设置");
+  fillSelect($("#v_position"),POSITIONS,"未设置");fillSelect($("#v_result"),RESULTS,"未设置");
+  fillSelect($("#filterStage"),STAGES,"全部阶段");fillSelect($("#filterRegion"),REGIONS,"全部区域");
+  fillSelect($("#filterAttr"),ATTRS,"全部属性");fillSelect($("#filterResult"),RESULTS,"全部结果");
+  fillSelect($("#poolRegion"),REGIONS,"全部区域");fillSelect($("#poolAttr"),ATTRS,"全部属性");
+  refreshDynamic();
+}
+["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
+["visitSearch","filterResult"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
+["visitedSearch","visitedOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
+["poolSearch","poolRegion","poolAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
+["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
+["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
+$("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
+$("#segKanban").onclick=()=>{custView="kanban";$("#segKanban").classList.add("active");$("#segList").classList.remove("active");renderCustomers();};
+
+initSelects();
+// 恢复 Supabase 登录会话；无会话则显示登录页
+(async function(){
+  if(!SB){ showLogin(); $("#loginErr").textContent="Supabase SDK 未加载（需联网）"; return; }
+  try{
+    const {data:{session}}=await SB.auth.getSession();
+    if(session&&session.user){ await afterAuth(session.user); return; }
+  }catch(e){}
+  showLogin();
+})();
+// 登录页回车提交
+$("#login_pass").addEventListener("keydown",e=>{if(e.key==="Enter")login();});
+$("#login_user").addEventListener("keydown",e=>{if(e.key==="Enter")$("#login_pass").focus();});
+</script>
+</body>
+</html>
