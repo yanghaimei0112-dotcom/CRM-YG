@@ -211,7 +211,9 @@
         <button class="btn" onclick="loadYGVisits()">🏅 导入 YG 拜访记录（31 条 → 已拜访客户）</button>
         <button class="btn" onclick="loadYGPool()">🌊 导入 YG 公共资料区（→ 公海客户）</button>
         <label class="btn ghost">📁 导入公海（Excel/CSV）<input type="file" id="poolImportFile" accept=".csv,.xlsx,.xls" style="display:none"></label>
+        <label class="btn ghost">📄 导入 TXT 名单到公海<input type="file" id="poolTxtImportFile" accept=".txt" style="display:none"></label>
       </div>
+      <p class="hint" style="margin-top:6px">📄 <b>TXT 名单导入</b>：支持探迹 / 阿里金品那种「一段一家公司」的自由文本名单（含 法定代表人 / 注册地址 / 阿里 / 主营产品 等）。自动抽取公司名、联系人、电话、地址、主营产品、阿里链接、官网并按公司名去重入公海，来源标记为文件名。多个名单可分次上传。</p>
       <p class="hint" style="margin-top:8px">公海客户为<b>独立资料库</b>（已按公司去重），可与潜在客户同时存在同一公司。公共资料区 6 张表数据量较大，完整同步建议在 Notion 把每张表「导出 CSV」后用上方「导入公海 CSV」上传（已适配各表表头）。</p>
     </div>
     <div class="panel">
@@ -1301,6 +1303,78 @@ $("#poolImportFile").addEventListener("change",async e=>{
     const origin=file.name.replace(/\.(csv|xlsx?|xls)$/i,"").replace(/\s+[0-9a-f]{32}$/i,"").trim();
     const res=importPoolCSV(rows, origin);
     if(res.error){toast(res.error);} else { save();renderPool();toast("公海导入完成：新增 "+res.added+" 家"+(res.updated?"，补全 "+res.updated+" 家":"")+(res.skip?"，跳过 "+res.skip+" 家":"")); }
+  }catch(err){toast("导入失败："+err.message);}
+  e.target.value="";
+});
+
+/* ===== TXT 名单导入到公海：解析「一段一家公司」的自由文本 ===== */
+function readTxtFile(file){
+  return new Promise((resolve,reject)=>{
+    const rd=new FileReader();
+    rd.onerror=()=>reject(new Error("文件读取失败"));
+    rd.onload=()=>{ try{ const buf=rd.result; let t=new TextDecoder("utf-8").decode(buf); if(t.includes("�")){ try{ t=new TextDecoder("gb18030").decode(buf); }catch(_){}} resolve(t); }catch(err){reject(err);} };
+    rd.readAsArrayBuffer(file);
+  });
+}
+const NL_REGIONS=["慈溪","余姚","北仑","镇海","江北","海曙","奉化","宁海","象山","绍兴"];
+function nlRegion(a){ if(!a)return ""; for(const r of NL_REGIONS){ if(a.includes(r))return r; }
+  if(/柯桥|越城|诸暨|新昌|上虞|嵊州|袍江|岳城/.test(a))return "绍兴";
+  if(/鄞州|东钱湖|高新|首南|潘火|五乡/.test(a))return "市区";
+  if(a.includes("宁波"))return "市区"; if(a.includes("杭州"))return "市外"; return ""; }
+function nlPhone(s){ const m=String(s).match(/(?<!\d)1[3-9]\d{9}(?!\d)/); return m?m[0]:""; }
+function nlAli(s){ const m=String(s).match(/https?:\/\/[A-Za-z0-9.\-]+\.alibaba\.com/); return m?m[0]:""; }
+function nlUrl(s){ let m=String(s).match(/https?:\/\/[^\s，、）)]+/); if(m)return m[0].split(/[^\x00-\x7f]/)[0];
+  m=String(s).match(/((?:www\.)?[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})*)/); return m?m[1]:""; }
+const NL_STATUS=/(存续|在业|曾用名|小微企业|企业集团|高新技术企业|企业族群|注销|吊销)/;
+function parseNameListTxt(text){
+  text=String(text).replace(/\r\n/g,"\n");
+  const blocks=("\n"+text).split(/\n(?=\d+\.?[一-龥A-Za-z])/).map(b=>b.trim()).filter(Boolean);
+  const out=[];
+  for(const b of blocks){
+    const lines=b.split("\n").map(l=>l.trim()).filter(Boolean);
+    if(!lines.length)continue;
+    let name=lines[0].replace(/^\d+\.?\s*/,"").trim();
+    if(!/(公司|厂|合伙|中心)/.test(name)){   // 金品格式：首行是英文名，找含公司/厂的中文行
+      for(const l of lines.slice(0,6)){ const cn=l.split(NL_STATUS)[0].trim(); if(/(公司|厂|合伙|中心)/.test(cn)){ name=cn; break; } }
+    } else { name=name.split(NL_STATUS)[0].trim(); }
+    if(!/(公司|厂|合伙|中心)/.test(name))continue;
+    let contact="",phone="",addr="",addr2="",plat="",site="",site2="",prod=[],coll=false;
+    for(const l of lines){
+      if(l.startsWith("法定代表人")||l.startsWith("经营者")){ const m=l.match(/[：:]\s*([^\s，,、%0-9]+)/); if(m&&!contact)contact=m[1]; if(!phone)phone=nlPhone(l); }
+      else if(l.startsWith("注册地址")){ addr=l.replace(/^注册地址[：:]\s*/,"").trim(); }
+      else if(l.startsWith("地址")){ addr2=l.replace(/^地址[：:]\s*/,"").trim(); }
+      else if(l.startsWith("阿里")){ plat=nlAli(l); }
+      else if(l.startsWith("alibaba.com")){ const m=l.match(/([A-Za-z0-9\-]+\.[A-Za-z0-9.\-]*alibaba\.com[A-Za-z0-9./]*)/); if(m)plat="https://"+m[1]; }
+      else if(l.startsWith("企业官网")){ const v=l.replace(/^企业官网[：:]\s*/,"").trim(); if(v&&v!=="--"&&v!=="-")site=nlUrl(v); }
+      else if(l.startsWith("官网")){ const v=l.replace(/^官网[：:]\s*/,"").trim(); if(v&&v!=="--"&&v!=="-")site2=nlUrl(v); }
+      else if(l.startsWith("主营产品")||l.startsWith("主要分类")){ prod.push(l.replace(/^(主营产品|主要分类)[：:]\s*/,"").trim()); coll=true; }
+      else if(l==="产品"){ coll=true; }
+      else if(coll){ if(/^(主营市场|主要市场|注册资本|资金数额|成立|年营业|企业官网|阿里|官网|网站|电话|邮箱|信用代码|联系|地址|信息|服务|中国制造|Tel|Fax|\+?86|\d{4}-)/.test(l))coll=false; else prod.push(l.trim()); }
+    }
+    if(!phone)phone=nlPhone(b);
+    let product=prod.filter(Boolean).join("、").replace(/，/g,"、"); if(product.length>380)product=product.slice(0,380);
+    const address=(addr||addr2).trim();
+    out.push({name,region:nlRegion(address||name),contact,phone,product,address,platformUrl:plat,siteUrl:(site||site2)});
+  }
+  return out;
+}
+$("#poolTxtImportFile").addEventListener("change",async e=>{
+  const file=e.target.files[0];if(!file)return;
+  try{
+    const text=await readTxtFile(file);
+    const recs=parseNameListTxt(text);
+    if(!recs.length){toast("未从该 TXT 解析出公司，请确认是「一段一家公司」的名单格式");e.target.value="";return;}
+    const origin=file.name.replace(/\.txt$/i,"").replace(/\s+[0-9a-f]{32}$/i,"").trim();
+    const poolNames=new Set((DB.pool||[]).map(p=>p.name)), custNames=new Set(DB.customers.map(c=>c.name)), seen=new Set();
+    let added=0,skip=0;
+    recs.forEach(r=>{
+      if(!r.name||poolNames.has(r.name)||custNames.has(r.name)||seen.has(r.name)){skip++;return;}
+      seen.add(r.name);
+      DB.pool.push(Object.assign({id:uid(),origin,attr:"",updatedAt:new Date().toISOString()},r));
+      added++;
+    });
+    save();renderPool();refreshDynamic();
+    toast("TXT 导入完成：解析 "+recs.length+" 家，新增 "+added+" 家"+(skip?"，跳过 "+skip+" 家":""));
   }catch(err){toast("导入失败："+err.message);}
   e.target.value="";
 });
