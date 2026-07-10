@@ -307,6 +307,8 @@
         <div class="field"><label>电话</label><input id="c_phone"></div>
         <div class="field"><label>外贸部联系人</label><input id="c_tradeContact"></div>
         <div class="field"><label>外贸部联系电话</label><input id="c_tradePhone"></div>
+        <div class="field"><label>股东联系人</label><input id="c_shareholder"></div>
+        <div class="field"><label>股东电话</label><input id="c_shareholderPhone"></div>
         <div class="field"><label>主营产品</label><input id="c_product"></div>
         <div class="field full"><label>客户地址</label><input id="c_address"></div>
         <div class="field"><label>平台网址</label><input id="c_platformUrl"></div>
@@ -379,6 +381,8 @@
         <div class="field"><label>电话</label><input id="p_phone"></div>
         <div class="field"><label>外贸部联系人</label><input id="p_tradeContact"></div>
         <div class="field"><label>外贸部电话</label><input id="p_tradePhone"></div>
+        <div class="field"><label>股东联系人</label><input id="p_shareholder"></div>
+        <div class="field"><label>股东电话</label><input id="p_shareholderPhone"></div>
         <div class="field full"><label>主营产品</label><input id="p_product"></div>
         <div class="field full"><label>客户地址</label><input id="p_address"></div>
         <div class="field"><label>平台网址</label><input id="p_platformUrl"></div>
@@ -477,12 +481,12 @@ let nameToId={}, idToName={};
 function buildNameMaps(){ nameToId={}; idToName={}; (DB.users||[]).forEach(u=>{ if(u.name){nameToId[u.name]=u.id;} idToName[u.id]=u.name; }); }
 const D=v=>v?v:null;   // 空日期转 null
 // 字段映射（前端 camelCase <-> 云端 snake_case）
-function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
-function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:r.created_at||""};}
+function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
+function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:r.created_at||""};}
 function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
-function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
-function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
+function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
+function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
 
 const _snap={customers:new Map(),visits:new Map(),pool:new Map()};
 async function loadFromCloud(){
@@ -883,7 +887,7 @@ function fillOwnerSelect(sel,current,blank){
 function fillTargetSelect(cid,current,inputSel,listSel){
   inputSel=inputSel||"#lf_target"; listSel=listSel||"#lf_targetList";
   const c=DB.customers.find(x=>x.id===cid)||{};
-  const names=[...new Set([c.contact,c.tradeContact].filter(Boolean))];
+  const names=[...new Set([c.contact,c.tradeContact,c.shareholder].filter(Boolean))];
   const dl=$(listSel); if(dl)dl.innerHTML=names.map(n=>`<option value="${esc(n)}"></option>`).join("");
   const el=$(inputSel); if(el)el.value=current||c.contact||"";
 }
@@ -902,6 +906,7 @@ function openCustomer(id,defaultStage){
   $("#c_region").value=c.region||""; $("#c_visited").value=c.visited||"未拜访"; setSourceSelect("#c_source",c.source||"");
   $("#c_contact").value=c.contact||""; $("#c_position").value=c.position||""; $("#c_phone").value=c.phone||"";
   $("#c_tradeContact").value=c.tradeContact||""; $("#c_tradePhone").value=c.tradePhone||"";
+  $("#c_shareholder").value=c.shareholder||""; $("#c_shareholderPhone").value=c.shareholderPhone||"";
   $("#c_product").value=c.product||""; $("#c_address").value=c.address||""; $("#c_platformUrl").value=c.platformUrl||"";
   $("#c_siteUrl").value=c.siteUrl||""; $("#c_createDate").value=c.createDate||today(); $("#c_nextFollow").value=c.nextFollow||"";
   $("#c_peerCase").value=c.peerCase||""; $("#c_note").value=c.note||"";
@@ -931,6 +936,7 @@ function saveCustomer(){
   const data={name,owner:ownerVal,isPublic:$("#c_public").checked,stage:$("#c_stage").value,attr:$("#c_attr").value,region:$("#c_region").value,
     visited:$("#c_visited").value,source:$("#c_source").value,contact:$("#c_contact").value,
     position:$("#c_position").value,phone:$("#c_phone").value,tradeContact:$("#c_tradeContact").value,tradePhone:$("#c_tradePhone").value,
+    shareholder:$("#c_shareholder").value,shareholderPhone:$("#c_shareholderPhone").value,
     product:$("#c_product").value,address:$("#c_address").value,platformUrl:$("#c_platformUrl").value,siteUrl:$("#c_siteUrl").value,
     createDate:$("#c_createDate").value,nextFollow:$("#c_nextFollow").value,peerCase:$("#c_peerCase").value,
     note:$("#c_note").value};
@@ -989,6 +995,7 @@ function showDetail(id){
       ${kv("客户来源",c.source)}${kv("联系人(A)",c.contact)}
       ${kv("职位",c.position)}${kv("电话",c.phone)}
       ${kv("外贸部联系人",c.tradeContact)}${kv("外贸部电话",c.tradePhone)}
+      ${kv("股东联系人",c.shareholder)}${kv("股东电话",c.shareholderPhone)}
       ${kv("主营产品",c.product)}${kv("客户地址",c.address)}
       ${c.platformUrl?`<div class="k">平台网址</div><div><a href="${esc(c.platformUrl)}" target="_blank">${esc(c.platformUrl)}</a></div>`:""}
       ${c.siteUrl?`<div class="k">独立站</div><div><a href="${esc(c.siteUrl)}" target="_blank">${esc(c.siteUrl)}</a></div>`:""}
@@ -1694,6 +1701,7 @@ function openPool(id){
   $("#poolClaimBtn").style.display=id?"":"none";
   $("#p_name").value=p.name||""; $("#p_attr").value=p.attr||""; $("#p_region").value=p.region||""; $("#p_origin").value=p.origin||"";
   $("#p_contact").value=p.contact||""; $("#p_phone").value=p.phone||""; $("#p_tradeContact").value=p.tradeContact||""; $("#p_tradePhone").value=p.tradePhone||"";
+  $("#p_shareholder").value=p.shareholder||""; $("#p_shareholderPhone").value=p.shareholderPhone||"";
   $("#p_product").value=p.product||""; $("#p_address").value=p.address||""; $("#p_platformUrl").value=p.platformUrl||""; $("#p_siteUrl").value=p.siteUrl||"";
   setSourceSelect("#p_source",p.source||""); $("#p_createDate").value=p.createDate||"";
   $("#poolClaimBtn").onclick=()=>{ if(editPoolId){closeModal("poolModal");claimPool(editPoolId);} };
@@ -1704,6 +1712,7 @@ function savePool(){
   if((DB.pool||[]).some(p=>p.name===name && p.id!==editPoolId)){toast("公海已有同名公司");return;}
   const data={name,attr:$("#p_attr").value,region:$("#p_region").value,origin:$("#p_origin").value,
     contact:$("#p_contact").value,phone:$("#p_phone").value,tradeContact:$("#p_tradeContact").value,tradePhone:$("#p_tradePhone").value,
+    shareholder:$("#p_shareholder").value,shareholderPhone:$("#p_shareholderPhone").value,
     product:$("#p_product").value,address:$("#p_address").value,platformUrl:$("#p_platformUrl").value,siteUrl:$("#p_siteUrl").value,
     source:$("#p_source").value,createDate:$("#p_createDate").value,note:poolNote};
   data.updatedAt=new Date().toISOString();
