@@ -1335,12 +1335,12 @@ function nlUrl(s){ let m=String(s).match(/https?:\/\/[^\s，、）)]+/); if(m)re
 const NL_STATUS=/(存续|在业|曾用名|小微企业|企业集团|高新技术企业|企业族群|注销|吊销)/;
 function parseNameListTxt(text){
   text=String(text).replace(/\r\n/g,"\n");
-  const blocks=("\n"+text).split(/\n(?=\d+\.?[一-龥A-Za-z])/).map(b=>b.trim()).filter(Boolean);
+  const blocks=("\n"+text).split(/\n(?=\d{1,3}[.、．]\s*[一-龥A-Za-z])/).map(b=>b.trim()).filter(Boolean);
   const out=[];
   for(const b of blocks){
     const lines=b.split("\n").map(l=>l.trim()).filter(Boolean);
     if(!lines.length)continue;
-    let name=lines[0].replace(/^\d+\.?\s*/,"").trim();
+    let name=lines[0].replace(/^\d{1,3}[.、．]?\s*/,"").trim();
     if(!/(公司|厂|合伙|中心)/.test(name)){   // 金品格式：首行是英文名，找含公司/厂的中文行
       for(const l of lines.slice(0,6)){ const cn=l.split(NL_STATUS)[0].trim(); if(/(公司|厂|合伙|中心)/.test(cn)){ name=cn; break; } }
     } else { name=name.split(NL_STATUS)[0].trim(); }
