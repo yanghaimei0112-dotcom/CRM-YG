@@ -1333,6 +1333,10 @@ function nlAli(s){ const m=String(s).match(/https?:\/\/[A-Za-z0-9.\-]+\.alibaba\
 function nlUrl(s){ let m=String(s).match(/https?:\/\/[^\s，、）)]+/); if(m)return m[0].split(/[^\x00-\x7f]/)[0];
   m=String(s).match(/((?:www\.)?[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})*)/); return m?m[1]:""; }
 const NL_STATUS=/(存续|在业|曾用名|小微企业|企业集团|高新技术企业|企业族群|注销|吊销)/;
+// 人员行：取姓名 / 取"姓名+部门角色"标签（去掉电话与 HOT/推荐/反查 等标注）
+function nlPersonName(l){ l=l.trim(); if(l.includes("·"))return l.split("·")[0].trim(); const m=l.match(/^([^\s\t0-9]+)/); return m?m[1].trim():""; }
+function nlPersonLabel(l){ return l.replace(/(?<!\d)1[3-9]\d{9}(?!\d)/g,"").replace(/反查[^\s，,]*|未实名|不存在|未存在|HOT[＋+]?|推荐|--/g,"").replace(/\t+/g," ").replace(/\s+/g," ").replace(/[·、\s]+$/,"").trim(); }
+const NL_FIELD=/^(法定代表人|经营者|注册资本|资金数额|成立|年营业|企业官网|注册地址|官网|网站|阿里|主营|主要|电话|邮箱|信用代码|联系|地址|信息|服务|中国制造|Tel|Fax|导出|探迹|Call|Email|Address|Whatsapp|SKYPE|微信|手机|传真|部门|\+?86|\d{4}-)/;
 function parseNameListTxt(text){
   text=String(text).replace(/\r\n/g,"\n");
   const blocks=("\n"+text).split(/\n(?=\d{1,3}[.、．]\s*[一-龥A-Za-z])/).map(b=>b.trim()).filter(Boolean);
@@ -1359,9 +1363,22 @@ function parseNameListTxt(text){
       else if(coll){ if(/^(主营市场|主要市场|注册资本|资金数额|成立|年营业|企业官网|阿里|官网|网站|电话|邮箱|信用代码|联系|地址|信息|服务|中国制造|Tel|Fax|\+?86|\d{4}-)/.test(l))coll=false; else prod.push(l.trim()); }
     }
     if(!phone)phone=nlPhone(b);
+    // 外贸联系人 / 股东联系人（据部门·角色抽取）
+    let tradeContact="",tradePhone="",shWith=null,shAny=null;
+    for(const l of lines){
+      if(NL_FIELD.test(l))continue;
+      const nm=nlPersonName(l), ph=nlPhone(l);
+      if(!tradeContact && /外贸/.test(l)){ tradeContact=nlPersonLabel(l); tradePhone=ph; }
+      if(nm && nm!==contact && (/(监事|股东)/.test(l) || (/\d+(\.\d+)?%/.test(l) && ph))){
+        if(!shAny)shAny={label:nlPersonLabel(l),ph};
+        if(ph && !shWith)shWith={label:nlPersonLabel(l),ph};
+      }
+    }
+    const sh=shWith||shAny||{label:"",ph:""};
     let product=prod.filter(Boolean).join("、").replace(/，/g,"、"); if(product.length>380)product=product.slice(0,380);
     const address=(addr||addr2).trim();
-    out.push({name,region:nlRegion(address||name),contact,phone,product,address,platformUrl:plat,siteUrl:(site||site2)});
+    out.push({name,region:nlRegion(address||name),contact,phone,product,address,platformUrl:plat,siteUrl:(site||site2),
+      tradeContact,tradePhone,shareholder:sh.label,shareholderPhone:sh.ph});
   }
   return out;
 }
