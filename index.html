@@ -612,16 +612,19 @@ function selHead(view,ids){ const all=ids.length&&ids.every(id=>SEL[view].has(id
 function bulkReleaseToPool(view){
   view=view||"customers"; const sel=SEL[view]; const ids=[...sel]; if(!ids.length)return;
   if(!confirm("确定把选中的 "+ids.length+" 家放入公海？将从潜在客户移除。"))return;
+  const removeIds=new Set();
   ids.forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(!c)return;
-    const flog=customerVisitsToNote(id);
+    const sameIds=new Set(DB.customers.filter(x=>x.name===c.name&&(x.owner||"")===(c.owner||"")).map(x=>x.id));
+    const flog=customerVisitsToNote(sameIds);
     let p=(DB.pool||[]).find(x=>x.name===c.name);
-    if(!p){ p={id:uid(),origin:"手动放入"}; ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||""); DB.pool.push(p);}
+    if(!p){ p={id:uid(),origin:"手动放入"}; ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","shareholder","shareholderPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||""); DB.pool.push(p);}
     if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
     p.updatedAt=new Date().toISOString();
-    DB.visits=DB.visits.filter(v=>v.customerId!==id);   // 记录已转存公海
+    sameIds.forEach(x=>removeIds.add(x));
   });
-  DB.customers=DB.customers.filter(c=>!sel.has(c.id)); sel.clear();
-  save();refreshDynamic();renderCustomers();renderPool();renderVisits();renderDash();renderVisited();toast("已放入公海（跟进记录一并带走）");
+  DB.visits=DB.visits.filter(v=>!removeIds.has(v.customerId));   // 记录已转存公海
+  DB.customers=DB.customers.filter(c=>!removeIds.has(c.id)); sel.clear();
+  save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderPool();renderVisits();renderDash();renderVisited();toast("已放入公海（跟进记录一并带走）");
 }
 function bulkDeleteCustomers(view){
   view=view||"customers"; const sel=SEL[view]; const n=sel.size; if(!n)return;
@@ -1629,7 +1632,8 @@ function renderPool(){
 // 捡入（领取）：把公海客户归入「我的潜在客户」，并从公海移除
 /* ===== 跟进/拜访记录随客户流转：公海(note 文本) <-> 潜在(visits) 双向互转 ===== */
 function customerVisitsToNote(cid){
-  const vs=DB.visits.filter(v=>v.customerId===cid).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const ids=(cid instanceof Set)?cid:new Set([cid]);
+  const vs=DB.visits.filter(v=>ids.has(v.customerId)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   return vs.map(v=>{
     const who=[v.visitor||"", v.decider?("→ "+v.decider):""].filter(Boolean).join(" ");
     const head=[v.date||"", v.type||"跟进", who].filter(Boolean).join(" ");
@@ -1671,18 +1675,20 @@ function claimPool(poolId){
 function releaseToPool(id){
   const c=DB.customers.find(x=>x.id===id);if(!c)return;
   if(!confirm("确定把「"+c.name+"」放入公海？放入后将从你的潜在客户中移除，团队任何人都可在公海捡入。"))return;
-  const flog=customerVisitsToNote(id);
+  // 同名同负责人的所有记录（含重复）一并移除，避免"已拜访"里残留
+  const sameIds=new Set(DB.customers.filter(x=>x.name===c.name&&(x.owner||"")===(c.owner||"")).map(x=>x.id));
+  const flog=customerVisitsToNote(sameIds);
   let p=(DB.pool||[]).find(x=>x.name===c.name);
   if(!p){
     p={id:uid(),origin:"手动放入"};
-    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||"");
+    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","shareholder","shareholderPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||"");
     DB.pool.push(p);
   }
   if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
   p.updatedAt=new Date().toISOString();
-  DB.visits=DB.visits.filter(v=>v.customerId!==id);   // 记录已转存公海
-  DB.customers=DB.customers.filter(x=>x.id!==id);   // 从潜在客户移除
-  save();refreshDynamic();closeModal("detailModal");renderPool();renderCustomers();renderVisits();renderDash();renderVisited();
+  DB.visits=DB.visits.filter(v=>!sameIds.has(v.customerId));   // 记录已转存公海
+  DB.customers=DB.customers.filter(x=>!sameIds.has(x.id));   // 同名同负责人整组移除
+  save();refreshDynamic();closeModal("detailModal");renderPool();renderCustomers();renderMobai();renderWon();renderVisits();renderDash();renderVisited();
   toast("已放入公海（跟进记录一并带走）");
 }
 
