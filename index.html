@@ -284,6 +284,7 @@
     <div class="toolbar">
       <input type="text" id="caseSearch" placeholder="🔍 搜索公司 / 产品">
       <select id="caseRegion"><option value="">全部地区</option></select>
+      <select id="caseIndustry"><option value="">全部行业</option></select>
       <div class="spacer"></div>
       <button class="btn" onclick="openCase()">＋ 新增案例</button>
       <div class="hint">客户案例库：只记录 公司名字 / 地区 / 主营产品，团队共享。</div>
@@ -388,6 +389,7 @@
       <div class="form-grid">
         <div class="field full"><label>公司名字 *</label><input id="cs_name"></div>
         <div class="field"><label>地区</label><select id="cs_region"></select></div>
+        <div class="field"><label>行业</label><select id="cs_industry"></select></div>
         <div class="field full"><label>主营产品</label><input id="cs_product"></div>
       </div>
     </div>
@@ -480,6 +482,7 @@ const ATTR_COLOR = {"A+M+":"#7c3aed","A+M-":"#dc2626","A-M+":"#ea580c","A-M-":"#
 const REGIONS = ["市区","海曙","江北","镇海","北仑","余姚","慈溪","奉化","宁海","象山","绍兴","舟山","市外"];
 const SOURCES = ["其他部门合作","膜拜客户","自查资料","公共资料","转介绍","资源分配","微信转入","展会客户"];
 const POSITIONS = ["A+","A","A-","非A","外贸经理","小老板","监事"];
+const INDUSTRIES = ["纺织面料","服装家纺","五金工具","机械设备","液压气动","减速传动","电子电器","照明光电","塑料橡胶","园艺灌溉","医疗器械","汽车配件","建材管业","化工材料","消防安防","通信设备","日用消费品","食品饮料","其他"];
 const RESULTS = ["有意向","继续跟进","暂无意向","已成交","已流失"];
 const RESULT_COLOR = {"有意向":"#16a34a","继续跟进":"#2563eb","暂无意向":"#6b7280","已成交":"#7c3aed","已流失":"#dc2626"};
 
@@ -522,8 +525,8 @@ function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,type:v.type
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
 function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
-function caseToRow(c){return{id:c.id,name:c.name||"",region:c.region||"",product:c.product||""};}
-function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",product:r.product||""};}
+function caseToRow(c){return{id:c.id,name:c.name||"",region:c.region||"",industry:c.industry||"",product:c.product||""};}
+function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",industry:r.industry||"",product:r.product||""};}
 
 const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map()};
 // 分页拉取整表：PostgREST 单次最多返回 1000 行，需用 range 循环取完（否则超 1000 的数据丢失/导入撞唯一约束）
@@ -1708,17 +1711,19 @@ function renderMobai(){
 let editCaseId=null;
 function renderCases(){
   if(!CURRENT)return;
-  const q=($("#caseSearch").value||"").toLowerCase(), fr=$("#caseRegion").value;
+  const q=($("#caseSearch").value||"").toLowerCase(), fr=$("#caseRegion").value, fi=$("#caseIndustry").value;
   let rows=(DB.cases||[]).slice();
   if(fr)rows=rows.filter(c=>c.region===fr);
-  if(q)rows=rows.filter(c=>[c.name,c.product,c.region].join(" ").toLowerCase().includes(q));
+  if(fi)rows=rows.filter(c=>c.industry===fi);
+  if(q)rows=rows.filter(c=>[c.name,c.product,c.region,c.industry].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
   if(!rows.length){$("#caseList").innerHTML=`<div class="empty">暂无案例，点右上角「＋ 新增案例」添加。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"cases");
-  $("#caseList").innerHTML=`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 个客户案例</div><table><thead><tr><th>公司名字</th><th>地区</th><th>主营产品</th><th></th></tr></thead><tbody>${
+  $("#caseList").innerHTML=`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 个客户案例</div><table><thead><tr><th>公司名字</th><th>地区</th><th>行业</th><th>主营产品</th><th></th></tr></thead><tbody>${
     pageRows.map(c=>`<tr>
       <td class="namecol"><span class="link" onclick="openCase('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
       <td>${esc(c.region||"")}</td>
+      <td>${c.industry?pill(c.industry,"#0891b2"):""}</td>
       <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
       <td><div class="row-act"><button class="btn ghost sm" onclick="openCase('${c.id}')">编辑</button></div></td>
     </tr>`).join("")
@@ -1729,12 +1734,12 @@ function openCase(id){
   const c=id?(DB.cases||[]).find(x=>x.id===id):{};
   $("#caseModalTitle").textContent=id?"编辑案例":"新增案例";
   $("#caseDeleteBtn").style.display=id?"":"none";
-  $("#cs_name").value=c.name||""; $("#cs_region").value=c.region||""; $("#cs_product").value=c.product||"";
+  $("#cs_name").value=c.name||""; $("#cs_region").value=c.region||""; $("#cs_industry").value=c.industry||""; $("#cs_product").value=c.product||"";
   openModal("caseModal");
 }
 function saveCase(){
   const name=$("#cs_name").value.trim(); if(!name){toast("请填写公司名字");return;}
-  const data={name,region:$("#cs_region").value,product:$("#cs_product").value};
+  const data={name,region:$("#cs_region").value,industry:$("#cs_industry").value,product:$("#cs_product").value};
   if(editCaseId){Object.assign((DB.cases||[]).find(x=>x.id===editCaseId),data);}
   else{ if(!DB.cases)DB.cases=[]; DB.cases.push(Object.assign({id:uid()},data)); }
   save();closeModal("caseModal");renderCases();toast("已保存");
@@ -2059,6 +2064,7 @@ function initSelects(){
   fillSelect($("#filterAttr"),ATTRS,"全部属性");fillSelect($("#filterResult"),RESULTS,"全部结果");
   fillSelect($("#poolRegion"),REGIONS,"全部区域");fillSelect($("#poolAttr"),ATTRS,"全部属性");
   fillSelect($("#cs_region"),REGIONS,"未指定");fillSelect($("#caseRegion"),REGIONS,"全部地区");
+  fillSelect($("#cs_industry"),INDUSTRIES,"未指定");fillSelect($("#caseIndustry"),INDUSTRIES,"全部行业");
   refreshDynamic();
 }
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
@@ -2067,7 +2073,7 @@ function initSelects(){
 ["poolSearch","poolRegion","poolAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
-["caseSearch","caseRegion"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
+["caseSearch","caseRegion","caseIndustry"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
 $("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
 $("#segKanban").onclick=()=>{custView="kanban";$("#segKanban").classList.add("active");$("#segList").classList.remove("active");renderCustomers();};
 
