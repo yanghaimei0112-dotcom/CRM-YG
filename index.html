@@ -140,6 +140,7 @@
     <button data-view="visits">📍 客户跟进记录</button>
     <button data-view="visited">✅ 已拜访客户</button>
     <button data-view="won">💰 成交客户</button>
+    <button data-view="cases">📚 客户案例库</button>
     <button data-view="users" data-admin="1">👤 用户管理</button>
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
   </nav>
@@ -278,6 +279,18 @@
     <div id="mobaiList" class="tbl-wrap"></div>
   </section>
 
+  <!-- ============ 客户案例库 ============ -->
+  <section id="view-cases" class="view">
+    <div class="toolbar">
+      <input type="text" id="caseSearch" placeholder="🔍 搜索公司 / 产品">
+      <select id="caseRegion"><option value="">全部地区</option></select>
+      <div class="spacer"></div>
+      <button class="btn" onclick="openCase()">＋ 新增案例</button>
+      <div class="hint">客户案例库：只记录 公司名字 / 地区 / 主营产品，团队共享。</div>
+    </div>
+    <div id="caseList" class="tbl-wrap"></div>
+  </section>
+
   <!-- ============ USERS (admin) ============ -->
   <section id="view-users" class="view">
     <div class="toolbar">
@@ -363,6 +376,25 @@
       <button class="btn ghost" onclick="closeModal('detailModal')">关闭</button>
       <button class="btn ghost" id="detailPoolBtn" style="display:none"></button>
       <button class="btn" id="detailEditBtn">编辑客户</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Case Modal ===== -->
+<div class="modal-bg" id="caseModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="caseModalTitle">新增案例</h3><button class="x" onclick="closeModal('caseModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full"><label>公司名字 *</label><input id="cs_name"></div>
+        <div class="field"><label>地区</label><select id="cs_region"></select></div>
+        <div class="field full"><label>主营产品</label><input id="cs_product"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="caseDeleteBtn" style="margin-right:auto;display:none" onclick="deleteCase()">删除</button>
+      <button class="btn ghost" onclick="closeModal('caseModal')">取消</button>
+      <button class="btn" onclick="saveCase()">保存</button>
     </div>
   </div>
 </div>
@@ -459,6 +491,7 @@ const SESS_KEY = "crm_session_user";
 function load(){ try{const r=localStorage.getItem(LS_KEY); if(r) DB=JSON.parse(r);}catch(e){}
   if(!DB.users) DB.users=[];
   if(!DB.pool) DB.pool=[];
+  if(!DB.cases) DB.cases=[];
   (DB.customers||[]).forEach(c=>{if(c.stage==="已报价")c.stage="已拜访"; if(c.owner==="社媒主管")c.owner="YG主管"; if(c.inPool)delete c.inPool;});
   (DB.users||[]).forEach(u=>{if(u.name==="社媒主管")u.name="YG主管";});
   // 首次使用：建默认用户（管理员=YG主管，业务员=姚子泓）
@@ -489,8 +522,10 @@ function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,type:v.type
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
 function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
+function caseToRow(c){return{id:c.id,name:c.name||"",region:c.region||"",product:c.product||""};}
+function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",product:r.product||""};}
 
-const _snap={customers:new Map(),visits:new Map(),pool:new Map()};
+const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map()};
 // 分页拉取整表：PostgREST 单次最多返回 1000 行，需用 range 循环取完（否则超 1000 的数据丢失/导入撞唯一约束）
 async function fetchAllRows(table){
   const all=[], PAGE=1000;
@@ -505,23 +540,26 @@ async function fetchAllRows(table){
 }
 async function loadFromCloud(){
   if(!SB)return;
-  const [pf,cu,vi,po]=await Promise.all([
+  const [pf,cu,vi,po,ca]=await Promise.all([
     SB.from("profiles").select("*"),
     fetchAllRows("customers"),
     fetchAllRows("visits"),
-    fetchAllRows("pool")
+    fetchAllRows("pool"),
+    fetchAllRows("cases")
   ]);
   DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,username:r.name}));
   buildNameMaps();
   DB.customers=(cu||[]).map(rowToCust);
   DB.visits=(vi||[]).map(rowToVisit);
   DB.pool=(po||[]).map(rowToPool);
+  DB.cases=(ca||[]).map(rowToCase);
   _snap.customers=new Map(DB.customers.map(c=>[c.id,JSON.stringify(custToRow(c))]));
   _snap.visits=new Map(DB.visits.map(v=>[v.id,JSON.stringify(visitToRow(v))]));
   _snap.pool=new Map(DB.pool.map(p=>[p.id,JSON.stringify(poolToRow(p))]));
+  _snap.cases=new Map(DB.cases.map(c=>[c.id,JSON.stringify(caseToRow(c))]));
   localStorage.setItem(LS_KEY,JSON.stringify(DB));
 }
-let _syncing=false,_syncPending=false;
+let _syncing=false,_syncPending=false,_casesTableMissing=false;
 let _lastErr="",_lastErrAt=0;
 async function cloudSync(){
   if(!SB||!CURRENT)return;
@@ -530,8 +568,11 @@ async function cloudSync(){
   // 公海按公司名去重（去掉空名/重名，防唯一约束冲突）
   const seen=new Set(); DB.pool=(DB.pool||[]).filter(p=>{const k=(p.name||"").trim(); if(!k||seen.has(k))return false; seen.add(k); return true;});
   let errMsg=null;
-  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow]]){
-    try{ await syncTable(tbl,arr,fn); }catch(e){ errMsg=errMsg||(e.message||String(e)); console.error("cloudSync "+tbl,e); }
+  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow]]){
+    if(tbl==="cases" && _casesTableMissing) continue;
+    try{ await syncTable(tbl,arr,fn); }catch(e){ const m=e.message||String(e);
+      if(tbl==="cases" && /does not exist|schema cache|42P01|Could not find the table|relation .* does not/i.test(m)){ _casesTableMissing=true; /* 案例库表未建，本会话静默跳过 */ }
+      else { errMsg=errMsg||m; console.error("cloudSync "+tbl,e); } }
   }
   _syncing=false;
   if(errMsg && (errMsg!==_lastErr || Date.now()-_lastErrAt>15000)){ _lastErr=errMsg; _lastErrAt=Date.now(); toast("⚠️ 云端同步失败："+errMsg); }
@@ -591,13 +632,13 @@ function custName(id){const c=DB.customers.find(x=>x.id===id);return c?c.name:""
 
 /* ===================== 分页（每页20条） ===================== */
 let PAGE_SIZE=20;
-const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1};
-const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai()};
+const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1};
+const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases()};
 function gotoPage(key,n){ PAGE[key]=n; PAGE_RENDER[key](); }
 function setPageSize(key,val){ PAGE_SIZE=parseInt(val)||20; Object.keys(PAGE).forEach(k=>PAGE[k]=1); PAGE_RENDER[key](); }
 
 /* ===================== 勾选 / 批量操作 ===================== */
-const SEL={customers:new Set(), pool:new Set(), visited:new Set(), won:new Set(), mobai:new Set()};
+const SEL={customers:new Set(), pool:new Set(), visited:new Set(), won:new Set(), mobai:new Set(), cases:new Set()};
 function toggleSel(view,id,on){ on?SEL[view].add(id):SEL[view].delete(id); PAGE_RENDER[view](); }
 function toggleSelAll(view,ids,on){ ids.forEach(id=>{on?SEL[view].add(id):SEL[view].delete(id);}); PAGE_RENDER[view](); }
 function clearSel(view){ SEL[view].clear(); PAGE_RENDER[view](); }
@@ -701,6 +742,7 @@ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
   if(b.dataset.view==="visited")renderVisited();
   if(b.dataset.view==="mobai")renderMobai();
   if(b.dataset.view==="won")renderWon();
+  if(b.dataset.view==="cases")renderCases();
   if(b.dataset.view==="users")renderUsers();
 });
 
@@ -731,7 +773,7 @@ function enterApp(){
   // 若当前停留在无权限页，则回到仪表盘
   const active=document.querySelector('nav button.active');
   if(active && active.dataset.admin && !isAdmin()){ active.classList.remove('active'); document.querySelector('nav button[data-view=dash]').classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); $("#view-dash").classList.add('active'); }
-  refreshDynamic(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderUsers();
+  refreshDynamic(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers();
 }
 
 /* ===================== Dashboard ===================== */
@@ -1659,6 +1701,48 @@ function renderMobai(){
   }</tbody></table>`+pageBar(total,"mobai");
 }
 
+/* ===================== 客户案例库 ===================== */
+let editCaseId=null;
+function renderCases(){
+  if(!CURRENT)return;
+  const q=($("#caseSearch").value||"").toLowerCase(), fr=$("#caseRegion").value;
+  let rows=(DB.cases||[]).slice();
+  if(fr)rows=rows.filter(c=>c.region===fr);
+  if(q)rows=rows.filter(c=>[c.name,c.product,c.region].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  if(!rows.length){$("#caseList").innerHTML=`<div class="empty">暂无案例，点右上角「＋ 新增案例」添加。</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"cases");
+  $("#caseList").innerHTML=`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 个客户案例</div><table><thead><tr><th>公司名字</th><th>地区</th><th>主营产品</th><th></th></tr></thead><tbody>${
+    pageRows.map(c=>`<tr>
+      <td class="namecol"><span class="link" onclick="openCase('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+      <td>${esc(c.region||"")}</td>
+      <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
+      <td><div class="row-act"><button class="btn ghost sm" onclick="openCase('${c.id}')">编辑</button></div></td>
+    </tr>`).join("")
+  }</tbody></table>`+pageBar(total,"cases");
+}
+function openCase(id){
+  editCaseId=id||null;
+  const c=id?(DB.cases||[]).find(x=>x.id===id):{};
+  $("#caseModalTitle").textContent=id?"编辑案例":"新增案例";
+  $("#caseDeleteBtn").style.display=id?"":"none";
+  $("#cs_name").value=c.name||""; $("#cs_region").value=c.region||""; $("#cs_product").value=c.product||"";
+  openModal("caseModal");
+}
+function saveCase(){
+  const name=$("#cs_name").value.trim(); if(!name){toast("请填写公司名字");return;}
+  const data={name,region:$("#cs_region").value,product:$("#cs_product").value};
+  if(editCaseId){Object.assign((DB.cases||[]).find(x=>x.id===editCaseId),data);}
+  else{ if(!DB.cases)DB.cases=[]; DB.cases.push(Object.assign({id:uid()},data)); }
+  save();closeModal("caseModal");renderCases();toast("已保存");
+}
+function deleteCase(){
+  if(!editCaseId)return;
+  if(!confirm("确定删除该案例？"))return;
+  DB.cases=(DB.cases||[]).filter(x=>x.id!==editCaseId);
+  save();closeModal("caseModal");renderCases();toast("已删除");
+}
+
 /* 刷新「负责人 / 来源」动态下拉与筛选 */
 function refreshDynamic(){
   const base=CURRENT?visibleCustomers():DB.customers;
@@ -1971,6 +2055,7 @@ function initSelects(){
   fillSelect($("#filterStage"),STAGES,"全部阶段");fillSelect($("#filterRegion"),REGIONS,"全部区域");
   fillSelect($("#filterAttr"),ATTRS,"全部属性");fillSelect($("#filterResult"),RESULTS,"全部结果");
   fillSelect($("#poolRegion"),REGIONS,"全部区域");fillSelect($("#poolAttr"),ATTRS,"全部属性");
+  fillSelect($("#cs_region"),REGIONS,"未指定");fillSelect($("#caseRegion"),REGIONS,"全部地区");
   refreshDynamic();
 }
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
@@ -1979,6 +2064,7 @@ function initSelects(){
 ["poolSearch","poolRegion","poolAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
+["caseSearch","caseRegion"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
 $("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
 $("#segKanban").onclick=()=>{custView="kanban";$("#segKanban").classList.add("active");$("#segList").classList.remove("active");renderCustomers();};
 
