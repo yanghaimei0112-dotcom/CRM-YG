@@ -204,17 +204,13 @@
   <!-- ============ DATA ============ -->
   <section id="view-data" class="view">
     <div class="panel" style="border-color:#c7d2fe;background:#f5f7ff">
-      <h3>🔄 同步 YG 团队数据（Notion）</h3>
-      <p class="hint">一键导入从 Notion「YG客户数据库 → 姚子泓潜在客户」<b>全量同步的 117 家</b>潜在客户（负责人＝姚子泓）。会按公司名去重，可反复点不会重复添加。<br>
-      <b>后续 Notion 有更新时</b>：在 Notion 打开该数据库 →「•••」→ 导出 → 选「CSV」→ 再用下方「导入客户」上传即可增量更新（已自动适配 YG 表头与「负责人」列）。</p>
+      <h3>📄 导入名单到公海</h3>
+      <p class="hint">把探迹 / 阿里金品那种「一段一家公司」的自由文本名单一键导入公海，自动抽取 公司名 / 联系人 / 电话 / 地区 / 主营产品 / 阿里链接 / 外贸·股东联系人 等，按公司名去重，来源标记为文件名。多个名单可分次上传。</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-        <button class="btn" onclick="loadYG()">🔄 导入 YG 团队数据（姚子泓潜在客户 · 117 家）</button>
-        <button class="btn" onclick="loadYGVisits()">🏅 导入 YG 拜访记录（31 条 → 已拜访客户）</button>
-        <button class="btn" onclick="loadYGPool()">🌊 导入 YG 公共资料区（→ 公海客户）</button>
+        <label class="btn">📄 导入名单到公海（TXT / Word / DOC）<input type="file" id="poolTxtImportFile" accept=".txt,.docx,.doc" style="display:none"></label>
         <label class="btn ghost">📁 导入公海（Excel/CSV）<input type="file" id="poolImportFile" accept=".csv,.xlsx,.xls" style="display:none"></label>
-        <label class="btn ghost">📄 导入 TXT / Word 名单到公海<input type="file" id="poolTxtImportFile" accept=".txt,.docx" style="display:none"></label>
       </div>
-      <p class="hint" style="margin-top:6px">📄 <b>TXT / Word 名单导入</b>：支持 .txt 和 .docx（Word）两种格式，探迹 / 阿里金品那种「一段一家公司」的自由文本名单（含 法定代表人 / 注册地址 / 阿里 / 主营产品 等）。自动抽取公司名、联系人、电话、地址、主营产品、阿里链接、官网并按公司名去重入公海，来源标记为文件名。多个名单可分次上传。</p>
+      <p class="hint" style="margin-top:6px">支持 <b>.txt / .docx（新版 Word）/ .doc（老版 Word）</b> 三种格式。</p>
       <p class="hint" style="margin-top:8px">公海客户为<b>独立资料库</b>（已按公司去重），可与潜在客户同时存在同一公司。公共资料区 6 张表数据量较大，完整同步建议在 Notion 把每张表「导出 CSV」后用上方「导入公海 CSV」上传（已适配各表表头）。</p>
     </div>
     <div class="panel">
@@ -1421,6 +1417,18 @@ async function docxToText(file){
     return t.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#3[49];/g,"'").replace(/\s+/g," ").trim();
   }).filter(Boolean).join("\n");
 }
+// DOC（老版 Word / OLE 二进制）→ 纯文本：中文以 UTF-16LE 存储，整体解码后按段落符切行，过滤二进制乱码行
+function _docBadLine(l){ for(let i=0;i<l.length;i++){ const c=l.charCodeAt(i);
+  if((c<0x20 && c!==0x09) || (c>=0x7f && c<=0x9f) || (c>=0xe000 && c<=0xf8ff) || c>=0xfff0) return true; } return false; }
+async function docToText(file){
+  const buf=new Uint8Array(await file.arrayBuffer());
+  const txt=new TextDecoder("utf-16le").decode(buf);
+  const norm=txt.replace(/[\x07\x0b\x0c\r\n]/g,"\n");   // Word 段落/单元格结束符 → 换行
+  return norm.split("\n")
+    .map(l=>l.replace(/[\x00-\x08\x0e-\x1f]/g,"").trim())
+    .filter(l=> l.length>=2 && l.length<400 && !_docBadLine(l) && (/[\u4e00-\u9fa5]/.test(l) || /alibaba\.com|https?:\/\//i.test(l)))
+    .join("\n");
+}
 const NL_REGIONS=["慈溪","余姚","北仑","镇海","江北","海曙","奉化","宁海","象山","绍兴"];
 function nlRegion(a){ if(!a)return ""; for(const r of NL_REGIONS){ if(a.includes(r))return r; }
   if(/柯桥|越城|诸暨|新昌|上虞|嵊州|袍江|岳城/.test(a))return "绍兴";
@@ -1504,11 +1512,12 @@ function parseNameListTxt(text){
 $("#poolTxtImportFile").addEventListener("change",async e=>{
   const file=e.target.files[0];if(!file)return;
   try{
-    const isDocx=/\.docx$/i.test(file.name);
-    const text=isDocx?await docxToText(file):await readTxtFile(file);
+    const text=/\.docx$/i.test(file.name)?await docxToText(file)
+              :/\.doc$/i.test(file.name)?await docToText(file)
+              :await readTxtFile(file);
     const recs=parseNameListTxt(text);
     if(!recs.length){toast("未从该文件解析出公司，请确认是「一段一家公司」的名单格式");e.target.value="";return;}
-    const origin=file.name.replace(/\.(txt|docx)$/i,"").replace(/\s+[0-9a-f]{32}$/i,"").trim();
+    const origin=file.name.replace(/\.(txt|docx|doc)$/i,"").replace(/\s+[0-9a-f]{32}$/i,"").trim();
     const poolNames=new Set((DB.pool||[]).map(p=>p.name)), custNames=new Set(DB.customers.map(c=>c.name)), seen=new Set();
     let added=0,skip=0;
     recs.forEach(r=>{
