@@ -1527,7 +1527,8 @@ $("#poolTxtImportFile").addEventListener("change",async e=>{
       added++;
     });
     save();renderPool();refreshDynamic();
-    toast("TXT 导入完成：解析 "+recs.length+" 家，新增 "+added+" 家"+(skip?"，跳过 "+skip+" 家":""));
+    if(added===0 && skip>0){ toast("✅ 该名单 "+recs.length+" 家已全部在公海中，无需重复导入（数据已在系统里）"); }
+    else { toast("✅ 导入完成：新增 "+added+" 家"+(skip?"（另有 "+skip+" 家已存在，已跳过）":"")+"，公海现共 "+(DB.pool||[]).length+" 家"); }
   }catch(err){toast("导入失败："+err.message);}
   e.target.value="";
 });
