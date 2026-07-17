@@ -665,7 +665,7 @@ function bulkBar(view){
     : "";
   const acts = view==="pool"
     ? `<button class="btn sm" onclick="bulkClaimPool()">捡入到我的潜在客户</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeletePool()">🗑 删除</button>`
-    : `${assign}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`;
+    : `${assign}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button>${isAdmin()?`<button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`:''}`;
   return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#eef2ff;border-bottom:1px solid var(--line);flex-wrap:wrap">
     <span style="font-size:13px">已选 <b style="color:var(--brand)">${n}</b> 家</span>${acts}
     <button class="btn ghost sm" onclick="clearSel('${view}')">取消选择</button></div>`;
@@ -700,6 +700,7 @@ function bulkReleaseToPool(view){
 }
 function bulkDeleteCustomers(view){
   view=view||"customers"; const sel=SEL[view]; const n=sel.size; if(!n)return;
+  if(!isAdmin()){toast("仅管理员可删除客户");return;}
   if(!confirm("确定删除选中的 "+n+" 家客户？此操作不可恢复。"))return;
   DB.customers=DB.customers.filter(c=>!sel.has(c.id)); sel.clear();
   save();refreshDynamic();renderCustomers();renderDash();renderVisited();toast("已删除 "+n+" 家");
@@ -976,7 +977,7 @@ function openCustomer(id,defaultStage){
   editCustId=id||null;
   const c=id?DB.customers.find(x=>x.id===id):{};
   $("#custModalTitle").textContent=id?"编辑客户":"新增客户";
-  $("#custDeleteBtn").style.display=id?"":"none";
+  $("#custDeleteBtn").style.display=(id&&isAdmin())?"":"none";
   $("#c_name").value=c.name||"";
   const ownerNow=c.owner||(id?"":(CURRENT?CURRENT.name:""));
   fillOwnerSelect("#c_owner",ownerNow);
@@ -1030,6 +1031,7 @@ function saveCustomer(){
 }
 function deleteCustomer(){
   if(!editCustId)return;
+  if(!isAdmin()){toast("仅管理员可删除客户");return;}
   if(!confirm("确定删除该客户？其拜访记录的关联将清空。"))return;
   DB.customers=DB.customers.filter(c=>c.id!==editCustId);
   DB.visits.forEach(v=>{if(v.customerId===editCustId)v.customerId=null;});
