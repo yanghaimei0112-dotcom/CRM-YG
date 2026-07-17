@@ -282,6 +282,7 @@
       <select id="caseRegion"><option value="">全部地区</option></select>
       <select id="caseIndustry"><option value="">全部行业</option></select>
       <div class="spacer"></div>
+      <button class="btn ghost" onclick="openWonPicker()">📥 从成交客户添加</button>
       <button class="btn" onclick="openCase()">＋ 新增案例</button>
       <div class="hint">客户案例库：只记录 公司名字 / 地区 / 主营产品，团队共享。</div>
     </div>
@@ -378,6 +379,21 @@
 </div>
 
 <!-- ===== Case Modal ===== -->
+<div class="modal-bg" id="wonPickerModal">
+  <div class="modal">
+    <div class="modal-head"><h3>从成交客户添加到案例库</h3><button class="x" onclick="closeModal('wonPickerModal')">×</button></div>
+    <div class="modal-body">
+      <input id="wpSearch" placeholder="🔍 搜索成交客户 / 产品" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px" oninput="renderWonPicker()">
+      <div style="display:flex;gap:8px;margin-bottom:6px"><button class="btn ghost sm" onclick="wpSelectAll()">全选</button><button class="btn ghost sm" onclick="wpClear()">清空</button></div>
+      <div id="wpList" style="max-height:360px;overflow:auto"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('wonPickerModal')">取消</button>
+      <button class="btn" onclick="addCasesFromWon()">添加所选到案例库</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="caseModal">
   <div class="modal">
     <div class="modal-head"><h3 id="caseModalTitle">新增案例</h3><button class="x" onclick="closeModal('caseModal')">×</button></div>
@@ -1740,6 +1756,36 @@ function renderCases(){
       <td><div class="row-act"><button class="btn ghost sm" onclick="openCase('${c.id}')">编辑</button></div></td>
     </tr>`).join("")
   }</tbody></table>`+pageBar(total,"cases");
+}
+/* 从成交客户挑选加入案例库 */
+let _wpSel=new Set();
+function wonCustomers(){ return visibleCustomers().filter(c=>c.stage==="已成交"); }
+function openWonPicker(){ _wpSel=new Set(); if($("#wpSearch"))$("#wpSearch").value=""; renderWonPicker(); openModal("wonPickerModal"); }
+function renderWonPicker(){
+  const q=($("#wpSearch").value||"").toLowerCase();
+  const caseNames=new Set((DB.cases||[]).map(c=>c.name));
+  let rows=wonCustomers();
+  if(q)rows=rows.filter(c=>[c.name,c.product,c.region].join(" ").toLowerCase().includes(q));
+  if(!rows.length){$("#wpList").innerHTML=`<div class="empty">暂无成交客户（阶段=已成交）。</div>`;return;}
+  $("#wpList").innerHTML=rows.map(c=>{
+    const inCase=caseNames.has(c.name);
+    return `<label style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);${inCase?'opacity:.55':''}">
+      <input type="checkbox" ${inCase?'disabled':''} ${_wpSel.has(c.id)?'checked':''} onchange="toggleWp('${c.id}',this.checked)">
+      <span style="flex:1"><b>${esc(c.name)}</b> <span style="color:var(--muted);font-size:12px">${esc(c.region||"")}${c.product?' · '+esc(c.product.slice(0,28)):''}</span></span>
+      ${inCase?'<span style="color:var(--muted);font-size:12px">已在案例库</span>':''}
+    </label>`;
+  }).join("");
+}
+function toggleWp(id,on){ on?_wpSel.add(id):_wpSel.delete(id); }
+function wpSelectAll(){ const caseNames=new Set((DB.cases||[]).map(c=>c.name)); wonCustomers().forEach(c=>{ if(!caseNames.has(c.name))_wpSel.add(c.id); }); renderWonPicker(); }
+function wpClear(){ _wpSel=new Set(); renderWonPicker(); }
+function addCasesFromWon(){
+  const caseNames=new Set((DB.cases||[]).map(c=>c.name));
+  let added=0;
+  [..._wpSel].forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(!c||caseNames.has(c.name))return;
+    if(!DB.cases)DB.cases=[]; DB.cases.push({id:uid(),name:c.name,region:c.region||"",industry:"",product:c.product||""}); caseNames.add(c.name); added++; });
+  if(!added){toast("未选择新的成交客户");return;}
+  save();closeModal("wonPickerModal");renderCases();toast("已从成交客户添加 "+added+" 个到案例库");
 }
 function openCase(id){
   editCaseId=id||null;
