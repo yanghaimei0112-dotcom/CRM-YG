@@ -537,7 +537,7 @@ function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,type:v.type
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
 function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
-function caseToRow(c){return{id:c.id,name:c.name||"",region:c.region||"",industry:c.industry||"",product:c.product||""};}
+function caseToRow(c){const r={id:c.id,name:c.name||"",region:c.region||"",product:c.product||""}; if(!_casesNoIndustry)r.industry=c.industry||""; return r;}
 function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",industry:r.industry||"",product:r.product||""};}
 
 const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map()};
@@ -574,7 +574,7 @@ async function loadFromCloud(){
   _snap.cases=new Map(DB.cases.map(c=>[c.id,JSON.stringify(caseToRow(c))]));
   localStorage.setItem(LS_KEY,JSON.stringify(DB));
 }
-let _syncing=false,_syncPending=false,_casesTableMissing=false;
+let _syncing=false,_syncPending=false,_casesTableMissing=false,_casesNoIndustry=false;
 let _lastErr="",_lastErrAt=0;
 async function cloudSync(){
   if(!SB||!CURRENT)return;
@@ -586,7 +586,8 @@ async function cloudSync(){
   for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow]]){
     if(tbl==="cases" && _casesTableMissing) continue;
     try{ await syncTable(tbl,arr,fn); }catch(e){ const m=e.message||String(e);
-      if(tbl==="cases" && /does not exist|schema cache|42P01|Could not find the table|relation .* does not/i.test(m)){ _casesTableMissing=true; /* 案例库表未建，本会话静默跳过 */ }
+      if(tbl==="cases" && /industry/i.test(m) && /does not exist|Could not find|schema cache/i.test(m)){ _casesNoIndustry=true; _snap.cases=new Map(); _syncPending=true; /* 缺 industry 列：改为不带该列重新同步，案例照常保存(行业暂本地) */ }
+      else if(tbl==="cases" && /does not exist|schema cache|42P01|Could not find the table|relation .* does not/i.test(m)){ _casesTableMissing=true; /* 案例库表未建，本会话静默跳过 */ }
       else { errMsg=errMsg||m; console.error("cloudSync "+tbl,e); } }
   }
   _syncing=false;
