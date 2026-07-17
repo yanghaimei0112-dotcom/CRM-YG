@@ -877,17 +877,17 @@ function poolRecency(p){ let x=p.updatedAt||""; const cd=p.createDate||""; if(cd
 function renderCustTable(rows){
   rows=rows.slice().sort((a,b)=>{
     if(sortKey==="recency"){ const x=recency(a),y=recency(b); return x>y?-1:x<y?1:0; }
+    if(sortKey==="lastFollow"){ const x=lastFollowDate(a.id)||"",y=lastFollowDate(b.id)||""; return (x>y?1:x<y?-1:0)*sortDir; }
     let x=a[sortKey]||"",y=b[sortKey]||""; return (x>y?1:x<y?-1:0)*sortDir;
   });
   if(!rows.length){$("#custList").innerHTML=`<div class="empty">暂无客户，点击右上角「＋ 新增客户」或到「数据管理」导入 / 载入示例</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"customers");
   const pageIds=pageRows.map(c=>c.id);
   const cols=[["code","编号"],["name","公司名字"],["owner","负责人"],["stage","阶段"],["attr","属性"],["region","区域"],
-             ["contact","联系人"],["phone","电话"],["product","主营产品"],["nextFollow","下次跟进"]];
+             ["contact","联系人"],["phone","电话"],["product","主营产品"],["lastFollow","最新跟进"]];
   $("#custList").innerHTML=bulkBar("customers")+`<table><thead><tr>${selHead("customers",pageIds)}${cols.map(c=>`<th data-k="${c[0]}">${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>${
     pageRows.map(c=>{
-      const d=daysFromNow(c.nextFollow);
-      const fcls=d!=null&&d<0?"overdue":(d!=null&&d<=3?"soon":"");
+      const lf=lastFollowDate(c.id);
       return `<tr>
         ${selCell("customers",c.id)}
         <td style="color:var(--muted)">${esc(c.code)}</td>
@@ -899,7 +899,7 @@ function renderCustTable(rows){
         <td>${esc(c.contact||"")}</td>
         <td>${esc(c.phone||"")}</td>
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
-        <td class="${fcls}">${esc(c.nextFollow||"")}</td>
+        <td>${lf?esc(lf):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="row-act">
           <button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>
           <button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button>
