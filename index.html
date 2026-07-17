@@ -874,6 +874,8 @@ let sortKey="recency",sortDir=-1;
 function lastFollowDate(cid){ let m=""; (DB.visits||[]).forEach(v=>{ if(v.customerId===cid && (v.date||"")>m) m=v.date; }); return m; }
 function recency(c){ let x=c.updatedAt||""; const cd=c.createDate||""; const f=lastFollowDate(c.id); if(cd>x)x=cd; if(f>x)x=f; return x; }
 function poolRecency(p){ let x=p.updatedAt||""; const cd=p.createDate||""; if(cd>x)x=cd; return x; }
+// 公海最新跟进：跟进记录（note）最新一条的日期（记录置顶，取第一行的日期）
+function poolLastFollow(p){ const m=(((p&&p.note)||"").split("\n")[0]||"").match(/\d{4}-\d{2}-\d{2}/); return m?m[0]:""; }
 function renderCustTable(rows){
   rows=rows.slice().sort((a,b)=>{
     if(sortKey==="recency"){ const x=recency(a),y=recency(b); return x>y?-1:x<y?1:0; }
@@ -1636,7 +1638,7 @@ function renderVisited(){
   if(!rows.length){$("#visitedList").innerHTML=`<div class="empty">暂无已拜访客户。到「数据管理 → 导入 YG 拜访记录」即可同步，或在客户详情里新增拜访。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"visited"), pageIds=pageRows.map(c=>c.id);
   const cols=["公司名字","负责人","阶段","属性","区域","联系人","电话"];
-  $("#visitedList").innerHTML=bulkBar("visited")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家已拜访客户</div><table><thead><tr>${selHead("visited",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最近拜访</th><th>拜访次数</th><th></th></tr></thead><tbody>${
+  $("#visitedList").innerHTML=bulkBar("visited")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家已拜访客户</div><table><thead><tr>${selHead("visited",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最新跟进</th><th>拜访次数</th><th></th></tr></thead><tbody>${
     pageRows.map(c=>{const vs=DB.visits.filter(v=>v.customerId===c.id);const lv=lastVisit(c)||{};
       return `<tr>
         ${selCell("visited",c.id)}
@@ -1668,7 +1670,7 @@ function renderWon(){
   rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
   if(!rows.length){$("#wonList").innerHTML=`<div class="empty">暂无成交客户。把客户「阶段」改为「已成交」即会归到这里。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"won"), pageIds=pageRows.map(c=>c.id);
-  const cols=["公司名字","负责人","属性","区域","联系人","电话","建立日期"];
+  const cols=["公司名字","负责人","属性","区域","联系人","电话","最新跟进"];
   $("#wonList").innerHTML=bulkBar("won")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家成交客户</div><table><thead><tr>${selHead("won",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>主营产品</th><th></th></tr></thead><tbody>${
     pageRows.map(c=>{
       return `<tr>
@@ -1679,7 +1681,7 @@ function renderWon(){
         <td>${esc(c.region||"")}</td>
         <td>${esc(c.contact||"")}</td>
         <td>${esc(c.phone||"")}</td>
-        <td>${esc(c.createDate||"")}</td>
+        <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
         <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
@@ -1699,7 +1701,7 @@ function renderMobai(){
   rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
   if(!rows.length){$("#mobaiList").innerHTML=`<div class="empty">暂无陌拜客户。点右上角「＋ 新增陌拜客户」，或把客户「阶段」改为「陌拜客户」即会归到这里。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"mobai"), pageIds=pageRows.map(c=>c.id);
-  const cols=["公司名字","负责人","属性","区域","联系人","电话","建立日期"];
+  const cols=["公司名字","负责人","属性","区域","联系人","电话","最新跟进"];
   $("#mobaiList").innerHTML=bulkBar("mobai")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家陌拜客户</div><table><thead><tr>${selHead("mobai",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>主营产品</th><th></th></tr></thead><tbody>${
     pageRows.map(c=>{
       return `<tr>
@@ -1710,7 +1712,7 @@ function renderMobai(){
         <td>${esc(c.region||"")}</td>
         <td>${esc(c.contact||"")}</td>
         <td>${esc(c.phone||"")}</td>
-        <td>${esc(c.createDate||"")}</td>
+        <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
         <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
@@ -1787,7 +1789,7 @@ function renderPool(){
   const mine=new Set(DB.customers.filter(c=>c.owner===CURRENT.name).map(c=>c.name));
   const total=rows.length, pageRows=pageSlice(rows,"pool");
   const pageIds=pageRows.map(c=>c.id);
-  $("#poolList").innerHTML=bulkBar("pool")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家公海客户（已按公司去重；点「捡入」领入你的潜在客户，捡入后从公海移除）</div><table><thead><tr>${selHead("pool",pageIds)}<th>公司名字</th><th>区域</th><th>属性</th><th>联系人</th><th>电话</th><th>主营产品</th><th></th></tr></thead><tbody>${
+  $("#poolList").innerHTML=bulkBar("pool")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家公海客户（已按公司去重；点「捡入」领入你的潜在客户，捡入后从公海移除）</div><table><thead><tr>${selHead("pool",pageIds)}<th>公司名字</th><th>区域</th><th>属性</th><th>联系人</th><th>电话</th><th>主营产品</th><th>最新跟进</th><th></th></tr></thead><tbody>${
     pageRows.map(c=>`<tr>
       ${selCell("pool",c.id)}
       <td class="namecol"><span class="link" onclick="openPool('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span>${(c.note&&c.note.trim())?` <span title="有跟进记录（${c.note.split("\n").filter(s=>s.trim()).length} 条）" style="cursor:default">💬</span>`:''}</td>
@@ -1796,6 +1798,7 @@ function renderPool(){
       <td>${esc(c.contact||"")}</td>
       <td>${esc(c.phone||"")}</td>
       <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
+      <td>${poolLastFollow(c)?esc(poolLastFollow(c)):'<span style="color:var(--muted)">—</span>'}</td>
       <td><div style="display:flex;gap:6px;align-items:center">${mine.has(c.name)?'<span style="color:var(--muted);font-size:12px">已捡入</span>':`<button class="btn sm" onclick="claimPool('${c.id}')">捡入</button>`}<button class="btn ghost sm" onclick="openPool('${c.id}')">编辑</button></div></td>
     </tr>`).join("")
   }</tbody></table>`+pageBar(total,"pool");
