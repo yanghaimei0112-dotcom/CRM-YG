@@ -779,6 +779,7 @@ async function afterAuth(user){
   // 切换账号防串号：先清空上一个用户残留的本地数据，再从云端按权限重新加载（云端加载失败时也只会显示空，不会误显别人的客户）
   DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[];
   _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear();
+  _casesTableMissing=false; _casesNoIndustry=false;   // 重置同步标志，避免上次会话的"缺表/缺列"状态卡住案例同步
   await loadFromCloud();
   $("#login_pass").value=""; $("#loginErr").textContent="";
   enterApp();
