@@ -401,7 +401,7 @@
       <div class="form-grid">
         <div class="field full"><label>公司名字 *</label><input id="cs_name"></div>
         <div class="field"><label>地区</label><select id="cs_region"></select></div>
-        <div class="field"><label>行业</label><select id="cs_industry"></select></div>
+        <div class="field"><label>行业</label><input id="cs_industry" list="cs_industryList" placeholder="可选择，也可手动输入"><datalist id="cs_industryList"></datalist></div>
         <div class="field full"><label>主营产品</label><input id="cs_product"></div>
       </div>
     </div>
@@ -1743,6 +1743,11 @@ function renderMobai(){
 let editCaseId=null;
 function renderCases(){
   if(!CURRENT)return;
+  // 把已有案例里出现过的自定义行业并入筛选下拉与表单候选
+  const allInd=[...new Set([...INDUSTRIES,...(DB.cases||[]).map(c=>c.industry).filter(Boolean)])];
+  const curFi=$("#caseIndustry").value;
+  $("#caseIndustry").innerHTML=`<option value="">全部行业</option>`+allInd.map(x=>`<option${x===curFi?" selected":""}>${esc(x)}</option>`).join("");
+  if($("#cs_industryList"))$("#cs_industryList").innerHTML=allInd.map(x=>`<option value="${esc(x)}"></option>`).join("");
   const q=($("#caseSearch").value||"").toLowerCase(), fr=$("#caseRegion").value, fi=$("#caseIndustry").value;
   let rows=(DB.cases||[]).slice();
   if(fr)rows=rows.filter(c=>c.region===fr);
@@ -2127,7 +2132,8 @@ function initSelects(){
   fillSelect($("#filterAttr"),ATTRS,"全部属性");fillSelect($("#filterResult"),RESULTS,"全部结果");
   fillSelect($("#poolRegion"),REGIONS,"全部区域");fillSelect($("#poolAttr"),ATTRS,"全部属性");
   fillSelect($("#cs_region"),REGIONS,"未指定");fillSelect($("#caseRegion"),REGIONS,"全部地区");
-  fillSelect($("#cs_industry"),INDUSTRIES,"未指定");fillSelect($("#caseIndustry"),INDUSTRIES,"全部行业");
+  fillSelect($("#caseIndustry"),INDUSTRIES,"全部行业");
+  $("#cs_industryList").innerHTML=INDUSTRIES.map(x=>`<option value="${esc(x)}"></option>`).join("");
   refreshDynamic();
 }
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
