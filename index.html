@@ -1012,11 +1012,13 @@ function saveCustomer(){
       let msg="⚠️ 系统中已存在「"+name+"」：\n";
       if(dupCust.length){const os=[...new Set(dupCust.map(c=>c.owner||"（未分配）"))];msg+="· 已在潜在客户中，负责人："+os.join("、")+"\n";}
       if(dupPool)msg+="· 该客户在公海客户中\n";
-      if(dupPool){
+      if(dupPool && !dupCust.length){
         if(confirm(msg+"\n是否直接从公海「捡入」到你的潜在客户？\n（确定＝捡入领取；取消＝返回，不新建）")){ closeModal("custModal"); claimPool(dupPool.id); return; }
         return;
       }
-      if(!confirm(msg+"\n仍要新建一条重复记录吗？")) return;
+      // 已存在 → 禁止重复添加
+      alert(msg+"\n❌ 该客户已存在，不能重复添加。");
+      return;
     }
   }
   const ownerVal=isAdmin()?$("#c_owner").value.trim():(editCustId?DB.customers.find(x=>x.id===editCustId).owner:(CURRENT?CURRENT.name:""));
