@@ -637,6 +637,8 @@ function nextCode(){ DB.seq=(DB.seq||0)+1; return "CUS-"+String(DB.seq).padStart
 /* ===================== Helpers ===================== */
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// 公司名归一化用于去重：忽略空格 / 全半角括号 / 常见标点 / 结尾数字(如加个1) / 开头符号
+function normName(n){ n=String(n||"").trim().replace(/\s+/g,"").replace(/（/g,"(").replace(/）/g,")").replace(/，/g,",").replace(/、/g,""); n=n.replace(/[()\[\]【】{}<>,.。·・\-—_*"'’‘“”~!！?？:：;；]/g,""); n=n.replace(/\d+$/,""); return n; }
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
 function fillSelect(el,arr,blank){el.innerHTML=(blank?`<option value="">${blank}</option>`:"")+arr.map(o=>`<option>${o}</option>`).join("");}
 // 客户来源固定下拉：8个标准项 + 若记录有旧的非标准来源则保留为额外选项
@@ -1003,8 +1005,9 @@ function saveCustomer(){
   const wasNew=!editCustId;
   // 新建时查重：提示已在谁的潜在客户 / 是否在公海；在公海可直接捡入
   if(!editCustId){
-    const dupCust=DB.customers.filter(c=>c.name===name);
-    const dupPool=(DB.pool||[]).find(p=>p.name===name);
+    const nn=normName(name);
+    const dupCust=DB.customers.filter(c=>normName(c.name)===nn);
+    const dupPool=(DB.pool||[]).find(p=>normName(p.name)===nn);
     if(dupCust.length||dupPool){
       let msg="⚠️ 系统中已存在「"+name+"」：\n";
       if(dupCust.length){const os=[...new Set(dupCust.map(c=>c.owner||"（未分配）"))];msg+="· 已在潜在客户中，负责人："+os.join("、")+"\n";}
@@ -1045,8 +1048,9 @@ function checkDupHint(){
   if(editCustId){el.innerHTML="";return;}
   const name=$("#c_name").value.trim();
   if(!name){el.innerHTML="";return;}
-  const exactCust=DB.customers.filter(c=>c.name===name);
-  const exactPool=(DB.pool||[]).find(p=>p.name===name);
+  const nn=normName(name);
+  const exactCust=DB.customers.filter(c=>normName(c.name)===nn);
+  const exactPool=(DB.pool||[]).find(p=>normName(p.name)===nn);
   if(exactCust.length||exactPool){
     const parts=[];
     if(exactCust.length){const os=[...new Set(exactCust.map(c=>c.owner||"（未分配）"))];parts.push("已在潜在客户 · 负责人："+os.join("、"));}
@@ -1540,11 +1544,12 @@ $("#poolTxtImportFile").addEventListener("change",async e=>{
     const recs=parseNameListTxt(text);
     if(!recs.length){toast("未从该文件解析出公司，请确认是「一段一家公司」的名单格式");e.target.value="";return;}
     const origin=file.name.replace(/\.(txt|docx|doc)$/i,"").replace(/\s+[0-9a-f]{32}$/i,"").trim();
-    const poolNames=new Set((DB.pool||[]).map(p=>p.name)), custNames=new Set(DB.customers.map(c=>c.name)), seen=new Set();
+    const poolNames=new Set((DB.pool||[]).map(p=>normName(p.name))), custNames=new Set(DB.customers.map(c=>normName(c.name))), seen=new Set();
     let added=0,skip=0;
     recs.forEach(r=>{
-      if(!r.name||poolNames.has(r.name)||custNames.has(r.name)||seen.has(r.name)){skip++;return;}
-      seen.add(r.name);
+      const nn=normName(r.name);
+      if(!r.name||poolNames.has(nn)||custNames.has(nn)||seen.has(nn)){skip++;return;}
+      seen.add(nn);
       DB.pool.push(Object.assign({id:uid(),origin,attr:"",updatedAt:new Date().toISOString()},r));
       added++;
     });
