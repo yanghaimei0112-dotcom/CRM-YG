@@ -22,6 +22,14 @@
              border-bottom:2px solid transparent;font-weight:500}
   nav button.active{color:var(--brand);border-bottom-color:var(--brand)}
   nav button:hover{color:var(--ink)}
+  .nav-drop{position:relative;display:inline-flex;align-items:stretch}
+  .nav-drop-btn.parent-active{color:var(--brand);border-bottom-color:var(--brand)}
+  .nav-drop-menu{position:absolute;top:100%;left:0;background:#fff;border:1px solid var(--line);border-radius:8px;
+                 box-shadow:0 8px 24px rgba(0,0,0,.12);display:none;flex-direction:column;min-width:150px;z-index:200;padding:5px}
+  .nav-drop:hover .nav-drop-menu{display:flex}
+  .nav-drop-menu button{text-align:left;white-space:nowrap;border-bottom:none !important;padding:10px 14px;border-radius:6px;width:100%}
+  .nav-drop-menu button:hover{background:#f1f5ff}
+  .nav-drop-menu button.active{background:#eef2ff}
   .top-actions{display:flex;gap:8px}
   main{max-width:none;margin:0;padding:16px 22px}
   .btn{background:var(--brand);color:#fff;border:none;padding:8px 14px;border-radius:7px;cursor:pointer;
@@ -134,11 +142,16 @@
   <div class="logo">🗂️ CRM 客户管理系统</div>
   <nav>
     <button data-view="dash" class="active">📊 仪表盘</button>
-    <button data-view="customers">👥 潜在客户</button>
-    <button data-view="mobai">🚪 陌拜客户</button>
-    <button data-view="pool">🌊 公海客户</button>
+    <div class="nav-drop">
+      <button type="button" class="nav-drop-btn" id="custGroupBtn">📂 客户数据 ▾</button>
+      <div class="nav-drop-menu">
+        <button data-view="customers">👥 潜在客户</button>
+        <button data-view="mobai">🚪 陌拜客户</button>
+        <button data-view="visited">✅ 已拜访客户</button>
+        <button data-view="pool">🌊 公海客户</button>
+      </div>
+    </div>
     <button data-view="visits">📍 客户跟进记录</button>
-    <button data-view="visited">✅ 已拜访客户</button>
     <button data-view="won">💰 成交客户</button>
     <button data-view="cases">📚 客户案例库</button>
     <button data-view="users" data-admin="1">👤 用户管理</button>
@@ -749,9 +762,12 @@ function pageBar(total,key){
 }
 
 /* ===================== Navigation ===================== */
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{
+document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
+  // 「客户数据」父级高亮
+  const cg=document.getElementById('custGroupBtn');
+  if(cg) cg.classList.toggle('parent-active', ["customers","mobai","visited","pool"].includes(b.dataset.view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="dash")renderDash();
