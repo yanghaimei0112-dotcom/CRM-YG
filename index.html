@@ -650,6 +650,8 @@ function nextCode(){ DB.seq=(DB.seq||0)+1; return "CUS-"+String(DB.seq).padStart
 /* ===================== Helpers ===================== */
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// 清理公司名：去掉开头/结尾多余标点（逗号、顿号、句点、引号等），保留公司名本身
+function cleanCompanyName(n){ return String(n||"").replace(/^[\s,，、.。;；:：·・*\-—_"'’‘“”]+/,"").replace(/[\s,，、;；:：·・*"'’‘“”]+$/,"").trim(); }
 // 公司名归一化用于去重：忽略空格 / 全半角括号 / 常见标点 / 结尾数字(如加个1) / 开头符号
 function normName(n){ n=String(n||"").trim().replace(/\s+/g,"").replace(/（/g,"(").replace(/）/g,")").replace(/，/g,",").replace(/、/g,""); n=n.replace(/[()\[\]【】{}<>,.。·・\-—_*"'’‘“”~!！?？:：;；]/g,""); n=n.replace(/\d+$/,""); return n; }
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
@@ -1393,7 +1395,7 @@ $("#importFile").addEventListener("change",async e=>{
       const existing=new Set(DB.customers.map(c=>c.name));
       let added=0,skip=0;
       for(let i=1;i<rows.length;i++){
-        const r=rows[i];let name=(r[map.name]||"").trim().replace(/\*/g,"");if(!name)continue;
+        const r=rows[i];let name=cleanCompanyName((r[map.name]||"").replace(/\*/g,""));if(!name)continue;
         if(existing.has(name)){skip++;continue;}
         const obj={id:uid(),code:nextCode()};
         CSV_FIELDS.forEach(f=>{if(f[0]==="code")return;const idx=map[f[0]];if(idx!=null)obj[f[0]]=(r[idx]||"").trim();});
@@ -1517,6 +1519,7 @@ function parseNameListTxt(text){
     if(!/(公司|厂|合伙|中心)/.test(name)){   // 金品格式：首行是英文名，找含公司/厂的中文行
       for(const l of lines.slice(0,6)){ const cn=l.split(NL_STATUS)[0].trim(); if(/(公司|厂|合伙|中心)/.test(cn)){ name=cn; break; } }
     } else { name=name.split(NL_STATUS)[0].trim(); }
+    name=cleanCompanyName(name);   // 去掉开头/结尾多余标点（如前面多个逗号）
     if(!/(公司|厂|合伙|中心)/.test(name))continue;
     let contact="",phone="",addr="",addr2="",plat="",site="",site2="",prod=[],coll=false;
     for(const l of lines){
@@ -2036,7 +2039,7 @@ function importPoolCSV(input,originName){
   const grabPhone=s=>{const m=String(s||"").match(/1[3-9]\d{9}/);return m?m[0]:"";};
   let added=0,updated=0,skip=0;
   for(let i=1;i<rows.length;i++){
-    const r=rows[i]; const name=(r[col.name]||"").trim().replace(/\*/g,""); if(!name){continue;}
+    const r=rows[i]; const name=cleanCompanyName((r[col.name]||"").replace(/\*/g,"")); if(!name){continue;}
     if(potentialNames.has(name)){skip++;continue;}
     const f={};
     Object.keys(POOL_ALIASES).forEach(k=>{if(k!=="name"&&col[k]!=null)f[k]=String(r[col[k]]||"").trim();});
