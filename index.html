@@ -197,6 +197,14 @@
       <input type="text" id="poolSearch" placeholder="🔍 搜索公司 / 联系人 / 产品 / 区域">
       <select id="poolRegion"><option value="">全部区域</option></select>
       <select id="poolAttr"><option value="">全部属性</option></select>
+      <select id="poolFollow">
+        <option value="">最新跟进(全部)</option>
+        <option value="has">已跟进</option>
+        <option value="none">未跟进</option>
+        <option value="7">近7天跟进</option>
+        <option value="30">近30天跟进</option>
+        <option value="old">超30天未跟进</option>
+      </select>
       <div class="spacer"></div>
       <button class="btn" onclick="openPool()">＋ 新增公海客户</button>
     </div>
@@ -335,8 +343,8 @@
         <div class="field"><label>股东电话</label><input id="c_shareholderPhone"></div>
         <div class="field"><label>主营产品</label><input id="c_product"></div>
         <div class="field full"><label>客户地址</label><input id="c_address"></div>
-        <div class="field"><label>平台网址</label><input id="c_platformUrl"></div>
-        <div class="field"><label>独立站网址</label><input id="c_siteUrl"></div>
+        <div class="field"><label>平台网址</label><textarea id="c_platformUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
+        <div class="field"><label>独立站网址</label><textarea id="c_siteUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
         <div class="field"><label>建立日期</label><input id="c_createDate" type="date"></div>
         <div class="field"><label>下次跟进</label><input id="c_nextFollow" type="date"></div>
         <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
@@ -444,8 +452,8 @@
         <div class="field"><label>股东电话</label><input id="p_shareholderPhone"></div>
         <div class="field full"><label>主营产品</label><input id="p_product"></div>
         <div class="field full"><label>客户地址</label><input id="p_address"></div>
-        <div class="field"><label>平台网址</label><input id="p_platformUrl"></div>
-        <div class="field"><label>独立站网址</label><input id="p_siteUrl"></div>
+        <div class="field"><label>平台网址</label><textarea id="p_platformUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
+        <div class="field"><label>独立站网址</label><textarea id="p_siteUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
         <div class="field"><label>客户来源</label><select id="p_source"></select></div>
         <div class="field"><label>建立日期</label><input id="p_createDate" type="date"></div>
       </div>
@@ -1456,11 +1464,15 @@ async function docxToText(file){
   let xmlBytes;
   if(target.method===0){ xmlBytes=comp; }
   else { const ds=new DecompressionStream("deflate-raw"); xmlBytes=new Uint8Array(await new Response(new Blob([comp]).stream().pipeThrough(ds)).arrayBuffer()); }
-  const xml=dec.decode(xmlBytes);
+  let xml=dec.decode(xmlBytes);
+  // 去掉 Word 域代码（超链接的 HYPERLINK "url" 等指令文本），避免混进正文
+  xml=xml.replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g,"").replace(/<w:fldSimple\b[^>]*w:instr="[^"]*"/g,"<w:fldSimple");
   // 按段落取文本：tab/br 转空格，再去掉所有 XML 标签（对特殊 run 结构更稳，避免标签泄漏）
   return xml.split(/<\/w:p>/).map(seg=>{
     let t=seg.replace(/<w:tab\b[^>]*\/?>/g," ").replace(/<w:br\b[^>]*\/?>/g," ").replace(/<[^>]+>/g,"");
-    return t.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#3[49];/g,"'").replace(/\s+/g," ").trim();
+    t=t.replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#3[49];/g,"'");
+    t=t.replace(/HYPERLINK\s*"[^"]*"/g," ").replace(/\bHYPERLINK\b/g," ");   // 双保险：残留的域指令词
+    return t.replace(/\s+/g," ").trim();
   }).filter(Boolean).join("\n");
 }
 // DOC（老版 Word / OLE 二进制）→ 纯文本：中文以 UTF-16LE 存储，整体解码后按段落符切行，过滤二进制乱码行
@@ -1860,10 +1872,20 @@ function refreshDynamic(){
 function poolFields(){return ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate","note","origin"];}
 function renderPool(){
   if(!CURRENT)return;
-  const q=($("#poolSearch").value||"").toLowerCase(), fr=$("#poolRegion").value, fa=$("#poolAttr").value;
+  const q=($("#poolSearch").value||"").toLowerCase(), fr=$("#poolRegion").value, fa=$("#poolAttr").value, ff=$("#poolFollow").value;
   let rows=poolCustomers().slice();
   if(fr)rows=rows.filter(c=>c.region===fr);
   if(fa)rows=rows.filter(c=>c.attr===fa);
+  if(ff){
+    const days=d=>{ if(!d)return null; return Math.floor((Date.now()-new Date(d+"T00:00:00").getTime())/86400000); };
+    rows=rows.filter(c=>{ const lf=poolLastFollow(c), dd=days(lf);
+      if(ff==="has")return !!lf;
+      if(ff==="none")return !lf;
+      if(ff==="7")return dd!=null&&dd<=7;
+      if(ff==="30")return dd!=null&&dd<=30;
+      if(ff==="old")return dd!=null&&dd>30;
+      return true; });
+  }
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.origin].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{const x=poolRecency(a),y=poolRecency(b);return x>y?-1:x<y?1:0;});
   if(!rows.length){$("#poolList").innerHTML=`<div class="empty">公海暂无客户。到「数据管理 → 导入 YG 公共资料区」一键导入，或在客户详情里点「放入公海」。</div>`;return;}
@@ -2165,7 +2187,7 @@ function initSelects(){
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
 ["visitSearch","filterResult"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
 ["visitedSearch","visitedOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
-["poolSearch","poolRegion","poolAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
+["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
 ["caseSearch","caseRegion","caseIndustry"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
