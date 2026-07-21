@@ -185,6 +185,7 @@
       <select id="filterAttr"><option value="">全部属性</option></select>
       <div class="spacer"></div>
       <div class="seg"><button id="segList" class="active">列表</button><button id="segKanban">看板</button></div>
+      <button class="btn ghost" onclick="openImport()">📥 导入资料</button>
       <button class="btn" onclick="openCustomer()">＋ 新增客户</button>
     </div>
     <div id="custList" class="tbl-wrap"></div>
@@ -400,6 +401,21 @@
 </div>
 
 <!-- ===== Case Modal ===== -->
+<div class="modal-bg" id="importModal">
+  <div class="modal">
+    <div class="modal-head"><h3>📥 导入资料</h3><button class="x" onclick="closeModal('importModal')">×</button></div>
+    <div class="modal-body">
+      <p class="hint" style="margin-bottom:12px">导入的客户会自动归到 <b id="importOwnerName">你</b> 名下（负责人＝当前登录人）；重复公司会自动跳过。</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn" style="justify-content:flex-start" onclick="closeModal('importModal');document.getElementById('importFile').click()">📁 导入客户（Excel / CSV）→ 我的潜在客户</button>
+        <button class="btn ghost" style="justify-content:flex-start" onclick="closeModal('importModal');document.getElementById('poolTxtImportFile').click()">📄 导入 TXT / Word 名单 → 公海客户</button>
+        <button class="btn ghost" style="justify-content:flex-start" onclick="downloadTemplate()">⬇️ 下载客户导入模板（Excel 照着填）</button>
+      </div>
+      <p class="hint" style="margin-top:12px;font-size:12px">· Excel/CSV 表头需含「公司名字」列，其余列名与系统字段一致即可自动匹配。<br>· TXT/Word 名单：探迹/阿里金品那种「一段一家公司」的自由文本，自动抽取公司名/联系人/电话/产品等入公海。</p>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="wonPickerModal">
   <div class="modal">
     <div class="modal-head"><h3>从成交客户添加到案例库</h3><button class="x" onclick="closeModal('wonPickerModal')">×</button></div>
@@ -1340,6 +1356,7 @@ function exportVisitsCSV(){
   const rows=DB.visits.map(v=>[v.title,custName(v.customerId),v.date,v.visitor,v.decider,v.position,v.phone,v.address,v.situation,v.result,v.nextFollow]);
   downloadFile("拜访记录.csv",toCSV(h,rows));toast("已导出拜访 CSV");
 }
+function openImport(){ const el=$("#importOwnerName"); if(el)el.textContent=CURRENT?CURRENT.name:"你"; openModal("importModal"); }
 function downloadTemplate(){
   const sample=["示例公司有限公司","跟进中","A+M+","慈溪","未拜访","张三","A+","13800000000","家用电器","××路1号","阿里巴巴","","","","2026-06-01","2026-07-01","备注示例"];
   const headers=CSV_FIELDS.filter(f=>f[0]!=="code").map(f=>f[1]);
