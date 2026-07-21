@@ -1412,6 +1412,8 @@ $("#importFile").addEventListener("change",async e=>{
         if(!STAGES.includes(obj.stage))obj.stage="潜在客户";
         if(!obj.visited)obj.visited="未拜访";
         obj.createDate=normDate(obj.createDate); obj.nextFollow=normDate(obj.nextFollow);
+        obj.phone=nlPhone(obj.phone)||obj.phone||"";   // 从含座机/人名的单元格里抽手机，抽不到则保留原值
+        obj.tradePhone=nlPhone(obj.tradePhone)||obj.tradePhone||"";
         if(!obj.owner) obj.owner=CURRENT?CURRENT.name:"";   // 未指定负责人 → 归导入人
         DB.customers.push(obj);existing.add(name);added++;
       }
@@ -1492,7 +1494,12 @@ function nlRegion(a){ if(!a)return ""; for(const r of NL_REGIONS){ if(a.includes
   if(/柯桥|越城|诸暨|新昌|上虞|嵊州|袍江|岳城/.test(a))return "绍兴";
   if(/鄞州|东钱湖|高新|首南|潘火|五乡/.test(a))return "市区";
   if(a.includes("宁波"))return "市区"; if(a.includes("杭州"))return "市外"; return ""; }
-function nlPhone(s){ const m=String(s).match(/(?<!\d)1[3-9]\d{9}(?!\d)/); return m?m[0]:""; }
+function nlPhone(s){
+  s=String(s||"").replace(/(?<!\d)\+?86[\s\-]?(?=1[3-9]\d)/g,"");   // 去 +86/86 前缀
+  // 允许号码中间有单个空格/横线（如 138 5814 6059、138-5814-6059），也兼容连续11位
+  const m=s.match(/(?<!\d)1[3-9]\d[\s\-]?\d{4}[\s\-]?\d{4}(?!\d)/);
+  return m?m[0].replace(/[\s\-]/g,""):"";
+}
 function nlAli(s){ const m=String(s).match(/https?:\/\/[A-Za-z0-9.\-]+\.alibaba\.com/); return m?m[0]:""; }
 function nlUrl(s){ let m=String(s).match(/https?:\/\/[^\s，、）)]+/); if(m)return m[0].split(/[^\x00-\x7f]/)[0];
   m=String(s).match(/((?:www\.)?[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})*)/); return m?m[1]:""; }
@@ -2058,7 +2065,7 @@ function importPoolCSV(input,originName){
   if(col.name==null)return {error:"未找到「公司名字 / 名称」列"};
   const potentialNames=new Set(DB.customers.map(c=>c.name)); // 与潜在客户重复则跳过
   const poolByName={}; (DB.pool||[]).forEach(p=>poolByName[p.name]=p);
-  const grabPhone=s=>{const m=String(s||"").match(/1[3-9]\d{9}/);return m?m[0]:"";};
+  const grabPhone=nlPhone;   // 统一用 robust 手机号抽取（含 +86/空格/横线处理）
   let added=0,updated=0,skip=0;
   for(let i=1;i<rows.length;i++){
     const r=rows[i]; const name=cleanCompanyName((r[col.name]||"").replace(/\*/g,"")); if(!name){continue;}
