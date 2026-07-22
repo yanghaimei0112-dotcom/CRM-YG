@@ -675,6 +675,8 @@ function nextCode(){ DB.seq=(DB.seq||0)+1; return "CUS-"+String(DB.seq).padStart
 /* ===================== Helpers ===================== */
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// 多个网址（空格/换行分隔）分别成可点链接、各占一行
+function urlLinks(s){ const parts=String(s||"").split(/[\s,，、;；]+/).filter(u=>/[a-zA-Z]\.[a-zA-Z]/.test(u)); if(!parts.length)return esc(s||""); return parts.map(u=>{const href=/^https?:\/\//i.test(u)?u:("http://"+u); return `<a href="${esc(href)}" target="_blank" style="word-break:break-all">${esc(u)}</a>`;}).join("<br>"); }
 // 清理公司名：去掉开头/结尾多余标点（逗号、顿号、句点、引号等），保留公司名本身
 function cleanCompanyName(n){ return String(n||"").replace(/^[\s,，、.。;；:：·・*\-—_"'’‘“”]+/,"").replace(/[\s,，、;；:：·・*"'’‘“”]+$/,"").trim(); }
 // 公司名归一化用于去重：忽略空格 / 全半角括号 / 常见标点 / 结尾数字(如加个1) / 开头符号
@@ -1131,8 +1133,8 @@ function showDetail(id){
       ${kv("外贸部联系人",c.tradeContact)}${kv("外贸部电话",c.tradePhone)}
       ${kv("股东联系人",c.shareholder)}${kv("股东电话",c.shareholderPhone)}
       ${kv("主营产品",c.product)}${kv("客户地址",c.address)}
-      ${c.platformUrl?`<div class="k">平台网址</div><div><a href="${esc(c.platformUrl)}" target="_blank">${esc(c.platformUrl)}</a></div>`:""}
-      ${c.siteUrl?`<div class="k">独立站</div><div><a href="${esc(c.siteUrl)}" target="_blank">${esc(c.siteUrl)}</a></div>`:""}
+      ${c.platformUrl?`<div class="k">平台网址</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.platformUrl)}</div>`:""}
+      ${c.siteUrl?`<div class="k">独立站</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.siteUrl)}</div>`:""}
       ${kv("同行案例",c.peerCase)}${kv("建立日期",c.createDate)}${kv("下次跟进",c.nextFollow)}
       ${kv("备注",c.note)}
     </div>
@@ -1711,20 +1713,39 @@ function renderVisited(){
   if(!CURRENT)return;
   const q=($("#visitedSearch").value||"").toLowerCase(), fo=$("#visitedOwner").value;
   const lastVisit=c=>DB.visits.filter(v=>v.customerId===c.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
-  let rows=visibleCustomers().filter(c=>c.visited==="已拜访");
-  const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
+  // 1) 潜在客户里已拜访的
+  let items=visibleCustomers().filter(c=>c.visited==="已拜访").map(c=>{const lv=lastVisit(c)||{};const vs=DB.visits.filter(v=>v.customerId===c.id);
+    return {id:c.id,pool:false,name:c.name,owner:c.owner||"",stage:c.stage,attr:c.attr,region:c.region,contact:c.contact,phone:c.phone,product:c.product,lastFollow:lv.date||"",visits:vs.length,recency:recency(c),visitor:lv.visitor||""};});
+  // 2) 公海里有「拜访」记录的（丢入公海的已拜访客户，仍在此体现）
+  (DB.pool||[]).forEach(p=>{ if(!/【[^】]*拜访/.test(p.note||""))return;
+    const cnt=(p.note||"").split("\n").filter(l=>/【[^】]*拜访/.test(l)).length; const lf=poolLastFollow(p);
+    items.push({id:p.id,pool:true,name:p.name,owner:"",stage:"",attr:p.attr,region:p.region,contact:p.contact,phone:p.phone,product:p.product,lastFollow:lf,visits:cnt,recency:lf,visitor:""}); });
+  const owners=[...new Set(items.filter(i=>i.owner).map(i=>i.owner))].sort();
   const cur=$("#visitedOwner").value;
   $("#visitedOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
   $("#visitedOwner").value=cur;
-  if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
-  if(q)rows=rows.filter(c=>{const lv=lastVisit(c)||{};return [c.name,c.contact,c.phone,c.product,lv.visitor||""].join(" ").toLowerCase().includes(q);});
-  rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
-  if(!rows.length){$("#visitedList").innerHTML=`<div class="empty">暂无已拜访客户。到「数据管理 → 导入 YG 拜访记录」即可同步，或在客户详情里新增拜访。</div>`;return;}
-  const total=rows.length, pageRows=pageSlice(rows,"visited"), pageIds=pageRows.map(c=>c.id);
+  if(fo)items=items.filter(i=>(i.owner||"")===fo);
+  if(q)items=items.filter(i=>[i.name,i.contact,i.phone,i.product,i.visitor].join(" ").toLowerCase().includes(q));
+  items.sort((a,b)=>{const x=a.recency||"",y=b.recency||"";return x>y?-1:x<y?1:0;});
+  if(!items.length){$("#visitedList").innerHTML=`<div class="empty">暂无已拜访客户。在客户详情里「新增拜访」即可，放入公海的已拜访客户也会在此显示。</div>`;return;}
+  const total=items.length, pageRows=pageSlice(items,"visited"), pageIds=pageRows.filter(i=>!i.pool).map(i=>i.id);
   const cols=["公司名字","负责人","阶段","属性","区域","联系人","电话"];
-  $("#visitedList").innerHTML=bulkBar("visited")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家已拜访客户</div><table><thead><tr>${selHead("visited",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最新跟进</th><th>拜访次数</th><th></th></tr></thead><tbody>${
-    pageRows.map(c=>{const vs=DB.visits.filter(v=>v.customerId===c.id);const lv=lastVisit(c)||{};
-      return `<tr>
+  $("#visitedList").innerHTML=bulkBar("visited")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家已拜访客户（含已放入公海的）</div><table><thead><tr>${selHead("visited",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最新跟进</th><th>拜访次数</th><th></th></tr></thead><tbody>${
+    pageRows.map(c=> c.pool
+      ? `<tr style="background:#f8fbff">
+        <td style="width:34px"></td>
+        <td class="namecol"><span class="link" onclick="openPool('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td>${pill("公海","#0891b2")}</td>
+        <td>${pill("已放入公海","#64748b")}</td>
+        <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
+        <td>${esc(c.region||"")}</td>
+        <td>${esc(c.contact||"")}</td>
+        <td>${esc(c.phone||"")}</td>
+        <td>${esc(c.lastFollow||"")}</td>
+        <td>${c.visits}</td>
+        <td><div class="row-act"><button class="btn ghost sm" onclick="openPool('${c.id}')">查看</button></div></td>
+      </tr>`
+      : `<tr>
         ${selCell("visited",c.id)}
         <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
         <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
@@ -1733,10 +1754,10 @@ function renderVisited(){
         <td>${esc(c.region||"")}</td>
         <td>${esc(c.contact||"")}</td>
         <td>${esc(c.phone||"")}</td>
-        <td>${esc(lv.date||"")}</td>
-        <td>${vs.length}</td>
+        <td>${esc(c.lastFollow||"")}</td>
+        <td>${c.visits}</td>
         <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
-      </tr>`;}).join("")
+      </tr>`).join("")
   }</tbody></table>`+pageBar(total,"visited");
 }
 
