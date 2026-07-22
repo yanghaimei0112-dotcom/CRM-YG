@@ -216,6 +216,7 @@
   <section id="view-visits" class="view">
     <div class="toolbar">
       <input type="text" id="visitSearch" placeholder="🔍 搜索拜访主题 / 客户 / 拜访人">
+      <select id="filterType"><option value="">全部类型</option><option value="拜访">拜访</option><option value="跟进">日常跟进</option></select>
       <select id="filterResult"><option value="">全部结果</option></select>
       <div class="spacer"></div>
       <button class="btn" onclick="openVisit()">＋ 新增拜访</button>
@@ -1197,8 +1198,9 @@ function showDetail(id){
 /* ===================== Visits ===================== */
 function renderVisits(){
   const q=($("#visitSearch").value||"").toLowerCase();
-  const fr=$("#filterResult").value;
+  const fr=$("#filterResult").value, ft=$("#filterType").value;
   let rows=visibleVisits().filter(v=>{
+    if(ft&&(v.type||"拜访")!==ft)return false;
     if(fr&&v.result!==fr)return false;
     if(q){const hay=[v.title,custName(v.customerId),v.visitor,v.decider].join(" ").toLowerCase();if(!hay.includes(q))return false;}
     return true;
@@ -2209,7 +2211,7 @@ function initSelects(){
   refreshDynamic();
 }
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
-["visitSearch","filterResult"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
+["visitSearch","filterResult","filterType"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
 ["visitedSearch","visitedOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
