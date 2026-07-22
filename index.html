@@ -2069,7 +2069,7 @@ function loadYGPool(){
 const POOL_ALIASES={
   name:["公司名字","名称","公司名称","公司"],
   contact:["联系人（A)","联系人(A)","决策人（A)","决策人(A）","决策人(A)","老板","股东"],
-  phone:["电话","决策人（A)电话","决策人(A)电话","联系电话","股东联系方式"],
+  phone:["电话","老板电话","决策人（A)电话","决策人(A)电话","联系电话","股东联系方式","联系方式"],
   attr:["客户属性"], region:["区域"], product:["主营产品"],
   address:["客户地址","公司地址","地址"], source:["客户来源","资料来源"],
   platformUrl:["平台网址","阿里网址","平台"], siteUrl:["独立站网址","独立站"],
@@ -2083,7 +2083,7 @@ function importPoolCSV(input,originName){
   const col={}; Object.keys(POOL_ALIASES).forEach(k=>{for(const a of POOL_ALIASES[k]){const i=header.indexOf(a);if(i>=0){col[k]=i;break;}}});
   if(col.name==null)return {error:"未找到「公司名字 / 名称」列"};
   const potentialNames=new Set(DB.customers.map(c=>c.name)); // 与潜在客户重复则跳过
-  const poolByName={}; (DB.pool||[]).forEach(p=>poolByName[p.name]=p);
+  const poolByName={}; (DB.pool||[]).forEach(p=>poolByName[normName(p.name)]=p);
   const grabPhone=nlPhone;   // 统一用 robust 手机号抽取（含 +86/空格/横线处理）
   let added=0,updated=0,skip=0;
   for(let i=1;i<rows.length;i++){
@@ -2098,14 +2098,14 @@ function importPoolCSV(input,originName){
     if(!f.contact) f.contact = f.tradeContact || "";
     if(f.contact) f.contact = f.contact.replace(/1[3-9]\d{9}/g,"").replace(/\s{2,}/g," ").trim();
     if(!f.tradePhone) f.tradePhone = grabPhone(f.tradeContact) || "";
-    const ex=poolByName[name];
+    const ex=poolByName[normName(name)];
     if(ex){ // 已存在：补全空字段（不覆盖已有内容）
       let changed=false;
       ["contact","phone","attr","region","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","createDate"].forEach(k=>{ if(!ex[k]&&f[k]){ex[k]=f[k];changed=true;} });
       changed?updated++:skip++;
     } else {
       const p=Object.assign({id:uid(),name,origin:originName||"CSV导入"},f);
-      DB.pool.push(p); poolByName[name]=p; added++;
+      DB.pool.push(p); poolByName[normName(name)]=p; added++;
     }
   }
   return {added,updated,skip};
