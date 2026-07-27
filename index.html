@@ -24,9 +24,9 @@
   nav button:hover{color:var(--ink)}
   .nav-drop{position:relative;display:inline-flex;align-items:stretch}
   .nav-drop-btn.parent-active{color:var(--brand);border-bottom-color:var(--brand)}
-  .nav-drop-menu{position:absolute;top:100%;left:0;background:#fff;border:1px solid var(--line);border-radius:8px;
+  .nav-drop-menu{position:fixed;background:#fff;border:1px solid var(--line);border-radius:8px;
                  box-shadow:0 8px 24px rgba(0,0,0,.12);display:none;flex-direction:column;min-width:150px;z-index:200;padding:5px}
-  .nav-drop:hover .nav-drop-menu{display:flex}
+  .nav-drop:hover .nav-drop-menu,.nav-drop.open .nav-drop-menu{display:flex}
   .nav-drop-menu button{text-align:left;white-space:nowrap;border-bottom:none !important;padding:10px 14px;border-radius:6px;width:100%}
   .nav-drop-menu button:hover{background:#f1f5ff}
   .nav-drop-menu button.active{background:#eef2ff}
@@ -948,6 +948,19 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   if(b.dataset.view==="cases")renderCases();
   if(b.dataset.view==="users")renderUsers();
 });
+
+// 「客户数据」下拉：菜单用 fixed 定位（避开 nav 的 overflow-x 裁剪），悬停或点击均可展开
+(function(){
+  const drop=document.querySelector(".nav-drop"), btn=document.getElementById("custGroupBtn");
+  if(!drop||!btn)return;
+  const menu=drop.querySelector(".nav-drop-menu");
+  function place(){ const r=btn.getBoundingClientRect(); menu.style.left=r.left+"px"; menu.style.top=(r.bottom+2)+"px"; }
+  drop.addEventListener("mouseenter",place);
+  btn.addEventListener("click",e=>{ e.stopPropagation(); place(); drop.classList.toggle("open"); });
+  menu.addEventListener("click",()=>drop.classList.remove("open"));
+  document.addEventListener("click",e=>{ if(!drop.contains(e.target))drop.classList.remove("open"); });
+  window.addEventListener("scroll",()=>{ if(drop.classList.contains("open"))place(); },true);
+})();
 
 /* ===================== Auth（Supabase） ===================== */
 async function login(){
