@@ -135,7 +135,7 @@
     <div class="field" style="margin-bottom:6px"><label>密码</label><input id="login_pass" type="password" autocomplete="current-password"></div>
     <div id="loginErr" style="color:var(--red);font-size:12px;min-height:16px;margin:4px 0"></div>
     <button class="btn" style="width:100%;padding:10px" onclick="login()">登 录</button>
-    <p class="hint" style="margin-top:14px">管理员：<b>yhm@yg.crm / YG081020</b>（云端账号，数据全团队共享）</p>
+    <p class="hint" style="margin-top:14px">云端账号，数据全团队共享。账号由管理员创建。</p>
   </div>
 </div>
 <header>
@@ -260,7 +260,7 @@
         <button class="btn ghost" onclick="loadSample()">载入示例数据</button>
         <button class="btn danger" onclick="clearAll()">清空全部数据</button>
       </div>
-      <p class="hint" style="margin-top:10px">数据保存在本浏览器本地（localStorage），不上传任何服务器。建议定期「导出 JSON 备份」。</p>
+      <p class="hint" style="margin-top:10px">数据保存在云端，全团队实时共享；本浏览器仅作缓存。建议定期「导出 JSON 备份」。「清空全部数据」仅清空本机缓存，不影响云端。</p>
     </div>
   </section>
 
@@ -541,24 +541,6 @@ let DB = {customers:[], visits:[], users:[], pool:[], seq:0};
 let CURRENT = null;                       // 当前登录用户
 const LS_KEY = "crm_local_db_v1";
 const SESS_KEY = "crm_session_user";
-function load(){ try{const r=localStorage.getItem(LS_KEY); if(r) DB=JSON.parse(r);}catch(e){}
-  if(!DB.users) DB.users=[];
-  if(!DB.pool) DB.pool=[];
-  if(!DB.cases) DB.cases=[];
-  (DB.customers||[]).forEach(c=>{if(c.stage==="已报价")c.stage="已拜访"; if(c.owner==="社媒主管")c.owner="YG主管"; if(c.inPool)delete c.inPool;});
-  (DB.users||[]).forEach(u=>{if(u.name==="社媒主管")u.name="YG主管";});
-  // 首次使用：建默认用户（管理员=YG主管，业务员=姚子泓）
-  if(DB.users.length===0){
-    DB.users=[
-      {id:uid(),name:"YG主管",username:"yhm",password:"YG081020",role:"admin"},
-      {id:uid(),name:"姚子泓",username:"yzh",password:"123456",role:"sales"}
-    ];
-    save();
-  }
-  // 迁移：把旧默认管理员 admin/admin888 更新为 yhm/YG081020（不影响已自定义的账号）
-  const oldAdmin=DB.users.find(u=>u.username==="admin"&&u.password==="admin888"&&u.role==="admin");
-  if(oldAdmin){ oldAdmin.username="yhm"; oldAdmin.password="YG081020"; save(); }
-}
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); cloudSync(); }
 
 /* ===================== Supabase 云端 ===================== */
@@ -571,8 +553,8 @@ const D=v=>v?v:null;   // 空日期转 null
 // 字段映射（前端 camelCase <-> 云端 snake_case）
 function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
 function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:r.created_at||""};}
-function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
-function rowToVisit(r){return{id:r.id,customerId:r.customer_id,type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
+function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,created_by:v.createdBy||(CURRENT?CURRENT.id:null),type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
+function rowToVisit(r){return{id:r.id,customerId:r.customer_id,createdBy:r.created_by||"",type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
 function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
 function caseToRow(c){const r={id:c.id,name:c.name||"",region:c.region||"",product:c.product||""}; if(!_casesNoIndustry)r.industry=c.industry||""; return r;}
@@ -675,8 +657,8 @@ function nextCode(){ DB.seq=(DB.seq||0)+1; return "CUS-"+String(DB.seq).padStart
 /* ===================== Helpers ===================== */
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-// 多个网址（空格/换行分隔）分别成可点链接、各占一行
-function urlLinks(s){ const parts=String(s||"").split(/[\s,，、;；]+/).filter(u=>/[a-zA-Z]\.[a-zA-Z]/.test(u)); if(!parts.length)return esc(s||""); return parts.map(u=>{const href=/^https?:\/\//i.test(u)?u:("http://"+u); return `<a href="${esc(href)}" target="_blank" style="word-break:break-all">${esc(u)}</a>`;}).join("<br>"); }
+// 多个网址（空格/换行分隔）分别成可点链接、各占一行；非 http(s) 一律强制补 http:// 前缀（防 javascript:/data: 注入）
+function urlLinks(s){ const parts=String(s||"").split(/[\s,，、;；]+/).filter(u=>/[a-zA-Z]\.[a-zA-Z]/.test(u)); if(!parts.length)return esc(s||""); return parts.map(u=>{const href=/^https?:\/\//i.test(u)?u:("http://"+u); return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" style="word-break:break-all">${esc(u)}</a>`;}).join("<br>"); }
 // 清理公司名：去掉开头/结尾多余标点（逗号、顿号、句点、引号等），保留公司名本身
 function cleanCompanyName(n){ return String(n||"").replace(/^[\s,，、.。;；:：·・*\-—_"'’‘“”]+/,"").replace(/[\s,，、;；:：·・*"'’‘“”]+$/,"").trim(); }
 // 公司名归一化用于去重：忽略空格 / 全半角括号 / 常见标点 / 结尾数字(如加个1) / 开头符号
@@ -709,7 +691,7 @@ function bulkBar(view){
     ? `<select onchange="bulkAssign('${view}',this.value);this.value=''" style="padding:5px 8px;border:1px solid var(--brand);border-radius:6px;color:var(--brand);font-size:13px;background:#fff"><option value="">👤 分配给…</option>${(DB.users||[]).map(u=>u.name).filter(Boolean).map(nm=>`<option value="${esc(nm)}">${esc(nm)}</option>`).join("")}</select>`
     : "";
   const acts = view==="pool"
-    ? `<button class="btn sm" onclick="bulkClaimPool()">捡入到我的潜在客户</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeletePool()">🗑 删除</button>`
+    ? `<button class="btn sm" onclick="bulkClaimPool()">捡入到我的潜在客户</button>${isAdmin()?`<button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeletePool()">🗑 删除</button>`:""}`
     : `${assign}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button>${isAdmin()?`<button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`:''}`;
   return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#eef2ff;border-bottom:1px solid var(--line);flex-wrap:wrap">
     <span style="font-size:13px">已选 <b style="color:var(--brand)">${n}</b> 家</span>${acts}
@@ -750,22 +732,28 @@ function bulkDeleteCustomers(view){
   DB.customers=DB.customers.filter(c=>!sel.has(c.id)); sel.clear();
   save();refreshDynamic();renderCustomers();renderDash();renderVisited();toast("已删除 "+n+" 家");
 }
-function bulkClaimPool(){
+async function bulkClaimPool(){
   const ids=[...SEL.pool]; if(!ids.length)return;
-  let added=0;
-  ids.forEach(id=>{ const p=(DB.pool||[]).find(x=>x.id===id); if(!p)return;
+  let ok=0,failed=0;
+  for(const id of ids){
+    const p=(DB.pool||[]).find(x=>x.id===id); if(!p){failed++;continue;}
+    // 云端原子捡入（防多人同时捡同一家），成功后再本地入库
+    const {data,error}=await SB.rpc("claim_pool",{p_id:id});
+    if(error||!data){failed++;continue;}
     let c=DB.customers.find(x=>x.name===p.name&&x.owner===CURRENT.name);
     if(!c){
       c={id:uid(),code:nextCode(),owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
-      ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c); added++;
+      ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c);
     }
     if(p.note) poolNoteToVisits(p.note, c.id);   // 公海跟进记录 → 客户跟进记录
-  });
-  DB.pool=(DB.pool||[]).filter(p=>!SEL.pool.has(p.id));   // 从公海移除已捡入的
+    DB.pool=(DB.pool||[]).filter(x=>x.id!==id); ok++;
+  }
   SEL.pool.clear();
-  save();refreshDynamic();renderPool();renderCustomers();renderVisits();renderVisited();renderDash();toast("已捡入 "+added+" 家（含跟进记录，已从公海移除）");
+  save();refreshDynamic();renderPool();renderCustomers();renderVisits();renderVisited();renderDash();
+  toast("已捡入 "+ok+" 家（含跟进记录，已从公海移除）"+(failed?"，"+failed+" 家失败（可能刚被他人捡入）":""));
 }
 function bulkDeletePool(){
+  if(!isAdmin()){toast("仅管理员可删除公海客户");return;}
   const n=SEL.pool.size; if(!n)return;
   if(!confirm("确定从公海删除选中的 "+n+" 家？（不影响已捡入的潜在客户）"))return;
   DB.pool=DB.pool.filter(p=>!SEL.pool.has(p.id)); SEL.pool.clear();
@@ -1625,11 +1613,16 @@ $("#poolTxtImportFile").addEventListener("change",async e=>{
 function exportBackup(){downloadFile("CRM备份_"+today()+".json",JSON.stringify(DB,null,2),"application/json");toast("备份已导出");}
 $("#restoreFile").addEventListener("change",e=>{
   const file=e.target.files[0];if(!file)return;
+  if(!isAdmin()){toast("仅管理员可恢复备份");e.target.value="";return;}
   const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!d.customers)throw new Error("格式不正确");
-    if(!confirm("恢复备份将覆盖当前全部数据，确定？"))return;
-    DB=Object.assign({customers:[],visits:[],seq:0},d);save();initSelects();renderDash();renderCustomers();renderVisits();toast("已恢复备份");
+    if(!confirm("恢复备份＝把备份内容写入云端（覆盖同 ID 记录、补入缺失记录）。\n\n在你导出这份备份之后，其他同事新增的数据【不会被删除】；但如果他们修改的是备份里已有的同一条记录，会被备份内容覆盖。\n\n确定继续？"))return;
+    DB=Object.assign({customers:[],visits:[],pool:[],cases:[],seq:0},d);
+    buildNameMaps();
+    // 快照置空：恢复=全量 upsert（只写不删），避免误删云端他人新数据
+    _snap.customers=new Map();_snap.visits=new Map();_snap.pool=new Map();_snap.cases=new Map();
+    save();initSelects();renderDash();renderCustomers();renderVisits();toast("已恢复备份（仅写入，未删除云端其他数据）");
   }catch(err){toast("恢复失败："+err.message);}e.target.value="";};
   rd.readAsText(file,"utf-8");
 });
@@ -1854,7 +1847,7 @@ function renderCases(){
 /* 从成交客户挑选加入案例库 */
 let _wpSel=new Set();
 function wonCustomers(){ return visibleCustomers().filter(c=>c.stage==="已成交"); }
-function openWonPicker(){ _wpSel=new Set(); if($("#wpSearch"))$("#wpSearch").value=""; renderWonPicker(); openModal("wonPickerModal"); }
+function openWonPicker(){ if(!isAdmin()){toast("案例库由管理员统一维护");return;} _wpSel=new Set(); if($("#wpSearch"))$("#wpSearch").value=""; renderWonPicker(); openModal("wonPickerModal"); }
 function renderWonPicker(){
   const q=($("#wpSearch").value||"").toLowerCase();
   const caseNames=new Set((DB.cases||[]).map(c=>c.name));
@@ -1874,6 +1867,7 @@ function toggleWp(id,on){ on?_wpSel.add(id):_wpSel.delete(id); }
 function wpSelectAll(){ const caseNames=new Set((DB.cases||[]).map(c=>c.name)); wonCustomers().forEach(c=>{ if(!caseNames.has(c.name))_wpSel.add(c.id); }); renderWonPicker(); }
 function wpClear(){ _wpSel=new Set(); renderWonPicker(); }
 function addCasesFromWon(){
+  if(!isAdmin()){toast("案例库由管理员统一维护");return;}
   const caseNames=new Set((DB.cases||[]).map(c=>c.name));
   let added=0;
   [..._wpSel].forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(!c||caseNames.has(c.name))return;
@@ -1882,6 +1876,7 @@ function addCasesFromWon(){
   save();closeModal("wonPickerModal");renderCases();toast("已从成交客户添加 "+added+" 个到案例库");
 }
 function openCase(id){
+  if(!isAdmin()){toast("案例库由管理员统一维护");return;}
   editCaseId=id||null;
   const c=id?(DB.cases||[]).find(x=>x.id===id):{};
   $("#caseModalTitle").textContent=id?"编辑案例":"新增案例";
@@ -1890,6 +1885,7 @@ function openCase(id){
   openModal("caseModal");
 }
 function saveCase(){
+  if(!isAdmin()){toast("案例库由管理员统一维护");return;}
   const name=$("#cs_name").value.trim(); if(!name){toast("请填写公司名字");return;}
   const data={name,region:$("#cs_region").value,industry:$("#cs_industry").value,product:$("#cs_product").value};
   if(editCaseId){Object.assign((DB.cases||[]).find(x=>x.id===editCaseId),data);}
@@ -1898,6 +1894,7 @@ function saveCase(){
 }
 function deleteCase(){
   if(!editCaseId)return;
+  if(!isAdmin()){toast("案例库由管理员统一维护");return;}
   if(!confirm("确定删除该案例？"))return;
   DB.cases=(DB.cases||[]).filter(x=>x.id!==editCaseId);
   save();closeModal("caseModal");renderCases();toast("已删除");
@@ -1982,8 +1979,12 @@ function poolNoteToVisits(noteText,cid){
     DB.visits.push(rec);
   });
 }
-function claimPool(poolId){
+async function claimPool(poolId){
   const p=(DB.pool||[]).find(x=>x.id===poolId);if(!p)return;
+  // 先云端原子捡入（防多人同时捡同一家），成功后再本地入库
+  const {data,error}=await SB.rpc("claim_pool",{p_id:poolId});
+  if(error){toast("捡入失败："+error.message);return;}
+  if(!data){ DB.pool=(DB.pool||[]).filter(x=>x.id!==poolId); save();renderPool(); toast("该公司刚被他人捡入"); return; }
   let c=DB.customers.find(x=>x.name===p.name && x.owner===CURRENT.name);
   if(!c){
     c={id:uid(),code:nextCode(),owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
@@ -2049,7 +2050,7 @@ function openPool(id){
   if($("#p_followTargetList"))$("#p_followTargetList").innerHTML=tnames.map(n=>`<option value="${esc(n)}"></option>`).join("");
   renderPoolFollow();
   $("#poolModalTitle").textContent=id?"编辑公海客户":"新增公海客户";
-  $("#poolDeleteBtn").style.display=id?"":"none";
+  $("#poolDeleteBtn").style.display=(id&&isAdmin())?"":"none";
   $("#poolClaimBtn").style.display=id?"":"none";
   $("#p_name").value=p.name||""; $("#p_attr").value=p.attr||""; $("#p_region").value=p.region||""; $("#p_origin").value=p.origin||"";
   $("#p_contact").value=p.contact||""; $("#p_phone").value=p.phone||""; $("#p_tradeContact").value=p.tradeContact||""; $("#p_tradePhone").value=p.tradePhone||"";
@@ -2074,6 +2075,7 @@ function savePool(){
 }
 function deletePool(){
   if(!editPoolId)return;
+  if(!isAdmin()){toast("仅管理员可删除公海客户");return;}
   if(!confirm("确定从公海删除该客户？（不影响已捡入的潜在客户）"))return;
   DB.pool=DB.pool.filter(p=>p.id!==editPoolId);
   save();closeModal("poolModal");renderPool();toast("已删除");
@@ -2214,8 +2216,15 @@ async function delUser(id,name){
   DB.users=DB.users.filter(u=>u.id!==id); buildNameMaps(); renderUsers(); refreshDynamic();
   toast("已删除账号："+name);
 }
-function clearAll(){if(!confirm("确定清空全部数据？此操作不可恢复（建议先导出备份）。"))return;
-  DB={customers:[],visits:[],seq:0};save();refreshDynamic();renderDash();renderCustomers();renderVisits();toast("已清空");}
+function clearAll(){
+  if(!isAdmin()){toast("仅管理员可执行");return;}
+  if(prompt("此操作只清空【本机浏览器】的缓存数据，云端团队数据不受影响（重新登录后会重新拉取）。\n\n如确认，请输入：清空")!=="清空")return;
+  DB={customers:[],visits:[],pool:[],cases:[],users:DB.users,seq:0};
+  localStorage.removeItem(LS_KEY);
+  _snap.customers=new Map();_snap.visits=new Map();_snap.pool=new Map();_snap.cases=new Map();
+  refreshDynamic();renderDash();renderCustomers();renderVisits();
+  toast("已清空本机缓存（云端数据未受影响）");
+}
 
 /* ===================== Init ===================== */
 function initSelects(){
