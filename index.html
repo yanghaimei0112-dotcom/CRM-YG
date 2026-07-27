@@ -642,6 +642,21 @@
   </div>
 </div>
 
+<div class="modal-bg" id="passModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-head"><h3 id="passModalTitle">重置密码</h3><button class="x" onclick="closeModal('passModal')">×</button></div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:12px"><label>新密码（≥6 位）*</label><input id="p_new" type="password" autocomplete="new-password"></div>
+      <div class="field"><label>再输一遍确认 *</label><input id="p_new2" type="password" autocomplete="new-password"></div>
+      <p class="hint" style="margin-top:10px">重置立即生效，该成员的旧密码将不能登录，请私下转告新密码。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('passModal')">取消</button>
+      <button class="btn" onclick="savePassword()">确定重置</button>
+    </div>
+  </div>
+</div>
+
 <datalist id="ownerList"></datalist>
 <datalist id="sourceList"></datalist>
 <div class="toast" id="toast"></div>
@@ -2367,7 +2382,7 @@ function renderUsers(){
         <td>${esc(u.username)}</td>
         <td>${pill(u.role==='admin'?'YG主管':'业务员', u.role==='admin'?'#7c3aed':'#0ea5e9')}</td>
         <td>${cnt}</td>
-        <td><div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="openUser('${u.id}')">编辑</button>${(CURRENT&&u.id!==CURRENT.id)?`<button class="btn ghost sm" style="color:var(--red)" onclick="delUser('${u.id}','${esc(u.name)}')">删除</button>`:'<span style="color:var(--muted);font-size:12px;align-self:center">（当前登录）</span>'}</div></td>
+        <td><div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="openUser('${u.id}')">编辑</button><button class="btn ghost sm" onclick="openPass('${u.id}','${esc(u.name)}')">改密码</button>${(CURRENT&&u.id!==CURRENT.id)?`<button class="btn ghost sm" style="color:var(--red)" onclick="delUser('${u.id}','${esc(u.name)}')">删除</button>`:'<span style="color:var(--muted);font-size:12px;align-self:center">（当前登录）</span>'}</div></td>
       </tr>`;
     }).join("")
   }</tbody></table>`;
@@ -2439,6 +2454,30 @@ async function delUser(id,name){
   if(!r.ok||j.error){toast("删除失败："+(j.error||("HTTP "+r.status)));return;}
   DB.users=DB.users.filter(u=>u.id!==id); buildNameMaps(); renderUsers(); refreshDynamic();
   toast("已删除账号："+name);
+}
+let passUserId=null;
+function openPass(id,name){
+  if(!isAdmin())return;
+  passUserId=id;
+  $("#passModalTitle").textContent="重置密码："+name;
+  $("#p_new").value="";$("#p_new2").value="";
+  openModal("passModal");
+}
+async function savePassword(){
+  if(!isAdmin()||!passUserId)return;
+  const p1=$("#p_new").value, p2=$("#p_new2").value;
+  if(p1.length<6){toast("密码至少 6 位");return;}
+  if(p1!==p2){toast("两次输入的密码不一致");return;}
+  toast("正在重置…");
+  const {data:{session}}=await SB.auth.getSession();
+  let r,j;
+  try{
+    r=await fetch(SB_URL+"/functions/v1/admin-user",{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+(session?session.access_token:"")},body:JSON.stringify({action:"password",userId:passUserId,password:p1})});
+    j=await r.json().catch(()=>({}));
+  }catch(e){toast("重置失败："+e.message);return;}
+  if(!r.ok||j.error){toast("重置失败："+(j.error||("HTTP "+r.status)));return;}
+  closeModal("passModal");
+  toast("密码已重置，请转告该成员使用新密码登录");
 }
 function clearAll(){
   if(!isAdmin()){toast("仅管理员可执行");return;}
