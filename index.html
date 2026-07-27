@@ -124,6 +124,51 @@
   .toast.show{opacity:1}
   .hint{font-size:12px;color:var(--muted);line-height:1.7}
   @media(max-width:880px){.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.tbl-wrap{overflow-x:auto}}
+
+  /* ============ HOME 激励墙（绿色系） ============ */
+  .home-hero{position:relative;overflow:hidden;border-radius:16px;padding:30px 34px;margin-bottom:18px;color:#fff;
+             background:linear-gradient(118deg,#14371f 0%,#1b5e33 52%,#237a41 100%);box-shadow:0 8px 24px rgba(20,55,31,.25)}
+  .home-hero::before,.home-hero::after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.06)}
+  .home-hero::before{width:260px;height:260px;right:-70px;top:-110px}
+  .home-hero::after{width:150px;height:150px;right:150px;bottom:-80px}
+  .home-hero .greet{font-size:24px;font-weight:700;letter-spacing:.5px}
+  .home-hero .date{font-size:13px;opacity:.82;margin-top:6px}
+  .home-hero .quote{margin-top:14px;font-size:14px;line-height:1.7;opacity:.94;border-left:3px solid #f0b04a;padding-left:12px;max-width:640px}
+  .home-hero .hero-right{position:absolute;right:34px;top:50%;transform:translateY(-50%);display:flex;gap:14px;z-index:1}
+  .hero-chip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);border-radius:12px;padding:12px 18px;text-align:center;backdrop-filter:blur(2px)}
+  .hero-chip .n{font-size:24px;font-weight:800;color:#ffd98a}
+  .hero-chip .t{font-size:12px;opacity:.85;margin-top:3px;white-space:nowrap}
+  .home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+  .home-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+  .home-card .hd{background:#eef8f0;padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #dcefe1}
+  .home-card .hd .ico{width:34px;height:34px;border-radius:10px;background:#1b5e33;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px}
+  .home-card .hd h3{margin:0;font-size:15px;color:#174a29}
+  .home-card .hd .sub{font-size:12px;color:#5d7a66;margin-left:auto}
+  .home-card .bd{padding:14px 18px;flex:1}
+  .rule-row{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px dashed #e3eee6}
+  .rule-row:last-child{border-bottom:none}
+  .rule-row .dot{width:7px;height:7px;border-radius:50%;background:#2f9455;margin-top:7px;flex-shrink:0}
+  .rule-row .txt{flex:1;font-size:13px;line-height:1.75;color:var(--ink)}
+  .rule-row .txt .fine{font-size:12px;color:var(--muted)}
+  .amt{font-weight:800;color:#b45309;white-space:nowrap;font-size:14px}
+  .amt.green{color:#1b7a3f}
+  .ladder{display:flex;align-items:flex-end;gap:8px;height:130px;margin:16px 2px 4px}
+  .ladder .step{flex:1;border-radius:8px 8px 4px 4px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;color:#fff;padding:7px 4px;position:relative}
+  .ladder .step .money{font-weight:800;font-size:13px;color:#ffe9bd}
+  .ladder .step .goal{font-size:11px;opacity:.9;margin-top:2px}
+  .ladder .step.s1{height:38%;background:#8fc9a5}
+  .ladder .step.s2{height:56%;background:#57ab76}
+  .ladder .step.s3{height:78%;background:#2f9455}
+  .ladder .step.s4{height:100%;background:#1b5e33}
+  .ladder-cap{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
+  .reim-row{display:flex;align-items:center;gap:12px;padding:10px 0}
+  .reim-row .pct{width:52px;font-size:19px;font-weight:800;color:#1b5e33;text-align:right;flex-shrink:0}
+  .reim-row .track{flex:1;background:#eef4ef;border-radius:7px;height:20px;overflow:hidden}
+  .reim-row .fill{height:100%;border-radius:7px}
+  .reim-row .cond{font-size:12px;color:var(--muted);width:100%;margin-top:4px}
+  .home-foot{text-align:center;color:#5d7a66;font-size:13px;margin:18px 0 6px;line-height:1.8}
+  .home-foot b{color:#1b5e33}
+  @media(max-width:1080px){.home-hero .hero-right{position:static;transform:none;margin-top:18px;justify-content:flex-start;flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -141,7 +186,8 @@
 <header>
   <div class="logo">🗂️ CRM 客户管理系统</div>
   <nav>
-    <button data-view="dash" class="active">📊 仪表盘</button>
+    <button data-view="home" class="active">🏠 首页</button>
+    <button data-view="dash">📊 仪表盘</button>
     <div class="nav-drop">
       <button type="button" class="nav-drop-btn" id="custGroupBtn">📂 客户数据 ▾</button>
       <div class="nav-drop-menu">
@@ -161,8 +207,87 @@
 </header>
 
 <main>
+  <!-- ============ HOME 激励墙 ============ -->
+  <section id="view-home" class="view active">
+    <div class="home-hero">
+      <div class="greet" id="homeGreet">早上好！</div>
+      <div class="date" id="homeDate"></div>
+      <div class="quote" id="homeQuote"></div>
+      <div class="hero-right">
+        <div class="hero-chip"><div class="n">180</div><div class="t">无邀约·当日电话量</div></div>
+        <div class="hero-chip"><div class="n">150</div><div class="t">有邀约·当日电话量</div></div>
+        <div class="hero-chip"><div class="n">3</div><div class="t">当日邀约客户目标</div></div>
+      </div>
+    </div>
+
+    <div class="home-grid">
+      <!-- 基础工作维度 -->
+      <div class="home-card">
+        <div class="hd"><div class="ico">📞</div><h3>基础工作维度</h3><span class="sub">日拱一卒，功不唐捐</span></div>
+        <div class="bd">
+          <div class="rule-row"><div class="dot"></div><div class="txt">无邀约当天，电话量考核 <b>180 个</b>；有邀约当天，电话量考核 <b>150 个</b><br><span class="fine">未完成：1 元 / 个电话量，或按 1:5 折算运动量</span></div></div>
+          <div class="rule-row"><div class="dot"></div><div class="txt">当天邀约 <b>3 个客户</b>（A+）</div><span class="amt">＋50 元</span></div>
+          <div class="rule-row"><div class="dot"></div><div class="txt">可见 A+M+ 客户邀约</div><span class="amt">＋20 元/个</span></div>
+        </div>
+      </div>
+
+      <!-- 业绩目标维度 -->
+      <div class="home-card">
+        <div class="hd"><div class="ico">🏆</div><h3>业绩目标维度</h3><span class="sub">冲得越高，奖得越多</span></div>
+        <div class="bd">
+          <div class="rule-row"><div class="dot"></div><div class="txt">当月第一个出单 <b>59,800 以上</b></div><span class="amt">＋300 元</span></div>
+          <div class="rule-row"><div class="dot"></div><div class="txt">当月新开客户（49,800 以上）：<b>2 个 ＋500 元</b>，<b>3 个 ＋800 元</b></div></div>
+          <div class="ladder">
+            <div class="step s1"><span class="money">500</span><span class="goal">破 8 万</span></div>
+            <div class="step s2"><span class="money">800</span><span class="goal">破 12 万</span></div>
+            <div class="step s3"><span class="money">1000</span><span class="goal">破 15 万</span></div>
+            <div class="step s4"><span class="money">1500</span><span class="goal">破 20 万</span></div>
+          </div>
+          <div class="ladder-cap">当月业绩突破阶梯奖励（元）</div>
+        </div>
+      </div>
+
+      <!-- 路费报销规则 -->
+      <div class="home-card">
+        <div class="hd"><div class="ico">🚗</div><h3>路费报销规则</h3><span class="sub">多跑客户，路费无忧</span></div>
+        <div class="bd">
+          <div class="reim-row">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="pct">100%</div>
+                <div class="track"><div class="fill" style="width:100%;background:#1b5e33"></div></div>
+              </div>
+              <div class="cond">当月有正常的全球搜订单新开</div>
+            </div>
+          </div>
+          <div class="reim-row">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="pct">60%</div>
+                <div class="track"><div class="fill" style="width:60%;background:#2f9455"></div></div>
+              </div>
+              <div class="cond">当月无业绩单，但有完成拜访量</div>
+            </div>
+          </div>
+          <div class="reim-row">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="pct">40%</div>
+                <div class="track"><div class="fill" style="width:40%;background:#8fc9a5"></div></div>
+              </div>
+              <div class="cond">当月无业绩，且没有完成拜访量</div>
+            </div>
+          </div>
+          <div class="hint" style="margin-top:10px">订单与拜访量都会直接进入业绩核算，跑起来的每一步都算数。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-foot">今天打出的每一个电话、跑过的每一家客户，都在为这个月的自己加薪。<b>加油，开单就在今天！</b> 💪</div>
+  </section>
+
   <!-- ============ DASHBOARD ============ -->
-  <section id="view-dash" class="view active">
+  <section id="view-dash" class="view">
     <div class="cards" id="statCards"></div>
     <div class="grid2">
       <div class="panel"><h3>📈 销售漏斗（按阶段）</h3><div id="funnel"></div></div>
@@ -859,8 +984,30 @@ function enterApp(){
   document.querySelectorAll('nav button[data-admin]').forEach(b=>b.style.display=isAdmin()?"":"none");
   // 若当前停留在无权限页，则回到仪表盘
   const active=document.querySelector('nav button.active');
-  if(active && active.dataset.admin && !isAdmin()){ active.classList.remove('active'); document.querySelector('nav button[data-view=dash]').classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); $("#view-dash").classList.add('active'); }
-  refreshDynamic(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers();
+  if(active && active.dataset.admin && !isAdmin()){ active.classList.remove('active'); document.querySelector('nav button[data-view=home]').classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); $("#view-home").classList.add('active'); }
+  refreshDynamic(); renderHome(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers();
+}
+
+/* ===================== HOME 激励墙 ===================== */
+const HOME_QUOTES=[
+  "销售没有奇迹，只有轨迹——每一个电话都在铺就签单的路。",
+  "今天拒绝你的客户，正在为明天的成交做铺垫。",
+  "量的积累，才有质的飞跃。先把 180 个电话打完，好运自然来。",
+  "不怕客户说不，就怕今天没行动。",
+  "业绩是跑出来的，奖金是拼出来的，加油！",
+  "每一个 A+ 客户背后，都是一百个不放弃的电话。",
+  "月初定目标，月末数奖金——中间只差每天的多打一通。"
+];
+function renderHome(){
+  const h=new Date().getHours();
+  const greet=h<6?"夜深了":h<9?"早上好":h<12?"上午好":h<14?"中午好":h<18?"下午好":"晚上好";
+  const nm=CURRENT&&CURRENT.name?CURRENT.name:"";
+  $("#homeGreet").textContent=greet+(nm?"，"+nm:"")+"！";
+  const now=new Date();
+  const week=["日","一","二","三","四","五","六"][now.getDay()];
+  $("#homeDate").textContent=now.getFullYear()+" 年 "+(now.getMonth()+1)+" 月 "+now.getDate()+" 日 · 星期"+week;
+  const doy=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
+  $("#homeQuote").textContent="💬 "+HOME_QUOTES[doy%HOME_QUOTES.length];
 }
 
 /* ===================== Dashboard ===================== */
