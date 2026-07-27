@@ -17,7 +17,7 @@
   header{background:#fff;border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;
          gap:18px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
   .logo{font-size:17px;font-weight:700;padding:14px 0;display:flex;align-items:center;gap:8px;white-space:nowrap}
-  nav{display:flex;gap:4px;flex:1}
+  nav{display:flex;gap:4px;flex:1;overflow-x:auto;scrollbar-width:thin}
   nav button{background:none;border:none;padding:14px 14px;cursor:pointer;font-size:14px;color:var(--muted);
              border-bottom:2px solid transparent;font-weight:500}
   nav button.active{color:var(--brand);border-bottom-color:var(--brand)}
@@ -42,7 +42,7 @@
   .view{display:none}.view.active{display:block}
 
   /* dashboard */
-  .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:18px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:18px}
   @media(max-width:1100px){.cards{grid-template-columns:repeat(3,1fr)}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
   .card .k{font-size:13px;color:var(--muted)}
@@ -123,7 +123,7 @@
          padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
   .toast.show{opacity:1}
   .hint{font-size:12px;color:var(--muted);line-height:1.7}
-  @media(max-width:880px){.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
+  @media(max-width:880px){.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.tbl-wrap{overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -541,7 +541,11 @@ let DB = {customers:[], visits:[], users:[], pool:[], seq:0};
 let CURRENT = null;                       // 当前登录用户
 const LS_KEY = "crm_local_db_v1";
 const SESS_KEY = "crm_session_user";
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(DB)); cloudSync(); }
+// 本机缓存按账号隔离（离线兜底用；退出登录时清除）
+function lsKey(){ return CURRENT? (LS_KEY+"_"+CURRENT.id) : LS_KEY; }
+let _syncT=null,_syncDirty=false;
+function save(){ try{ localStorage.setItem(lsKey(), JSON.stringify(DB)); }catch(e){ toast("⚠️ 本机缓存写入失败（存储空间不足），建议立即「导出 JSON 备份」"); }
+  clearTimeout(_syncT); _syncT=setTimeout(cloudSync,600); }   // 600ms 防抖，合并连续操作
 
 /* ===================== Supabase 云端 ===================== */
 const SB_URL="https://ebucmilrvgonfxchkzvx.supabase.co";
@@ -552,11 +556,11 @@ function buildNameMaps(){ nameToId={}; idToName={}; (DB.users||[]).forEach(u=>{ 
 const D=v=>v?v:null;   // 空日期转 null
 // 字段映射（前端 camelCase <-> 云端 snake_case）
 function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
-function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:r.created_at||""};}
+function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,created_by:v.createdBy||(CURRENT?CURRENT.id:null),type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,createdBy:r.created_by||"",type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
-function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:r.created_at||""};}
+function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function caseToRow(c){const r={id:c.id,name:c.name||"",region:c.region||"",product:c.product||""}; if(!_casesNoIndustry)r.industry=c.industry||""; return r;}
 function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",industry:r.industry||"",product:r.product||""};}
 
@@ -565,8 +569,8 @@ const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map()
 async function fetchAllRows(table){
   const all=[], PAGE=1000;
   for(let from=0; ; from+=PAGE){
-    const {data,error}=await SB.from(table).select("*").range(from,from+PAGE-1);
-    if(error){ console.warn("load",table,error); break; }
+    const {data,error}=await SB.from(table).select("*").order("id").range(from,from+PAGE-1);
+    if(error){ throw new Error(table+" 拉取失败："+error.message); }   // 出错即中止，绝不用半表数据初始化
     if(!data||!data.length) break;
     all.push(...data);
     if(data.length<PAGE) break;
@@ -582,6 +586,7 @@ async function loadFromCloud(){
     fetchAllRows("pool"),
     fetchAllRows("cases")
   ]);
+  if(pf.error) throw new Error("profiles 拉取失败："+pf.error.message);
   DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,username:r.name}));
   buildNameMaps();
   DB.customers=(cu||[]).map(rowToCust);
@@ -592,10 +597,10 @@ async function loadFromCloud(){
   _snap.visits=new Map(DB.visits.map(v=>[v.id,JSON.stringify(visitToRow(v))]));
   _snap.pool=new Map(DB.pool.map(p=>[p.id,JSON.stringify(poolToRow(p))]));
   _snap.cases=new Map(DB.cases.map(c=>[c.id,JSON.stringify(caseToRow(c))]));
-  localStorage.setItem(LS_KEY,JSON.stringify(DB));
+  try{ localStorage.setItem(lsKey(),JSON.stringify(DB)); }catch(e){}
 }
 let _syncing=false,_syncPending=false,_casesTableMissing=false,_casesNoIndustry=false;
-let _lastErr="",_lastErrAt=0;
+let _lastErr="",_lastErrAt=0,_delFail={};
 async function cloudSync(){
   if(!SB||!CURRENT)return;
   if(_syncing){_syncPending=true;return;}
@@ -611,7 +616,8 @@ async function cloudSync(){
       else { errMsg=errMsg||m; console.error("cloudSync "+tbl,e); } }
   }
   _syncing=false;
-  if(errMsg && (errMsg!==_lastErr || Date.now()-_lastErrAt>15000)){ _lastErr=errMsg; _lastErrAt=Date.now(); toast("⚠️ 云端同步失败："+errMsg); }
+  if(errMsg){ _syncDirty=true; if(errMsg!==_lastErr || Date.now()-_lastErrAt>15000){ _lastErr=errMsg; _lastErrAt=Date.now(); toast("⚠️ 云端同步失败："+errMsg); } }
+  else { _syncDirty=false; _lastErr=""; }
   if(_syncPending){_syncPending=false;cloudSync();}
 }
 async function syncTable(tbl,arr,toRow){
@@ -619,16 +625,31 @@ async function syncTable(tbl,arr,toRow){
   arr.forEach(o=>{const row=toRow(o);const j=JSON.stringify(row);now.set(o.id,j);if(snap.get(o.id)!==j)ups.push({o,row});});
   const dels=[...snap.keys()].filter(id=>!now.has(id));
   let thrown=null;
-  // 分批 upsert（每批 500，避免大批导入单请求过大/超时）
+  // 分批 upsert（每批 500）；校验实际生效行数——RLS 静默拦截（返回 200 但 0 行生效）按失败处理，不再误标快照
   for(let i=0;i<ups.length;i+=500){
     const chunk=ups.slice(i,i+500);
-    const {error}=await SB.from(tbl).upsert(chunk.map(u=>u.row));
-    if(error){ // 整批失败→逐条定位；成功的记快照，失败的保留旧快照下次重试
-      for(const u of chunk){ const {error:e}=await SB.from(tbl).upsert([u.row]);
-        if(e){ now.set(u.o.id, snap.get(u.o.id)||"__RETRY__"); if(!thrown)thrown=new Error(tbl+"「"+(u.row.name||u.row.title||u.o.id)+"」"+e.message); } }
+    const {error,count}=await SB.from(tbl).upsert(chunk.map(u=>u.row),{count:"exact"});
+    if(error||(count!=null&&count!==chunk.length)){ // 整批失败或部分被拦→逐条定位；成功的记快照，失败的保留旧快照下次重试
+      for(const u of chunk){ const {error:e,count:c1}=await SB.from(tbl).upsert([u.row],{count:"exact"});
+        if(e||(c1!=null&&c1!==1)){ now.set(u.o.id, snap.get(u.o.id)||"__RETRY__"); if(!thrown)thrown=new Error(tbl+"「"+(u.row.name||u.row.title||u.o.id)+"」"+(e?e.message:"修改被云端权限策略拦截")); } }
     }
   }
-  for(let i=0;i<dels.length;i+=50){ const {error}=await SB.from(tbl).delete().in("id",dels.slice(i,i+50)); if(error)console.warn("del",tbl,error); }
+  for(let i=0;i<dels.length;i+=50){
+    const batch=dels.slice(i,i+50);
+    const {error,count}=await SB.from(tbl).delete({count:"exact"}).in("id",batch);
+    if(!error&&(count==null||count===batch.length)) continue;
+    for(const id of batch){
+      const {error:e2,count:c2}=await SB.from(tbl).delete({count:"exact"}).eq("id",id);
+      if(!e2&&(c2==null||c2===1)) continue;
+      // 云端该行已不存在（如捡入 RPC 已删）→ 视为成功，不再重试
+      const {data:ex}=await SB.from(tbl).select("id").eq("id",id).limit(1);
+      if(!ex||!ex.length) continue;
+      // 真实删除失败（多为无权限）：回写旧快照下次自动重试；连续失败 3 次放弃并明示
+      const k=tbl+":"+id; _delFail[k]=(_delFail[k]||0)+1;
+      if(_delFail[k]>=3){ if(!thrown)thrown=new Error(tbl+" 有记录删除被云端拦截（无权限），已跳过"); continue; }
+      now.set(id, snap.get(id)); if(!thrown)thrown=new Error(tbl+" 删除未生效，将自动重试");
+    }
+  }
   _snap[tbl]=now;
   if(thrown)throw thrown;
 }
@@ -728,8 +749,10 @@ function bulkReleaseToPool(view){
 function bulkDeleteCustomers(view){
   view=view||"customers"; const sel=SEL[view]; const n=sel.size; if(!n)return;
   if(!isAdmin()){toast("仅管理员可删除客户");return;}
-  if(!confirm("确定删除选中的 "+n+" 家客户？此操作不可恢复。"))return;
-  DB.customers=DB.customers.filter(c=>!sel.has(c.id)); sel.clear();
+  if(!confirm("确定删除选中的 "+n+" 家客户？其拜访记录的关联将清空，此操作不可恢复。"))return;
+  DB.customers=DB.customers.filter(c=>!sel.has(c.id));
+  DB.visits.forEach(v=>{if(sel.has(v.customerId))v.customerId=null;});   // 与单条删除一致：拜访置为无关联，不留孤儿数据
+  sel.clear();
   save();refreshDynamic();renderCustomers();renderDash();renderVisited();toast("已删除 "+n+" 家");
 }
 async function bulkClaimPool(){
@@ -811,15 +834,20 @@ async function login(){
 async function afterAuth(user){
   const {data:prof}=await SB.from("profiles").select("*").eq("id",user.id).single();
   CURRENT={id:user.id,name:(prof&&prof.name)||user.email,role:(prof&&prof.role)||"sales"};
-  // 切换账号防串号：先清空上一个用户残留的本地数据，再从云端按权限重新加载（云端加载失败时也只会显示空，不会误显别人的客户）
+  // 切换账号防串号：先清空上一个用户残留的本地数据
   DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[];
   _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear();
   _casesTableMissing=false; _casesNoIndustry=false;   // 重置同步标志，避免上次会话的"缺表/缺列"状态卡住案例同步
-  await loadFromCloud();
+  _delFail={};
+  // 离线兜底：先恢复本机该账号的缓存；云端拉取成功后会整体覆盖
+  try{ const r=localStorage.getItem(lsKey())||localStorage.getItem(LS_KEY);
+    if(r){ const d=JSON.parse(r); DB=Object.assign({customers:[],visits:[],pool:[],cases:[],users:[]},d); buildNameMaps(); } }catch(e){}
+  try{ await loadFromCloud(); }
+  catch(e){ console.warn("loadFromCloud",e); toast("⚠️ 云端加载失败，当前显示本机缓存（离线模式）；联网后重新登录即可同步"); }
   $("#login_pass").value=""; $("#loginErr").textContent="";
   enterApp();
 }
-async function logout(){ if(SB)await SB.auth.signOut(); CURRENT=null; showLogin(); }
+async function logout(){ if(SB)await SB.auth.signOut(); localStorage.removeItem(lsKey()); localStorage.removeItem(LS_KEY); CURRENT=null; showLogin(); }
 function showLogin(){ $("#loginScreen").style.display="flex"; }
 function enterApp(){
   $("#loginScreen").style.display="none";
@@ -837,19 +865,22 @@ function renderDash(){
   const cs=visibleCustomers();
   const won=cs.filter(c=>c.stage==="已成交").length;
   const active=cs.filter(c=>!["已成交","已流失"].includes(c.stage)).length;
-  // upcoming follow ups within 7 days (customers + visits)
-  const ups=collectFollowups().filter(f=>f.days!=null && f.days<=7).length;
+  // 待跟进：7 天内（不含逾期）与逾期分开统计
+  const followAll=collectFollowups();
+  const ups=followAll.filter(f=>f.days!=null&&f.days>=0&&f.days<=7).length;
+  const overdue=followAll.filter(f=>f.days!=null&&f.days<0).length;
   const poolN=poolCustomers().length;
   const vset=new Set();
   visibleVisits().filter(v=>(v.type||"拜访")==="拜访").forEach(v=>vset.add(v.customerId||("name:"+(v.company||custName(v.customerId)))));
   visibleCustomers().filter(c=>c.visited==="已拜访").forEach(c=>vset.add(c.id));
   $("#statCards").innerHTML=[
-    ["潜在客户",cs.length,"var(--brand)"],
+    ["潜在客户",cs.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交").length,"var(--brand)"],
     ["公海客户",poolN,"#0ea5e9"],
     ["已拜访客户",vset.size,"var(--purple)"],
     ["跟进中客户",active,"var(--yellow)"],
     ["已成交",won,"var(--green)"],
-    ["7天内待跟进",ups,"var(--orange)"]
+    ["7天内待跟进",ups,"var(--orange)"],
+    ["已逾期",overdue,"var(--red)"]
   ].map(([k,v,c])=>`<div class="card"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div></div>`).join("");
 
   // funnel
@@ -901,9 +932,15 @@ function drawDist(sel,keys,color,getter){
   $(sel).innerHTML=rows||`<div class="empty">暂无数据</div>`;
 }
 function collectFollowups(){
-  const list=[];
-  visibleCustomers().forEach(c=>{ if(c.nextFollow) list.push({date:c.nextFollow,days:daysFromNow(c.nextFollow),label:"客户｜"+c.name+(c.contact?"（"+c.contact+"）":"")}); });
-  visibleVisits().forEach(v=>{ if(v.nextFollow) list.push({date:v.nextFollow,days:daysFromNow(v.nextFollow),label:(v.type||"拜访")+"｜"+(custName(v.customerId)||v.title)}); });
+  const list=[], shown=new Set(), latestV={};
+  // 同一客户：客户字段与拜访字段的「下次跟进」只保留一条（取拜访记录里最新的日期），避免重复出两条
+  visibleVisits().forEach(v=>{ if(v.nextFollow&&v.customerId&&(!latestV[v.customerId]||v.nextFollow>latestV[v.customerId].nextFollow)) latestV[v.customerId]=v; });
+  visibleCustomers().forEach(c=>{
+    const v=latestV[c.id];
+    if(v){ shown.add(v.id); list.push({date:v.nextFollow,days:daysFromNow(v.nextFollow),label:(v.type||"拜访")+"｜"+c.name+(c.contact?"（"+c.contact+"）":"")}); }
+    else if(c.nextFollow) list.push({date:c.nextFollow,days:daysFromNow(c.nextFollow),label:"客户｜"+c.name+(c.contact?"（"+c.contact+"）":"")});
+  });
+  visibleVisits().forEach(v=>{ if(v.nextFollow&&!shown.has(v.id)) list.push({date:v.nextFollow,days:daysFromNow(v.nextFollow),label:(v.type||"拜访")+"｜"+(custName(v.customerId)||v.title)}); });
   return list;
 }
 
@@ -1350,8 +1387,10 @@ function exportVisitsCSV(){
 }
 function openImport(){ const el=$("#importOwnerName"); if(el)el.textContent=CURRENT?CURRENT.name:"你"; openModal("importModal"); }
 function downloadTemplate(){
-  const sample=["示例公司有限公司","跟进中","A+M+","慈溪","未拜访","张三","A+","13800000000","家用电器","××路1号","阿里巴巴","","","","2026-06-01","2026-07-01","备注示例"];
   const headers=CSV_FIELDS.filter(f=>f[0]!=="code").map(f=>f[1]);
+  // 示例行与表头严格一一对应（20 列：公司名字/负责人/客户阶段/…/备注）
+  const sample=["示例公司有限公司","张三","跟进中","A+M+","慈溪","未拜访","李四","A+","13800000000","王五","13900000000","家用电器","××路1号","阿里巴巴","https://example.en.alibaba.com","","同行A公司","2026-06-01","2026-07-01","备注示例"];
+  if(sample.length!==headers.length){toast("模板列数异常，请联系管理员");return;}
   downloadFile("客户导入模板.csv",toCSV(headers,[sample]));toast("模板已下载");
 }
 function parseCSV(text){
@@ -1409,11 +1448,12 @@ $("#importFile").addEventListener("change",async e=>{
       const header=rows[0].map(h=>h.trim());
       const map={};CSV_FIELDS.forEach(f=>{const i=findCol(header,f[0],f[1]);if(i>=0)map[f[0]]=i;});
       if(map.name==null){toast("未找到「公司名字」列，请检查表头");return;}
-      const existing=new Set(DB.customers.map(c=>c.name));
-      let added=0,skip=0;
+      const existing=new Set(DB.customers.map(c=>normName(c.name)));   // 与手动新增同口径：归一化查重
+      let added=0,skip=0; const skipped=[];
       for(let i=1;i<rows.length;i++){
         const r=rows[i];let name=cleanCompanyName((r[map.name]||"").replace(/\*/g,""));if(!name)continue;
-        if(existing.has(name)){skip++;continue;}
+        const nk=normName(name);
+        if(existing.has(nk)){skip++; if(skipped.length<5)skipped.push(name); continue;}
         const obj={id:uid(),code:nextCode()};
         CSV_FIELDS.forEach(f=>{if(f[0]==="code")return;const idx=map[f[0]];if(idx!=null)obj[f[0]]=(r[idx]||"").trim();});
         obj.name=name;
@@ -1424,9 +1464,9 @@ $("#importFile").addEventListener("change",async e=>{
         obj.phone=nlPhone(obj.phone)||obj.phone||"";   // 从含座机/人名的单元格里抽手机，抽不到则保留原值
         obj.tradePhone=nlPhone(obj.tradePhone)||obj.tradePhone||"";
         if(!obj.owner) obj.owner=CURRENT?CURRENT.name:"";   // 未指定负责人 → 归导入人
-        DB.customers.push(obj);existing.add(name);added++;
+        DB.customers.push(obj);existing.add(nk);added++;
       }
-      save();refreshDynamic();renderCustomers();renderDash();toast("导入完成：新增 "+added+" 家"+(skip?"，跳过重复 "+skip+" 家":""));
+      save();refreshDynamic();renderCustomers();renderDash();toast("导入完成：新增 "+added+" 家"+(skip?"，跳过重复 "+skip+" 家（"+skipped.join("、")+(skip>5?" 等":"")+"）":""));
     }catch(err){toast("导入失败："+err.message);}
     e.target.value="";
   }
@@ -2263,6 +2303,9 @@ initSelects();
 // 登录页回车提交
 $("#login_pass").addEventListener("keydown",e=>{if(e.key==="Enter")login();});
 $("#login_user").addEventListener("keydown",e=>{if(e.key==="Enter")$("#login_pass").focus();});
+// 网络恢复时自动补同步；每 3 分钟兜底重试此前失败的同步
+window.addEventListener("online",()=>{ if(CURRENT) cloudSync(); });
+setInterval(()=>{ if(CURRENT && navigator.onLine && _syncDirty) cloudSync(); },180000);
 </script>
 </body>
 </html>
