@@ -218,6 +218,9 @@
       <input type="text" id="visitSearch" placeholder="🔍 搜索拜访主题 / 客户 / 拜访人">
       <select id="filterType"><option value="">全部类型</option><option value="拜访">拜访</option><option value="跟进">日常跟进</option></select>
       <select id="filterResult"><option value="">全部结果</option></select>
+      <select id="visitVisitor"><option value="">全部拜访人</option></select>
+      <input type="date" id="visitFrom" title="拜访日期从">
+      <input type="date" id="visitTo" title="拜访日期到">
       <div class="spacer"></div>
       <button class="btn" onclick="openVisit()">＋ 新增拜访</button>
     </div>
@@ -518,8 +521,8 @@
 <datalist id="sourceList"></datalist>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.js" integrity="sha384-M65KxMm/JqBppck6onbmAgPVMBHrmPCf1L17Q+71EcvI9/VVI8j5cqoxQf6lj6h2" crossorigin="anonymous"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
 <script src="yg-data.js"></script>
 <script src="yg-visits.js"></script>
 <script src="yg-pool.js"></script>
@@ -611,8 +614,8 @@ async function cloudSync(){
   for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow]]){
     if(tbl==="cases" && _casesTableMissing) continue;
     try{ await syncTable(tbl,arr,fn); }catch(e){ const m=e.message||String(e);
-      if(tbl==="cases" && /industry/i.test(m) && /does not exist|Could not find|schema cache/i.test(m)){ _casesNoIndustry=true; _snap.cases=new Map(); _syncPending=true; /* 缺 industry 列：改为不带该列重新同步，案例照常保存(行业暂本地) */ }
-      else if(tbl==="cases" && /does not exist|schema cache|42P01|Could not find the table|relation .* does not/i.test(m)){ _casesTableMissing=true; /* 案例库表未建，本会话静默跳过 */ }
+      if(tbl==="cases" && /industry/i.test(m) && /does not exist|Could not find|schema cache/i.test(m)){ _casesNoIndustry=true; _snap.cases=new Map(); _syncPending=true; toast("⚠️ 案例库「行业」列未上云（暂仅存本机），请联系管理员"); /* 缺 industry 列：改为不带该列重新同步，案例照常保存(行业暂本地) */ }
+      else if(tbl==="cases" && /does not exist|schema cache|42P01|Could not find the table|relation .* does not/i.test(m)){ _casesTableMissing=true; toast("⚠️ 案例库表未建，案例仅保存在本机，请联系管理员"); /* 案例库表未建 */ }
       else { errMsg=errMsg||m; console.error("cloudSync "+tbl,e); } }
   }
   _syncing=false;
@@ -673,19 +676,19 @@ function visibleVisits(){
   return DB.visits.filter(v=> !v.customerId || ids.has(v.customerId));
 }
 function uid(){ return (crypto&&crypto.randomUUID)?crypto.randomUUID():('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);})); }
-function nextCode(){ DB.seq=(DB.seq||0)+1; return "CUS-"+String(DB.seq).padStart(3,"0"); }
+// 客户编号统一由云端 code_num 生成（rowToCust 映射显示），本地新建先置空，刷新后显示云端编号
 
 /* ===================== Helpers ===================== */
 const $=s=>document.querySelector(s);
-const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 // 多个网址（空格/换行分隔）分别成可点链接、各占一行；非 http(s) 一律强制补 http:// 前缀（防 javascript:/data: 注入）
 function urlLinks(s){ const parts=String(s||"").split(/[\s,，、;；]+/).filter(u=>/[a-zA-Z]\.[a-zA-Z]/.test(u)); if(!parts.length)return esc(s||""); return parts.map(u=>{const href=/^https?:\/\//i.test(u)?u:("http://"+u); return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" style="word-break:break-all">${esc(u)}</a>`;}).join("<br>"); }
 // 清理公司名：去掉开头/结尾多余标点（逗号、顿号、句点、引号等），保留公司名本身
 function cleanCompanyName(n){ return String(n||"").replace(/^[\s,，、.。;；:：·・*\-—_"'’‘“”]+/,"").replace(/[\s,，、;；:：·・*"'’‘“”]+$/,"").trim(); }
-// 公司名归一化用于去重：忽略空格 / 全半角括号 / 常见标点 / 结尾数字(如加个1) / 开头符号
-function normName(n){ n=String(n||"").trim().replace(/\s+/g,"").replace(/（/g,"(").replace(/）/g,")").replace(/，/g,",").replace(/、/g,""); n=n.replace(/[()\[\]【】{}<>,.。·・\-—_*"'’‘“”~!！?？:：;；]/g,""); n=n.replace(/\d+$/,""); return n; }
+// 公司名归一化用于去重：忽略空格 / 全半角括号 / 常见标点（不去结尾数字——"XX公司1/2"可能是分厂，不强制判重）
+function normName(n){ n=String(n||"").trim().replace(/\s+/g,"").replace(/（/g,"(").replace(/）/g,")").replace(/，/g,",").replace(/、/g,""); n=n.replace(/[()\[\]【】{}<>,.。·・\-—_*"'’‘“”~!！?？:：;；]/g,""); return n; }
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
-function fillSelect(el,arr,blank){el.innerHTML=(blank?`<option value="">${blank}</option>`:"")+arr.map(o=>`<option>${o}</option>`).join("");}
+function fillSelect(el,arr,blank){el.innerHTML=(blank?`<option value="">${blank}</option>`:"")+arr.map(o=>`<option>${esc(o)}</option>`).join("");}
 // 客户来源固定下拉：8个标准项 + 若记录有旧的非标准来源则保留为额外选项
 function setSourceSelect(sel,val){const el=$(sel);if(!el)return;el.innerHTML=`<option value="">未设置</option>`+SOURCES.map(s=>`<option>${esc(s)}</option>`).join("")+((val&&!SOURCES.includes(val))?`<option>${esc(val)}</option>`:"");el.value=val||"";}
 function pill(text,color){return text?`<span class="pill" style="background:${color}22;color:${color}">${esc(text)}</span>`:"";}
@@ -765,7 +768,7 @@ async function bulkClaimPool(){
     if(error||!data){failed++;continue;}
     let c=DB.customers.find(x=>x.name===p.name&&x.owner===CURRENT.name);
     if(!c){
-      c={id:uid(),code:nextCode(),owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
+      c={id:uid(),code:"",owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
       ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c);
     }
     if(p.note) poolNoteToVisits(p.note, c.id);   // 公海跟进记录 → 客户跟进记录
@@ -978,7 +981,7 @@ function renderCustTable(rows){
   const pageIds=pageRows.map(c=>c.id);
   const cols=[["code","编号"],["name","公司名字"],["owner","负责人"],["stage","阶段"],["attr","属性"],["region","区域"],
              ["contact","联系人"],["phone","电话"],["product","主营产品"],["lastFollow","最新跟进"]];
-  $("#custList").innerHTML=bulkBar("customers")+`<table><thead><tr>${selHead("customers",pageIds)}${cols.map(c=>`<th data-k="${c[0]}">${c[1]}</th>`).join("")}<th></th></tr></thead><tbody>${
+  $("#custList").innerHTML=bulkBar("customers")+`<table><thead><tr>${selHead("customers",pageIds)}${cols.map(c=>`<th data-k="${c[0]}">${c[1]}${sortKey===c[0]?(sortDir===1?" ▲":" ▼"):""}</th>`).join("")}<th></th></tr></thead><tbody>${
     pageRows.map(c=>{
       const lf=lastFollowDate(c.id);
       return `<tr>
@@ -1101,7 +1104,7 @@ function saveCustomer(){
     note:$("#c_note").value};
   data.updatedAt=new Date().toISOString();
   if(editCustId){Object.assign(DB.customers.find(x=>x.id===editCustId),data);}
-  else{DB.customers.push(Object.assign({id:uid(),code:nextCode()},data));}
+  else{DB.customers.push(Object.assign({id:uid(),code:""},data));}
   save();refreshDynamic();closeModal("custModal");
   if(wasNew){ const tgt=(data.stage==="陌拜客户")?"mobai":"customers"; const b=document.querySelector('nav button[data-view='+tgt+']'); if(b)b.click(); }
   renderCustomers();renderMobai();renderWon();renderDash();toast("已保存");
@@ -1226,9 +1229,13 @@ function showDetail(id){
 function renderVisits(){
   const q=($("#visitSearch").value||"").toLowerCase();
   const fr=$("#filterResult").value, ft=$("#filterType").value;
+  const vf=$("#visitFrom").value, vt=$("#visitTo").value, vvis=$("#visitVisitor").value;
   let rows=visibleVisits().filter(v=>{
     if(ft&&(v.type||"拜访")!==ft)return false;
     if(fr&&v.result!==fr)return false;
+    if(vf&&(v.date||"")<vf)return false;
+    if(vt&&(v.date||"")>vt)return false;
+    if(vvis&&(v.visitor||"")!==vvis)return false;
     if(q){const hay=[v.title,custName(v.customerId),v.visitor,v.decider].join(" ").toLowerCase();if(!hay.includes(q))return false;}
     return true;
   }).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -1372,7 +1379,8 @@ function findCol(header,key,label){
   const al=HEADER_ALIASES[key]||[]; for(const a of al){i=header.indexOf(a);if(i>=0)return i;}
   return -1;
 }
-function csvCell(s){s=s==null?"":String(s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function csvCell(s){s=s==null?"":String(s); if(/^[=+\-@]/.test(s))s="'"+s;   // 防 Excel 公式注入
+  return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
 function toCSV(headers,rows){return "﻿"+[headers.join(",")].concat(rows.map(r=>r.map(csvCell).join(","))).join("\r\n");}
 function downloadFile(name,content,type){const b=new Blob([content],{type:type||"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}
@@ -1454,7 +1462,7 @@ $("#importFile").addEventListener("change",async e=>{
         const r=rows[i];let name=cleanCompanyName((r[map.name]||"").replace(/\*/g,""));if(!name)continue;
         const nk=normName(name);
         if(existing.has(nk)){skip++; if(skipped.length<5)skipped.push(name); continue;}
-        const obj={id:uid(),code:nextCode()};
+        const obj={id:uid(),code:""};
         CSV_FIELDS.forEach(f=>{if(f[0]==="code")return;const idx=map[f[0]];if(idx!=null)obj[f[0]]=(r[idx]||"").trim();});
         obj.name=name;
         if(obj.visited==="已见访")obj.visited="已拜访"; if(obj.visited==="未见访")obj.visited="未拜访";
@@ -1643,8 +1651,9 @@ $("#poolTxtImportFile").addEventListener("change",async e=>{
       added++;
     });
     save();renderPool();refreshDynamic();
-    if(added===0 && skip>0){ toast("✅ 该名单 "+recs.length+" 家已全部在公海中，无需重复导入（数据已在系统里）"); }
-    else { toast("✅ 导入完成：新增 "+added+" 家"+(skip?"（另有 "+skip+" 家已存在，已跳过）":"")+"，公海现共 "+(DB.pool||[]).length+" 家"); }
+    const docWarn=/\.doc$/i.test(file.name)?"。⚠️ .doc 老格式解析可能不完整，请核对条数（建议另存为 .docx 再导入）":"";
+    if(added===0 && skip>0){ toast("✅ 该名单 "+recs.length+" 家已全部在公海中，无需重复导入（数据已在系统里）"+docWarn); }
+    else { toast("✅ 导入完成：新增 "+added+" 家"+(skip?"（另有 "+skip+" 家已存在，已跳过）":"")+"，公海现共 "+(DB.pool||[]).length+" 家"+docWarn); }
   }catch(err){toast("导入失败："+err.message);}
   e.target.value="";
 });
@@ -1657,6 +1666,9 @@ $("#restoreFile").addEventListener("change",e=>{
   const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);
     if(!d.customers)throw new Error("格式不正确");
+    // 安全校验：非法 id 一律重建（防恶意备份注入存储型 XSS）
+    const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    ["customers","visits","pool","cases"].forEach(k=>{(d[k]||[]).forEach(o=>{ if(!o.id||!uuidRe.test(String(o.id))) o.id=uid(); });});
     if(!confirm("恢复备份＝把备份内容写入云端（覆盖同 ID 记录、补入缺失记录）。\n\n在你导出这份备份之后，其他同事新增的数据【不会被删除】；但如果他们修改的是备份里已有的同一条记录，会被备份内容覆盖。\n\n确定继续？"))return;
     DB=Object.assign({customers:[],visits:[],pool:[],cases:[],seq:0},d);
     buildNameMaps();
@@ -1676,7 +1688,7 @@ function loadSample(){
     {name:"北仑精密机械有限公司",stage:"已报价",attr:"A+M-",region:"北仑",visited:"已拜访",contact:"王厂长",position:"小老板",phone:"13800000003",product:"精密五金件",address:"宁波市北仑区××大道88号",source:"转介绍",createDate:"2026-05-12",nextFollow:addDays(5),note:"已报价待回复"},
     {name:"慈溪小家电出口商",stage:"已成交",attr:"A+M+",region:"慈溪",visited:"已拜访",contact:"陈总",position:"A",phone:"13800000004",product:"小家电",address:"宁波市慈溪市观海卫镇",source:"官网",createDate:"2026-03-08",note:"已签年度合作"}
   ];
-  samples.forEach(s=>DB.customers.push(Object.assign({id:uid(),code:nextCode()},s)));
+  samples.forEach(s=>DB.customers.push(Object.assign({id:uid(),code:""},s)));
   const c0=DB.customers[DB.customers.length-4];
   DB.visits.push({id:uid(),title:"首次上门拜访—"+c0.name,customerId:c0.id,date:"2026-06-15",visitor:"业务一部",decider:"张总",position:"A+",phone:c0.phone,address:c0.address,situation:"面谈顺利，客户对独立站建站及推广感兴趣，现以阿里平台为主。",result:"有意向",nextFollow:addDays(2)});
   save();renderDash();renderCustomers();renderVisits();toast("示例数据已载入");
@@ -1692,7 +1704,7 @@ function loadYG(){
   seed.customers.forEach(s=>{
     if(existing.has(s.name)){skip++;return;}
     DB.customers.push(Object.assign({
-      id:uid(),code:nextCode(),owner:owner,stage:"潜在客户",source:s.custSource||seed.source||""
+      id:uid(),code:"",owner:owner,stage:"潜在客户",source:s.custSource||seed.source||""
     },s,{source:s.custSource||seed.source||""}));
     existing.add(s.name);added++;
   });
@@ -1713,7 +1725,7 @@ function loadYGVisits(){
   recs.forEach(r=>{
     let c=DB.customers.find(x=>x.name===r.company);
     if(!c){
-      c={id:uid(),code:nextCode(),name:r.company,owner:r.owner||"",attr:r.attr||"",region:"",
+      c={id:uid(),code:"",name:r.company,owner:r.owner||"",attr:r.attr||"",region:"",
          contact:r.decider||r.otherContact||"",phone:r.deciderPhone||r.otherPhone||"",
          product:r.product||"",address:r.address||"",source:r.source||"",
          platformUrl:cleanUrl(r.platform),siteUrl:cleanUrl(r.site),
@@ -1927,6 +1939,7 @@ function openCase(id){
 function saveCase(){
   if(!isAdmin()){toast("案例库由管理员统一维护");return;}
   const name=$("#cs_name").value.trim(); if(!name){toast("请填写公司名字");return;}
+  if(!editCaseId && (DB.cases||[]).some(c=>c.name===name)){toast("案例库已存在「"+name+"」");return;}
   const data={name,region:$("#cs_region").value,industry:$("#cs_industry").value,product:$("#cs_product").value};
   if(editCaseId){Object.assign((DB.cases||[]).find(x=>x.id===editCaseId),data);}
   else{ if(!DB.cases)DB.cases=[]; DB.cases.push(Object.assign({id:uid()},data)); }
@@ -1950,6 +1963,10 @@ function refreshDynamic(){
   $("#filterOwner").value=cur;
   $("#ownerList").innerHTML=owners.map(o=>`<option value="${esc(o)}">`).join("");
   $("#sourceList").innerHTML=[...new Set(sources)].map(s=>`<option value="${esc(s)}">`).join("");
+  // 拜访人筛选下拉（跟随拜访记录动态更新）
+  const vv=$("#visitVisitor");
+  if(vv){ const vcur=vv.value; const visitors=[...new Set((DB.visits||[]).map(v=>v.visitor).filter(Boolean))].sort();
+    vv.innerHTML=`<option value="">全部拜访人</option>`+visitors.map(o=>`<option>${esc(o)}</option>`).join(""); vv.value=vcur; }
 }
 
 /* ===================== 公海客户（独立资料库） ===================== */
@@ -1972,7 +1989,7 @@ function renderPool(){
   }
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.origin].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{const x=poolRecency(a),y=poolRecency(b);return x>y?-1:x<y?1:0;});
-  if(!rows.length){$("#poolList").innerHTML=`<div class="empty">公海暂无客户。到「数据管理 → 导入 YG 公共资料区」一键导入，或在客户详情里点「放入公海」。</div>`;return;}
+  if(!rows.length){$("#poolList").innerHTML=`<div class="empty">公海暂无客户。可在客户详情里点「放入公海」，或由管理员到「数据管理」导入名单。</div>`;return;}
   const mine=new Set(DB.customers.filter(c=>c.owner===CURRENT.name).map(c=>c.name));
   const total=rows.length, pageRows=pageSlice(rows,"pool");
   const pageIds=pageRows.map(c=>c.id);
@@ -2027,7 +2044,7 @@ async function claimPool(poolId){
   if(!data){ DB.pool=(DB.pool||[]).filter(x=>x.id!==poolId); save();renderPool(); toast("该公司刚被他人捡入"); return; }
   let c=DB.customers.find(x=>x.name===p.name && x.owner===CURRENT.name);
   if(!c){
-    c={id:uid(),code:nextCode(),owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
+    c={id:uid(),code:"",owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
     ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||"");
     DB.customers.push(c);
   }
@@ -2145,13 +2162,13 @@ function importPoolCSV(input,originName){
   const header=rows[0].map(h=>String(h||"").trim());
   const col={}; Object.keys(POOL_ALIASES).forEach(k=>{for(const a of POOL_ALIASES[k]){const i=header.indexOf(a);if(i>=0){col[k]=i;break;}}});
   if(col.name==null)return {error:"未找到「公司名字 / 名称」列"};
-  const potentialNames=new Set(DB.customers.map(c=>c.name)); // 与潜在客户重复则跳过
+  const potentialNames=new Set(DB.customers.map(c=>normName(c.name))); // 与潜在客户重复则跳过（统一归一化口径）
   const poolByName={}; (DB.pool||[]).forEach(p=>poolByName[normName(p.name)]=p);
   const grabPhone=nlPhone;   // 统一用 robust 手机号抽取（含 +86/空格/横线处理）
   let added=0,updated=0,skip=0;
   for(let i=1;i<rows.length;i++){
     const r=rows[i]; const name=cleanCompanyName((r[col.name]||"").replace(/\*/g,"")); if(!name){continue;}
-    if(potentialNames.has(name)){skip++;continue;}
+    if(potentialNames.has(normName(name))){skip++;continue;}
     const f={};
     Object.keys(POOL_ALIASES).forEach(k=>{if(k!=="name"&&col[k]!=null)f[k]=String(r[col[k]]||"").trim();});
     if(!ATTRS.includes(f.attr))f.attr=f.attr||"";
@@ -2231,9 +2248,16 @@ async function saveUser(){
   if(error){toast("创建失败："+error.message);return;}
   const nid=data.user&&data.user.id;
   if(!nid){toast("创建失败：未返回用户");return;}
-  await new Promise(r=>setTimeout(r,500));
+  // 等待触发器建好 profiles 行（轮询，最长 5 秒）
+  let prof=null;
+  for(let i=0;i<10;i++){
+    const {data:p}=await SB.from("profiles").select("id").eq("id",nid).maybeSingle();
+    if(p){prof=p;break;}
+    await new Promise(r=>setTimeout(r,500));
+  }
+  if(!prof){toast("账号已注册，但资料行尚未就绪，请稍后在用户管理里重新设置姓名/角色");return;}
   const {error:e2}=await SB.from("profiles").update({name,role}).eq("id",nid);
-  if(e2)console.warn("set profile",e2);
+  if(e2){toast("角色设置失败："+e2.message);return;}
   const pf=await SB.from("profiles").select("*");
   DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,username:r.name})); buildNameMaps();
   closeModal("userModal");renderUsers();refreshDynamic();
@@ -2281,7 +2305,7 @@ function initSelects(){
   refreshDynamic();
 }
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
-["visitSearch","filterResult","filterType"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
+["visitSearch","filterResult","filterType","visitVisitor","visitFrom","visitTo"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
 ["visitedSearch","visitedOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
@@ -2294,6 +2318,8 @@ initSelects();
 // 恢复 Supabase 登录会话；无会话则显示登录页
 (async function(){
   if(!SB){ showLogin(); $("#loginErr").textContent="Supabase SDK 未加载（需联网）"; return; }
+  // 会话状态监听：其他标签页登出 / 令牌失效时，本页同步退回登录页并清本机缓存
+  SB.auth.onAuthStateChange(ev=>{ if((ev==="SIGNED_OUT"||ev==="TOKEN_REFRESH_FAILED")&&CURRENT){ localStorage.removeItem(lsKey()); localStorage.removeItem(LS_KEY); CURRENT=null; showLogin(); } });
   try{
     const {data:{session}}=await SB.auth.getSession();
     if(session&&session.user){ await afterAuth(session.user); return; }
