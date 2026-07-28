@@ -168,7 +168,19 @@
   .reim-row .cond{font-size:12px;color:var(--muted);width:100%;margin-top:4px}
   .home-foot{text-align:center;color:#5d7a66;font-size:13px;margin:18px 0 6px;line-height:1.8}
   .home-foot b{color:#1b5e33}
-  .team-board{margin-top:16px}
+  .team-board{margin-top:0}
+  .report-board{margin-top:0}
+  .home-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  .kpi{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fbfefc;position:relative;overflow:hidden}
+  .kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:#2f9455}
+  .kpi.gold::before{background:#d97706}
+  .kpi .l{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .kpi .tag{font-size:11px;padding:1px 8px;border-radius:10px;background:#eef8f0;color:#1b5e33;white-space:nowrap}
+  .kpi .tag.gold{background:#fdf3e3;color:#b45309}
+  .kpi .v{font-size:26px;font-weight:800;margin-top:8px;color:#174a29}
+  .kpi .v.gold{color:#b45309}
+  .kpi .s{font-size:12px;color:var(--muted);margin-top:5px}
   .team-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px dashed #e3eee6}
   .team-row:last-child{border-bottom:none}
   .team-rank{width:32px;font-size:17px;text-align:center;flex-shrink:0;font-weight:700;color:#5d7a66}
@@ -182,7 +194,7 @@
   .team-meta b{color:#174a29}
   .team-nums{font-size:12px;color:#5d7a66;text-align:right;flex-shrink:0;line-height:1.8}
   .team-nums b{color:#174a29;font-size:15px}
-  @media(max-width:1080px){.home-hero .hero-right{position:static;transform:none;margin-top:18px;justify-content:flex-start;flex-wrap:wrap}}
+  @media(max-width:1080px){.home-hero .hero-right{position:static;transform:none;margin-top:18px;justify-content:flex-start;flex-wrap:wrap}.home-duo{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -297,10 +309,18 @@
       </div>
     </div>
 
+    <div class="home-duo">
+    <!-- YG 业绩报表中心 -->
+    <div class="home-card report-board">
+      <div class="hd"><div class="ico">📊</div><h3>YG 业绩报表中心</h3><span class="sub" id="reportMonth"></span><span class="sub" id="reportTime" style="margin-left:10px"></span></div>
+      <div class="bd"><div class="kpi-grid" id="reportKpis"><div class="empty" style="padding:18px 0;grid-column:1/-1">加载中…</div></div></div>
+    </div>
+
     <!-- 团队业绩目标进度榜 -->
     <div class="home-card team-board">
       <div class="hd"><div class="ico">🎯</div><h3>本月团队目标进度</h3><span class="sub">业绩破 8 万起阶梯奖 · 新开 2 单奖 500 / 3 单奖 800 · 点 ✏️ 填报本月数据</span></div>
       <div class="bd" id="teamBoard"><div class="empty" style="padding:24px 0">加载中…</div></div>
+    </div>
     </div>
 
     <div class="home-foot">今天打出的每一个电话、跑过的每一家客户，都在为这个月的自己加薪。<b>加油，开单就在今天！</b> 💪</div>
@@ -1096,6 +1116,7 @@ async function renderHomeTeam(){
   const perfOf=s=>{ const uid=uidOf(s); return uid?perf.find(p=>p.user_id===uid):null; };
   stats.forEach(s=>{ const p=perfOf(s); s.amount=p?+p.amount||0:0; s.new_deals=p?p.new_deals||0:0; });
   stats.sort((a,b)=>(b.amount-a.amount)||(b.new_deals-a.new_deals)||(b.visit_count-a.visit_count));
+  renderHomeReport(stats);
   if(!stats.length){el.innerHTML='<div class="empty" style="padding:24px 0">本月还没有数据，第一单等你开！</div>';return;}
   const MAX=200000, TIERS=[[80000,500],[120000,800],[150000,1000],[200000,1500]];
   el.innerHTML=stats.map((s,i)=>{
@@ -1144,6 +1165,24 @@ async function savePerf(){
   const {error}=await SB.from("monthly_performance").upsert({user_id:perfUserId,month,amount,new_deals:deals,updated_by:CURRENT.id,updated_at:new Date().toISOString()},{onConflict:"user_id,month"});
   if(error){toast("保存失败："+error.message);return;}
   closeModal("perfModal");toast("已保存，进度榜已更新");renderHomeTeam();
+}
+
+/* YG 业绩报表中心：与进度榜同源（monthly_performance 手工填报 + 自动统计） */
+function renderHomeReport(stats){
+  const el=$("#reportKpis"); if(!el)return;
+  const now=new Date();
+  const rm=$("#reportMonth"); if(rm)rm.textContent="当前月份 "+now.getFullYear()+" 年 "+(now.getMonth()+1)+" 月";
+  const rt=$("#reportTime"); if(rt)rt.textContent="更新于 "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  const fmt=n=>"¥"+Math.round(n).toLocaleString("zh-CN");
+  const total=stats.reduce((a,s)=>a+(+s.amount||0),0);
+  const dealers=stats.filter(s=>(s.new_deals||0)>0).length;
+  const avg=dealers?total/dealers:0;
+  const top=stats.filter(s=>(+s.amount||0)>0).sort((a,b)=>(+b.amount||0)-(+a.amount||0))[0];
+  el.innerHTML=`
+    <div class="kpi gold"><div class="l">本月总业绩 <span class="tag gold">实时</span></div><div class="v gold">${fmt(total)}</div><div class="s">团队填报汇总 · 每月自动归零重计</div></div>
+    <div class="kpi"><div class="l">在职人员 <span class="tag">在职</span></div><div class="v">${stats.length}</div><div class="s">含主管与业务员</div></div>
+    <div class="kpi"><div class="l">出单人数 <span class="tag">累计</span></div><div class="v">${dealers}</div><div class="s">人均 ${dealers?fmt(avg):"—"}</div></div>
+    <div class="kpi gold"><div class="l">领跑个人 🏆</div><div class="v">${top?esc(top.owner_name):"虚位以待"}</div><div class="s">${top?("个人业绩 "+fmt(top.amount)):"本月首单等谁来开"}</div></div>`;
 }
 
 /* ===================== Dashboard ===================== */
