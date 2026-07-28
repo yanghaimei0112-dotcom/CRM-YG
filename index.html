@@ -1096,6 +1096,7 @@ function renderHome(){
 
 /* 本月团队目标进度榜：业绩金额/新开单数为手工填报（monthly_performance 表），拜访/跟进次数自动统计 */
 function fmtWan(a){ a=+a||0; if(a>=10000){ const w=a/10000; return (w%1?w.toFixed(1):w)+" 万"; } return a.toLocaleString("zh-CN"); }
+function fmtMoney(n){ return Math.round(+n||0).toLocaleString("zh-CN"); }
 async function renderHomeTeam(){
   const el=$("#teamBoard"); if(!el)return;
   const now=new Date();
@@ -1128,7 +1129,7 @@ async function renderHomeTeam(){
     else{
       const t=TIERS.find(x=>amt<x[0]);
       const passed=TIERS.filter(x=>amt>=x[0]).pop();
-      mile=(passed?("已破 "+fmtWan(passed[0])+" · 奖 "+passed[1]+" 元 🎉 "):"")+"距破 "+fmtWan(t[0])+"（奖 "+t[1]+"）还差 "+fmtWan(t[0]-amt);
+      mile=(passed?("已破 "+fmtWan(passed[0])+" · 奖 "+passed[1]+" 元 🎉 "):"")+"距破 "+fmtWan(t[0])+"（奖 "+t[1]+"）还差 ¥"+fmtMoney(t[0]-amt);
       if(passed)mileColor="#b45309";
     }
     const deals=nd>=3?"新开 3 单 · 800 元 🎉":nd>=2?"新开 2 单 · 500 元 🎉":("新开 "+nd+" 单，距 2 单奖励还差 "+(2-nd)+" 单");
@@ -1140,7 +1141,7 @@ async function renderHomeTeam(){
       <div class="team-mid">
         <div class="team-bar-track"><div class="team-bar-fill${amt>=80000?" hit":""}" style="width:${pct}%"></div>${ticks}</div>
         <div class="team-meta">
-          <span>当月业绩 <b>¥${fmtWan(amt)}</b> / 首阶目标 8 万</span>
+          <span>当月业绩 <b>¥${fmtMoney(amt)}</b> / 首阶目标 8 万</span>
           <span style="color:${mileColor};font-weight:${mileColor==="var(--muted)"?"400":"700"}">${mile}</span>
           <span style="color:${nd>=2?"#b45309":"var(--muted)"};font-weight:${nd>=2?"700":"400"}">${deals}</span>
         </div>
