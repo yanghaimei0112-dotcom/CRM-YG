@@ -168,6 +168,20 @@
   .reim-row .cond{font-size:12px;color:var(--muted);width:100%;margin-top:4px}
   .home-foot{text-align:center;color:#5d7a66;font-size:13px;margin:18px 0 6px;line-height:1.8}
   .home-foot b{color:#1b5e33}
+  .team-board{margin-top:16px}
+  .team-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px dashed #e3eee6}
+  .team-row:last-child{border-bottom:none}
+  .team-rank{width:32px;font-size:17px;text-align:center;flex-shrink:0;font-weight:700;color:#5d7a66}
+  .team-name{width:88px;font-weight:700;font-size:14px;flex-shrink:0;color:#174a29}
+  .team-mid{flex:1;min-width:0}
+  .team-bar-track{height:14px;background:#eef4ef;border-radius:7px;overflow:hidden;position:relative}
+  .team-bar-fill{height:100%;border-radius:7px;background:linear-gradient(90deg,#57ab76,#1b5e33);transition:width .5s}
+  .team-bar-fill.hit{background:linear-gradient(90deg,#d97706,#b45309)}
+  .team-bar-goal{position:absolute;top:0;bottom:0;width:2px;background:#b45309;opacity:.5}
+  .team-meta{font-size:12px;color:var(--muted);margin-top:5px;display:flex;gap:14px;flex-wrap:wrap}
+  .team-meta b{color:#174a29}
+  .team-nums{font-size:12px;color:#5d7a66;text-align:right;flex-shrink:0;line-height:1.8}
+  .team-nums b{color:#174a29;font-size:15px}
   @media(max-width:1080px){.home-hero .hero-right{position:static;transform:none;margin-top:18px;justify-content:flex-start;flex-wrap:wrap}}
 </style>
 </head>
@@ -281,6 +295,12 @@
           <div class="hint" style="margin-top:10px">订单与拜访量都会直接进入业绩核算，跑起来的每一步都算数。</div>
         </div>
       </div>
+    </div>
+
+    <!-- 团队业绩目标进度榜 -->
+    <div class="home-card team-board">
+      <div class="hd"><div class="ico">🎯</div><h3>本月团队目标进度</h3><span class="sub">新开 2 单奖 500 元 · 3 单奖 800 元 · 业绩破 8 万起阶梯奖</span></div>
+      <div class="bd" id="teamBoard"><div class="empty" style="padding:24px 0">加载中…</div></div>
     </div>
 
     <div class="home-foot">今天打出的每一个电话、跑过的每一家客户，都在为这个月的自己加薪。<b>加油，开单就在今天！</b> 💪</div>
@@ -1036,6 +1056,41 @@ function renderHome(){
   $("#homeDate").textContent=now.getFullYear()+" 年 "+(now.getMonth()+1)+" 月 "+now.getDate()+" 日 · 星期"+week;
   const doy=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
   $("#homeQuote").textContent="💬 "+HOME_QUOTES[doy%HOME_QUOTES.length];
+  renderHomeTeam();
+}
+
+/* 本月团队目标进度榜：优先走云端聚合（全员口径一致），失败时本地兜底 */
+async function renderHomeTeam(){
+  const el=$("#teamBoard"); if(!el)return;
+  const now=new Date();
+  const mstr=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01";
+  let stats=null;
+  if(SB){ try{ const r=await SB.rpc("monthly_team_stats"); if(!r.error&&r.data)stats=r.data; }catch(e){} }
+  if(!stats){
+    const agg={};
+    DB.customers.forEach(c=>{ if(c.createDate&&c.createDate>=mstr&&c.owner){ const a=agg[c.owner]=agg[c.owner]||{owner_name:c.owner,new_customers:0,visit_count:0}; a.new_customers++; } });
+    (DB.visits||[]).forEach(v=>{ if(v.date&&v.date>=mstr&&v.owner){ const a=agg[v.owner]=agg[v.owner]||{owner_name:v.owner,new_customers:0,visit_count:0}; a.visit_count++; } });
+    stats=Object.values(agg);
+  }
+  (DB.users||[]).forEach(u=>{ if(u.name&&!stats.find(s=>s.owner_name===u.name))stats.push({owner_name:u.name,new_customers:0,visit_count:0}); });
+  stats.sort((a,b)=>(b.new_customers-a.new_customers)||(b.visit_count-a.visit_count));
+  if(!stats.length){el.innerHTML='<div class="empty" style="padding:24px 0">本月还没有数据，第一单等你开！</div>';return;}
+  const GOAL=3;
+  el.innerHTML=stats.map((s,i)=>{
+    const nc=s.new_customers||0, vc=s.visit_count||0;
+    const pct=Math.min(100,Math.round(nc/GOAL*100));
+    const medal=nc>0?(i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)):(i+1);
+    const hit=nc>=3?"已达成 3 单 · 800 元 🎉":nc>=2?"已达成 2 单 · 500 元 🎉":"距 2 单奖励还差 "+(2-nc)+" 单";
+    return `<div class="team-row">
+      <div class="team-rank">${medal}</div>
+      <div class="team-name">${esc(s.owner_name)}</div>
+      <div class="team-mid">
+        <div class="team-bar-track"><div class="team-bar-fill${nc>=2?" hit":""}" style="width:${pct}%"></div><div class="team-bar-goal" style="left:${Math.round(2/GOAL*100)}%"></div></div>
+        <div class="team-meta"><span>当月新开客户 <b>${nc}</b> / 目标 ${GOAL}</span><span style="color:${nc>=2?"#b45309":"var(--muted)"};font-weight:${nc>=2?"700":"400"}">${hit}</span></div>
+      </div>
+      <div class="team-nums">当月新增 <b>${nc}</b><br>拜访/跟进 <b>${vc}</b> 次</div>
+    </div>`;
+  }).join("");
 }
 
 /* ===================== Dashboard ===================== */
