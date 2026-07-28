@@ -299,7 +299,7 @@
 
     <!-- 团队业绩目标进度榜 -->
     <div class="home-card team-board">
-      <div class="hd"><div class="ico">🎯</div><h3>本月团队目标进度</h3><span class="sub">新开 2 单奖 500 元 · 3 单奖 800 元 · 业绩破 8 万起阶梯奖</span></div>
+      <div class="hd"><div class="ico">🎯</div><h3>本月团队目标进度</h3><span class="sub">业绩破 8 万起阶梯奖 · 新开 2 单奖 500 / 3 单奖 800 · 点 ✏️ 填报本月数据</span></div>
       <div class="bd" id="teamBoard"><div class="empty" style="padding:24px 0">加载中…</div></div>
     </div>
 
@@ -673,6 +673,21 @@
     <div class="modal-foot">
       <button class="btn ghost" onclick="closeModal('passModal')">取消</button>
       <button class="btn" onclick="savePassword()">确定重置</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="perfModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-head"><h3 id="perfModalTitle">填报本月数据</h3><button class="x" onclick="closeModal('perfModal')">×</button></div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:12px"><label>当月业绩金额（元）*</label><input id="p_amount" type="number" min="0" step="100" placeholder="如 59800"></div>
+      <div class="field"><label>当月新开成交客户数（单）*</label><input id="p_deals" type="number" min="0" step="1" placeholder="如 2"></div>
+      <p class="hint" style="margin-top:10px">填报本月 1 号至今的数据，可随时回来更新；首页进度榜全团队可见。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('perfModal')">取消</button>
+      <button class="btn" onclick="savePerf()">保存</button>
     </div>
   </div>
 </div>
@@ -1059,13 +1074,17 @@ function renderHome(){
   renderHomeTeam();
 }
 
-/* 本月团队目标进度榜：优先走云端聚合（全员口径一致），失败时本地兜底 */
+/* 本月团队目标进度榜：业绩金额/新开单数为手工填报（monthly_performance 表），拜访/跟进次数自动统计 */
+function fmtWan(a){ a=+a||0; if(a>=10000){ const w=a/10000; return (w%1?w.toFixed(1):w)+" 万"; } return a.toLocaleString("zh-CN"); }
 async function renderHomeTeam(){
   const el=$("#teamBoard"); if(!el)return;
   const now=new Date();
   const mstr=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01";
-  let stats=null;
-  if(SB){ try{ const r=await SB.rpc("monthly_team_stats"); if(!r.error&&r.data)stats=r.data; }catch(e){} }
+  let stats=null, perf=[];
+  if(SB){
+    try{ const r=await SB.from("monthly_performance").select("*").eq("month",mstr); if(!r.error&&r.data)perf=r.data; }catch(e){}
+    try{ const r=await SB.rpc("monthly_team_stats"); if(!r.error&&r.data)stats=r.data; }catch(e){}
+  }
   if(!stats){
     const agg={};
     DB.customers.forEach(c=>{ if(c.createDate&&c.createDate>=mstr&&c.owner){ const a=agg[c.owner]=agg[c.owner]||{owner_name:c.owner,new_customers:0,visit_count:0}; a.new_customers++; } });
@@ -1073,24 +1092,58 @@ async function renderHomeTeam(){
     stats=Object.values(agg);
   }
   (DB.users||[]).forEach(u=>{ if(u.name&&!stats.find(s=>s.owner_name===u.name))stats.push({owner_name:u.name,new_customers:0,visit_count:0}); });
-  stats.sort((a,b)=>(b.new_customers-a.new_customers)||(b.visit_count-a.visit_count));
+  const uidOf=s=>{ if(s.user_id)return s.user_id; const u=(DB.users||[]).find(u=>u.name===s.owner_name); return u?u.id:null; };
+  const perfOf=s=>{ const uid=uidOf(s); return uid?perf.find(p=>p.user_id===uid):null; };
+  stats.forEach(s=>{ const p=perfOf(s); s.amount=p?+p.amount||0:0; s.new_deals=p?p.new_deals||0:0; });
+  stats.sort((a,b)=>(b.amount-a.amount)||(b.new_deals-a.new_deals)||(b.visit_count-a.visit_count));
   if(!stats.length){el.innerHTML='<div class="empty" style="padding:24px 0">本月还没有数据，第一单等你开！</div>';return;}
-  const GOAL=3;
+  const MAX=200000, TIERS=[[80000,500],[120000,800],[150000,1000],[200000,1500]];
   el.innerHTML=stats.map((s,i)=>{
-    const nc=s.new_customers||0, vc=s.visit_count||0;
-    const pct=Math.min(100,Math.round(nc/GOAL*100));
-    const medal=nc>0?(i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)):(i+1);
-    const hit=nc>=3?"已达成 3 单 · 800 元 🎉":nc>=2?"已达成 2 单 · 500 元 🎉":"距 2 单奖励还差 "+(2-nc)+" 单";
+    const amt=s.amount||0, nd=s.new_deals||0, vc=s.visit_count||0, uid=uidOf(s);
+    const pct=Math.min(100,amt/MAX*100);
+    const medal=amt>0||nd>0?(i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)):(i+1);
+    let mile, mileColor="var(--muted)";
+    if(amt>=MAX){ mile="已破 20 万 · 封顶奖励 1500 元 🎉"; mileColor="#b45309"; }
+    else{
+      const t=TIERS.find(x=>amt<x[0]);
+      const passed=TIERS.filter(x=>amt>=x[0]).pop();
+      mile=(passed?("已破 "+fmtWan(passed[0])+" · 奖 "+passed[1]+" 元 🎉 "):"")+"距破 "+fmtWan(t[0])+"（奖 "+t[1]+"）还差 "+fmtWan(t[0]-amt);
+      if(passed)mileColor="#b45309";
+    }
+    const deals=nd>=3?"新开 3 单 · 800 元 🎉":nd>=2?"新开 2 单 · 500 元 🎉":("新开 "+nd+" 单，距 2 单奖励还差 "+(2-nd)+" 单");
+    const canEdit=uid&&(isAdmin()||(CURRENT&&CURRENT.id===uid));
+    const ticks=TIERS.slice(0,3).map(t=>`<div class="team-bar-goal" style="left:${t[0]/MAX*100}%"></div>`).join("");
     return `<div class="team-row">
       <div class="team-rank">${medal}</div>
       <div class="team-name">${esc(s.owner_name)}</div>
       <div class="team-mid">
-        <div class="team-bar-track"><div class="team-bar-fill${nc>=2?" hit":""}" style="width:${pct}%"></div><div class="team-bar-goal" style="left:${Math.round(2/GOAL*100)}%"></div></div>
-        <div class="team-meta"><span>当月新开客户 <b>${nc}</b> / 目标 ${GOAL}</span><span style="color:${nc>=2?"#b45309":"var(--muted)"};font-weight:${nc>=2?"700":"400"}">${hit}</span></div>
+        <div class="team-bar-track"><div class="team-bar-fill${amt>=80000?" hit":""}" style="width:${pct}%"></div>${ticks}</div>
+        <div class="team-meta">
+          <span>当月业绩 <b>¥${fmtWan(amt)}</b> / 首阶目标 8 万</span>
+          <span style="color:${mileColor};font-weight:${mileColor==="var(--muted)"?"400":"700"}">${mile}</span>
+          <span style="color:${nd>=2?"#b45309":"var(--muted)"};font-weight:${nd>=2?"700":"400"}">${deals}</span>
+        </div>
       </div>
-      <div class="team-nums">当月新增 <b>${nc}</b><br>拜访/跟进 <b>${vc}</b> 次</div>
+      <div class="team-nums">拜访/跟进 <b>${vc}</b> 次${canEdit?`<br><button class="btn ghost sm" style="margin-top:4px" onclick="openPerf('${uid}','${esc(s.owner_name)}',${amt},${nd})">✏️ 填报</button>`:""}</div>
     </div>`;
   }).join("");
+}
+let perfUserId=null;
+function openPerf(uid,name,amount,deals){
+  if(!isAdmin()&&(!CURRENT||CURRENT.id!==uid)){toast("只能填报自己的数据");return;}
+  perfUserId=uid;
+  $("#perfModalTitle").textContent="填报本月数据："+name;
+  $("#p_amount").value=amount||"";$("#p_deals").value=deals||"";
+  openModal("perfModal");
+}
+async function savePerf(){
+  if(!perfUserId)return;
+  const amount=parseFloat($("#p_amount").value)||0, deals=parseInt($("#p_deals").value)||0;
+  if(amount<0||deals<0){toast("数字不能为负");return;}
+  const now=new Date(), month=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01";
+  const {error}=await SB.from("monthly_performance").upsert({user_id:perfUserId,month,amount,new_deals:deals,updated_by:CURRENT.id,updated_at:new Date().toISOString()},{onConflict:"user_id,month"});
+  if(error){toast("保存失败："+error.message);return;}
+  closeModal("perfModal");toast("已保存，进度榜已更新");renderHomeTeam();
 }
 
 /* ===================== Dashboard ===================== */
