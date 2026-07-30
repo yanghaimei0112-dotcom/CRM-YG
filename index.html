@@ -62,7 +62,7 @@
   .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
 
   /* toolbar */
-  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:0;flex-wrap:wrap;position:sticky;top:53px;z-index:30;background:var(--bg);padding:12px 0 10px}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:0;flex-wrap:wrap;position:sticky;top:var(--hdrtop,53px);z-index:30;background:var(--bg);padding:12px 0 10px}
   .toolbar input[type=text],.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#fff}
   .toolbar input[type=text]{min-width:200px}
   .spacer{flex:1}
@@ -74,7 +74,7 @@
   .tbl-wrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:visible;box-shadow:var(--shadow)}
   table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #f0f1f3}
-  th{background:#fafbfc;font-weight:600;color:var(--muted);position:sticky;top:100px;z-index:10;cursor:pointer;user-select:none}
+  th{background:#fafbfc;font-weight:600;color:var(--muted);position:sticky;top:var(--thtop,100px);z-index:10;cursor:pointer;user-select:none}
   th:hover{color:var(--ink)}
   tbody tr:hover{background:#f8faff}
   .clip{display:block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -123,7 +123,7 @@
          padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none}
   .toast.show{opacity:1}
   .hint{font-size:12px;color:var(--muted);line-height:1.7}
-  @media(max-width:880px){.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.tbl-wrap{overflow-x:auto}}
+  @media(max-width:880px){.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.tbl-wrap{overflow-x:auto}th{position:static}}
 
   /* ============ HOME 激励墙（绿色系） ============ */
   .home-hero{position:relative;overflow:hidden;border-radius:16px;padding:30px 34px;margin-bottom:18px;color:#fff;
@@ -1000,6 +1000,16 @@ function pageBar(total,key){
 }
 
 /* ===================== Navigation ===================== */
+// 表头吸附高度 = 顶栏 + 当前页工具栏的实际高度（窄屏工具栏折行时自动跟随）
+function syncThTop(){
+  const h=document.querySelector("header");
+  const tb=document.querySelector(".view.active .toolbar");
+  let top=h?h.offsetHeight:53;
+  document.documentElement.style.setProperty("--hdrtop",top+"px");
+  if(tb)top+=tb.offsetHeight;
+  document.documentElement.style.setProperty("--thtop",top+"px");
+}
+window.addEventListener("resize",syncThTop);
 document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
@@ -1017,6 +1027,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   if(b.dataset.view==="won")renderWon();
   if(b.dataset.view==="cases")renderCases();
   if(b.dataset.view==="users")renderUsers();
+  syncThTop();
 });
 
 // 「客户数据」下拉：菜单用 fixed 定位（避开 nav 的 overflow-x 裁剪），悬停或点击均可展开
@@ -1069,6 +1080,7 @@ function enterApp(){
   const active=document.querySelector('nav button.active');
   if(active && active.dataset.admin && !isAdmin()){ active.classList.remove('active'); document.querySelector('nav button[data-view=home]').classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); $("#view-home").classList.add('active'); }
   refreshDynamic(); renderHome(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers();
+  syncThTop();
 }
 
 /* ===================== HOME 激励墙 ===================== */
