@@ -228,8 +228,8 @@
     <button data-view="visits">📍 客户跟进记录</button>
     <button data-view="won">💰 成交客户</button>
     <button data-view="cases">📚 客户案例库</button>
+    <button data-view="resigned">🚶 离职人员潜在</button>
     <button data-view="users" data-admin="1">👤 用户管理</button>
-    <button data-view="resigned" data-admin="1">🚶 离职人员潜在</button>
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
   </nav>
   <div class="top-actions" id="userBox"></div>
@@ -496,7 +496,7 @@
   <!-- ============ 离职人员潜在（管理员） ============ -->
   <section id="view-resigned" class="view">
     <div class="toolbar">
-      <div class="hint" style="flex:1">已注销账号（离职人员）名下的潜在客户自动汇总在这里；选择接收人后可「转移选中」或按人「全部转移」。转移后客户归新负责人，跟进记录保留。</div>
+      <div class="hint" style="flex:1">已注销账号（离职人员）名下的潜在客户自动汇总在这里，团队所有人都可见；管理员选择接收人后可「转移选中」或按人「全部转移」。转移后客户归新负责人，跟进记录保留。</div>
     </div>
     <div id="resignedList" class="tbl-wrap"></div>
   </section>
@@ -2693,24 +2693,24 @@ function resignedGroups(){
 }
 function renderResigned(){
   const el=$("#resignedList"); if(!el)return;
-  if(!isAdmin()){ el.innerHTML='<div class="empty">仅管理员（YG主管）可访问</div>'; return; }
+  const adm=isAdmin();   // 团队所有人可见；转移操作仅管理员
   const groups=resignedGroups(), names=Object.keys(groups).sort();
   if(!names.length){ el.innerHTML='<div class="empty" style="padding:30px 0">🎉 没有离职人员遗留的潜在客户</div>'; return; }
   const opts=(DB.users||[]).map(u=>`<option value="${esc(u.name)}"${u.name===resignedTarget?" selected":""}>${esc(u.name)}</option>`).join("");
-  el.innerHTML=`<div class="panel" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  el.innerHTML=(adm?`<div class="panel" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <span style="font-size:13px;color:var(--muted)">转移到：</span>
       <select id="resignedTargetSel" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-width:140px"><option value="">— 选择接收人 —</option>${opts}</select>
       <button class="btn sm" onclick="transferResigned('selected')">✅ 转移选中（${resignedSel.size}）</button>
-    </div>` + names.map(n=>{
+    </div>`:`<div class="panel" style="margin-bottom:14px;font-size:13px;color:var(--muted)">以下客户暂无负责人（原负责人已离职），如需领取请联系主管转移。</div>`) + names.map(n=>{
       const rows=groups[n];
       return `<div class="panel" style="margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
           <b>🚶 ${esc(n)}（已离职）· ${rows.length} 家</b>
-          <button class="btn ghost sm" onclick="transferResigned('${esc(n)}')">全部转移 →</button>
+          ${adm?`<button class="btn ghost sm" onclick="transferResigned('${esc(n)}')">全部转移 →</button>`:""}
         </div>
-        <div class="tbl-wrap"><table><thead><tr><th style="width:34px"></th><th>公司</th><th>阶段</th><th>联系人</th><th>电话</th><th>下次跟进</th></tr></thead><tbody>
+        <div class="tbl-wrap"><table><thead><tr>${adm?'<th style="width:34px"></th>':""}<th>公司</th><th>阶段</th><th>联系人</th><th>电话</th><th>下次跟进</th></tr></thead><tbody>
         ${rows.map(c=>`<tr>
-          <td><input type="checkbox" style="width:auto" ${resignedSel.has(c.id)?"checked":""} onchange="toggleResigned('${c.id}',this.checked)"></td>
+          ${adm?`<td><input type="checkbox" style="width:auto" ${resignedSel.has(c.id)?"checked":""} onchange="toggleResigned('${c.id}',this.checked)"></td>`:""}
           <td style="font-weight:600">${esc(c.name)}</td>
           <td>${esc(c.stage||"")}</td><td>${esc(c.contact||"")}</td>
           <td>${esc(c.phone||"")}</td><td>${esc(c.nextFollow||"")}</td>
