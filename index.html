@@ -138,6 +138,8 @@
   .hero-chip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);border-radius:12px;padding:12px 18px;text-align:center;backdrop-filter:blur(2px)}
   .hero-chip .n{font-size:24px;font-weight:800;color:#ffd98a}
   .hero-chip .t{font-size:12px;opacity:.85;margin-top:3px;white-space:nowrap}
+  .hero-chip.editable{cursor:pointer;transition:background .15s,transform .15s}
+  .hero-chip.editable:hover{background:rgba(255,255,255,.18);transform:translateY(-1px)}
   .home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
   .home-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
   .home-card .hd{background:#eef8f0;padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #dcefe1}
@@ -243,6 +245,7 @@
         <div class="hero-chip"><div class="n">180</div><div class="t">无邀约·当日电话量</div></div>
         <div class="hero-chip"><div class="n">150</div><div class="t">有邀约·当日电话量</div></div>
         <div class="hero-chip"><div class="n">3</div><div class="t">当日邀约客户目标</div></div>
+        <div class="hero-chip editable" id="heroGoal" title="点击设置我的本月业绩目标"><div class="n" id="heroGoalNum">—</div><div class="t">🎯 月度目标 · 点击设置</div></div>
       </div>
     </div>
 
@@ -1108,6 +1111,35 @@ function renderHome(){
   const doy=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
   $("#homeQuote").textContent="💬 "+HOME_QUOTES[doy%HOME_QUOTES.length];
   renderHomeTeam();
+  renderHeroGoal();
+  const hg=$("#heroGoal"); if(hg)hg.onclick=editHeroGoal;
+}
+
+/* 顶部横幅·月度目标：按人存储（monthly_performance.goal），点击卡片手动输入 */
+async function renderHeroGoal(){
+  const box=$("#heroGoalNum"); if(!box)return;
+  if(!SB||!CURRENT||!CURRENT.id){ box.textContent="—"; return; }
+  const now=new Date(), month=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01";
+  try{
+    const r=await SB.from("monthly_performance").select("goal").eq("user_id",CURRENT.id).eq("month",month).limit(1);
+    const g=r&&r.data&&r.data[0]?+r.data[0].goal||0:0;
+    box.textContent=g>0?fmtWan(g):"点我设置";
+  }catch(e){ box.textContent="—"; }
+}
+async function editHeroGoal(){
+  if(!SB||!CURRENT||!CURRENT.id){toast("请先登录");return;}
+  const now=new Date(), month=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01";
+  let cur=null;
+  try{ const r=await SB.from("monthly_performance").select("*").eq("user_id",CURRENT.id).eq("month",month).limit(1); cur=r&&r.data&&r.data[0]?r.data[0]:null; }catch(e){}
+  const v=prompt("输入你的本月业绩目标（万元或直接填金额）：\n如输入 8 表示 8 万，输入 80000 亦可；输入 0 清除目标", cur&&+cur.goal?(+cur.goal>=10000?(+cur.goal/10000):cur.goal):"");
+  if(v===null)return;
+  let g=parseFloat(String(v).replace(/[^\d.]/g,""))||0;
+  if(g>0&&g<1000)g=g*10000;   // 小数值按「万元」理解
+  const row={user_id:CURRENT.id,month,goal:g,amount:cur?+cur.amount||0:0,new_deals:cur?cur.new_deals||0:0,updated_by:CURRENT.id,updated_at:new Date().toISOString()};
+  const {error}=await SB.from("monthly_performance").upsert(row,{onConflict:"user_id,month"});
+  if(error){toast("保存失败："+error.message);return;}
+  toast(g>0?("本月目标已设为 "+fmtWan(g)):"已清除本月目标");
+  renderHeroGoal();
 }
 
 /* 本月团队目标进度榜：业绩金额/新开单数为手工填报（monthly_performance 表），拜访/跟进次数自动统计 */
