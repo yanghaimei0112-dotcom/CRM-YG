@@ -229,6 +229,7 @@
     <button data-view="won">💰 成交客户</button>
     <button data-view="cases">📚 客户案例库</button>
     <button data-view="users" data-admin="1">👤 用户管理</button>
+    <button data-view="resigned" data-admin="1">🚶 离职人员潜在</button>
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
   </nav>
   <div class="top-actions" id="userBox"></div>
@@ -490,6 +491,14 @@
       <button class="btn" onclick="openUser()">＋ 新增用户</button>
     </div>
     <div id="userList" class="tbl-wrap"></div>
+  </section>
+
+  <!-- ============ 离职人员潜在（管理员） ============ -->
+  <section id="view-resigned" class="view">
+    <div class="toolbar">
+      <div class="hint" style="flex:1">已注销账号（离职人员）名下的潜在客户自动汇总在这里；选择接收人后可「转移选中」或按人「全部转移」。转移后客户归新负责人，跟进记录保留。</div>
+    </div>
+    <div id="resignedList" class="tbl-wrap"></div>
   </section>
 </main>
 
@@ -1036,6 +1045,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   if(b.dataset.view==="won")renderWon();
   if(b.dataset.view==="cases")renderCases();
   if(b.dataset.view==="users")renderUsers();
+  if(b.dataset.view==="resigned")renderResigned();
   syncThTop();
 });
 
@@ -2673,6 +2683,56 @@ async function delUser(id,name){
   DB.users=DB.users.filter(u=>u.id!==id); buildNameMaps(); renderUsers(); refreshDynamic();
   toast("已删除账号："+name);
 }
+/* ===================== 离职人员潜在（管理员） ===================== */
+let resignedSel=new Set(), resignedTarget="";
+function resignedGroups(){
+  const active=new Set((DB.users||[]).map(u=>u.name));
+  const map={};
+  DB.customers.forEach(c=>{ if(c.owner&&!active.has(c.owner)){ (map[c.owner]=map[c.owner]||[]).push(c); } });
+  return map;   // { 离职人员姓名: [客户...] }（账号已注销 → 名字不在 profiles 里）
+}
+function renderResigned(){
+  const el=$("#resignedList"); if(!el)return;
+  if(!isAdmin()){ el.innerHTML='<div class="empty">仅管理员（YG主管）可访问</div>'; return; }
+  const groups=resignedGroups(), names=Object.keys(groups).sort();
+  if(!names.length){ el.innerHTML='<div class="empty" style="padding:30px 0">🎉 没有离职人员遗留的潜在客户</div>'; return; }
+  const opts=(DB.users||[]).map(u=>`<option value="${esc(u.name)}"${u.name===resignedTarget?" selected":""}>${esc(u.name)}</option>`).join("");
+  el.innerHTML=`<div class="panel" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--muted)">转移到：</span>
+      <select id="resignedTargetSel" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-width:140px"><option value="">— 选择接收人 —</option>${opts}</select>
+      <button class="btn sm" onclick="transferResigned('selected')">✅ 转移选中（${resignedSel.size}）</button>
+    </div>` + names.map(n=>{
+      const rows=groups[n];
+      return `<div class="panel" style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+          <b>🚶 ${esc(n)}（已离职）· ${rows.length} 家</b>
+          <button class="btn ghost sm" onclick="transferResigned('${esc(n)}')">全部转移 →</button>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th style="width:34px"></th><th>公司</th><th>阶段</th><th>联系人</th><th>电话</th><th>下次跟进</th></tr></thead><tbody>
+        ${rows.map(c=>`<tr>
+          <td><input type="checkbox" style="width:auto" ${resignedSel.has(c.id)?"checked":""} onchange="toggleResigned('${c.id}',this.checked)"></td>
+          <td style="font-weight:600">${esc(c.name)}</td>
+          <td>${esc(c.stage||"")}</td><td>${esc(c.contact||"")}</td>
+          <td>${esc(c.phone||"")}</td><td>${esc(c.nextFollow||"")}</td>
+        </tr>`).join("")}</tbody></table></div>
+      </div>`;
+    }).join("");
+  const sel=$("#resignedTargetSel"); if(sel)sel.onchange=()=>{ resignedTarget=sel.value; };
+}
+function toggleResigned(id,on){ if(on)resignedSel.add(id); else resignedSel.delete(id); renderResigned(); }
+async function transferResigned(which){
+  if(!isAdmin()){toast("仅管理员可转移");return;}
+  const tgt=resignedTarget||($("#resignedTargetSel")?$("#resignedTargetSel").value:"");
+  if(!tgt){toast("请先选择接收人");return;}
+  const list=which==="selected"?DB.customers.filter(c=>resignedSel.has(c.id)):DB.customers.filter(c=>c.owner===which);
+  if(!list.length){toast("没有可转移的客户");return;}
+  if(!confirm("确定把 "+list.length+" 家客户转移给「"+tgt+"」？\n转移后客户归新负责人，跟进/拜访记录保留。"))return;
+  list.forEach(c=>{ c.owner=tgt; c.updatedAt=new Date().toISOString(); });
+  resignedSel.clear();
+  save(); refreshDynamic(); renderResigned(); renderCustomers(); renderMobai(); renderVisited(); renderWon(); renderDash();
+  toast("已把 "+list.length+" 家客户转移给「"+tgt+"」");
+}
+
 let passUserId=null;
 function openPass(id,name){
   if(!isAdmin())return;
