@@ -493,10 +493,12 @@
     <div id="userList" class="tbl-wrap"></div>
   </section>
 
-  <!-- ============ 离职人员潜在（管理员） ============ -->
+  <!-- ============ 离职人员潜在 ============ -->
   <section id="view-resigned" class="view">
     <div class="toolbar">
-      <div class="hint" style="flex:1">已注销账号（离职人员）名下的潜在客户自动汇总在这里，团队所有人都可见；管理员选择接收人后可「转移选中」或按人「全部转移」。转移后客户归新负责人，跟进记录保留。</div>
+      <input type="text" id="resignedSearch" placeholder="🔍 搜索公司 / 原负责人 / 联系人 / 电话">
+      <div class="spacer"></div>
+      <div class="hint">已注销账号（离职人员）名下的客户，团队所有人可见；管理员勾选后可「分配给…」新负责人</div>
     </div>
     <div id="resignedList" class="tbl-wrap"></div>
   </section>
@@ -911,13 +913,13 @@ function custName(id){const c=DB.customers.find(x=>x.id===id);return c?c.name:""
 
 /* ===================== 分页（每页20条） ===================== */
 let PAGE_SIZE=20;
-const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1};
-const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases()};
+const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1, resigned:1};
+const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases(), resigned:()=>renderResigned()};
 function gotoPage(key,n){ PAGE[key]=n; PAGE_RENDER[key](); }
 function setPageSize(key,val){ PAGE_SIZE=parseInt(val)||20; Object.keys(PAGE).forEach(k=>PAGE[k]=1); PAGE_RENDER[key](); }
 
 /* ===================== 勾选 / 批量操作 ===================== */
-const SEL={customers:new Set(), pool:new Set(), visited:new Set(), won:new Set(), mobai:new Set(), cases:new Set()};
+const SEL={customers:new Set(), pool:new Set(), visited:new Set(), won:new Set(), mobai:new Set(), cases:new Set(), resigned:new Set()};
 function toggleSel(view,id,on){ on?SEL[view].add(id):SEL[view].delete(id); PAGE_RENDER[view](); }
 function toggleSelAll(view,ids,on){ ids.forEach(id=>{on?SEL[view].add(id):SEL[view].delete(id);}); PAGE_RENDER[view](); }
 function clearSel(view){ SEL[view].clear(); PAGE_RENDER[view](); }
@@ -941,7 +943,9 @@ function bulkAssign(view,name){
   if(!confirm("确定把选中的 "+ids.length+" 家客户分配给「"+name+"」？"))return;
   let n=0; ids.forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(c){c.owner=name;c.updatedAt=new Date().toISOString();n++;} });
   sel.clear();
-  save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderVisited();renderDash();toast("已把 "+n+" 家分配给「"+name+"」");
+  save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderVisited();renderDash();
+  if(PAGE_RENDER[view])PAGE_RENDER[view]();
+  toast("已把 "+n+" 家分配给「"+name+"」");
 }
 function selCell(view,id){ return `<td style="width:34px;text-align:center"><input type="checkbox" ${SEL[view].has(id)?"checked":""} onclick="event.stopPropagation();toggleSel('${view}','${id}',this.checked)"></td>`; }
 function selHead(view,ids){ const all=ids.length&&ids.every(id=>SEL[view].has(id)); return `<th style="width:34px;text-align:center"><input type="checkbox" ${all?"checked":""} onclick="toggleSelAll('${view}',[${ids.map(id=>`'${id}'`).join(",")}],this.checked)"></th>`; }
@@ -2683,54 +2687,53 @@ async function delUser(id,name){
   DB.users=DB.users.filter(u=>u.id!==id); buildNameMaps(); renderUsers(); refreshDynamic();
   toast("已删除账号："+name);
 }
-/* ===================== 离职人员潜在（管理员） ===================== */
-let resignedSel=new Set(), resignedTarget="";
-function resignedGroups(){
+/* ===================== 离职人员潜在 ===================== */
+function resignedRows(){
   const active=new Set((DB.users||[]).map(u=>u.name));
-  const map={};
-  DB.customers.forEach(c=>{ if(c.owner&&!active.has(c.owner)){ (map[c.owner]=map[c.owner]||[]).push(c); } });
-  return map;   // { 离职人员姓名: [客户...] }（账号已注销 → 名字不在 profiles 里）
+  return DB.customers.filter(c=>c.owner&&!active.has(c.owner));   // 账号已注销 → 名字不在 profiles 里
 }
 function renderResigned(){
   const el=$("#resignedList"); if(!el)return;
-  const adm=isAdmin();   // 团队所有人可见；转移操作仅管理员
-  const groups=resignedGroups(), names=Object.keys(groups).sort();
-  if(!names.length){ el.innerHTML='<div class="empty" style="padding:30px 0">🎉 没有离职人员遗留的潜在客户</div>'; return; }
-  const opts=(DB.users||[]).map(u=>`<option value="${esc(u.name)}"${u.name===resignedTarget?" selected":""}>${esc(u.name)}</option>`).join("");
-  el.innerHTML=(adm?`<div class="panel" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <span style="font-size:13px;color:var(--muted)">转移到：</span>
-      <select id="resignedTargetSel" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-width:140px"><option value="">— 选择接收人 —</option>${opts}</select>
-      <button class="btn sm" onclick="transferResigned('selected')">✅ 转移选中（${resignedSel.size}）</button>
-    </div>`:`<div class="panel" style="margin-bottom:14px;font-size:13px;color:var(--muted)">以下客户暂无负责人（原负责人已离职），如需领取请联系主管转移。</div>`) + names.map(n=>{
-      const rows=groups[n];
-      return `<div class="panel" style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-          <b>🚶 ${esc(n)}（已离职）· ${rows.length} 家</b>
-          ${adm?`<button class="btn ghost sm" onclick="transferResigned('${esc(n)}')">全部转移 →</button>`:""}
-        </div>
-        <div class="tbl-wrap"><table><thead><tr>${adm?'<th style="width:34px"></th>':""}<th>公司</th><th>阶段</th><th>联系人</th><th>电话</th><th>下次跟进</th></tr></thead><tbody>
-        ${rows.map(c=>`<tr>
-          ${adm?`<td><input type="checkbox" style="width:auto" ${resignedSel.has(c.id)?"checked":""} onchange="toggleResigned('${c.id}',this.checked)"></td>`:""}
-          <td style="font-weight:600">${esc(c.name)}</td>
-          <td>${esc(c.stage||"")}</td><td>${esc(c.contact||"")}</td>
-          <td>${esc(c.phone||"")}</td><td>${esc(c.nextFollow||"")}</td>
-        </tr>`).join("")}</tbody></table></div>
-      </div>`;
-    }).join("");
-  const sel=$("#resignedTargetSel"); if(sel)sel.onchange=()=>{ resignedTarget=sel.value; };
-}
-function toggleResigned(id,on){ if(on)resignedSel.add(id); else resignedSel.delete(id); renderResigned(); }
-async function transferResigned(which){
-  if(!isAdmin()){toast("仅管理员可转移");return;}
-  const tgt=resignedTarget||($("#resignedTargetSel")?$("#resignedTargetSel").value:"");
-  if(!tgt){toast("请先选择接收人");return;}
-  const list=which==="selected"?DB.customers.filter(c=>resignedSel.has(c.id)):DB.customers.filter(c=>c.owner===which);
-  if(!list.length){toast("没有可转移的客户");return;}
-  if(!confirm("确定把 "+list.length+" 家客户转移给「"+tgt+"」？\n转移后客户归新负责人，跟进/拜访记录保留。"))return;
-  list.forEach(c=>{ c.owner=tgt; c.updatedAt=new Date().toISOString(); });
-  resignedSel.clear();
-  save(); refreshDynamic(); renderResigned(); renderCustomers(); renderMobai(); renderVisited(); renderWon(); renderDash();
-  toast("已把 "+list.length+" 家客户转移给「"+tgt+"」");
+  const adm=isAdmin();   // 团队所有人可见；勾选与分配仅管理员
+  const q=($("#resignedSearch")?$("#resignedSearch").value:"").toLowerCase();
+  let rows=resignedRows().filter(c=>{
+    if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
+    return true;
+  });
+  rows=rows.slice().sort((a,b)=>{
+    if(sortKey==="recency"){ const x=recency(a),y=recency(b); return x>y?-1:x<y?1:0; }
+    if(sortKey==="lastFollow"){ const x=lastFollowDate(a.id)||"",y=lastFollowDate(b.id)||""; return (x>y?1:x<y?-1:0)*sortDir; }
+    let x=a[sortKey]||"",y=b[sortKey]||""; return (x>y?1:x<y?-1:0)*sortDir;
+  });
+  if(!rows.length){el.innerHTML=`<div class="empty" style="padding:30px 0">🎉 没有离职人员遗留的潜在客户</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"resigned");
+  const pageIds=pageRows.map(c=>c.id);
+  const cols=[["code","编号"],["name","公司名字"],["owner","原负责人"],["stage","阶段"],["attr","属性"],["region","区域"],
+             ["contact","联系人"],["phone","电话"],["product","主营产品"],["lastFollow","最新跟进"]];
+  el.innerHTML=(adm?bulkBar("resigned"):"")+`<table><thead><tr>${adm?selHead("resigned",pageIds):""}${cols.map(c=>`<th data-k="${c[0]}">${c[1]}${sortKey===c[0]?(sortDir===1?" ▲":" ▼"):""}</th>`).join("")}<th></th></tr></thead><tbody>${
+    pageRows.map(c=>{
+      const lf=lastFollowDate(c.id);
+      return `<tr>
+        ${adm?selCell("resigned",c.id):""}
+        <td style="color:var(--muted)">${esc(c.code)}</td>
+        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td>${c.owner?pill(c.owner,"#94a3b8"):""}</td>
+        <td>${pill(c.stage,STAGE_COLOR[c.stage])}</td>
+        <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
+        <td>${esc(c.region||"")}</td>
+        <td>${esc(c.contact||"")}</td>
+        <td>${esc(c.phone||"")}</td>
+        <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
+        <td>${lf?esc(lf):'<span style="color:var(--muted)">—</span>'}</td>
+        <td><div class="row-act">
+          <button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>
+          <button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button>
+        </div></td></tr>`;
+    }).join("")
+  }</tbody></table>`+pageBar(total,"resigned");
+  el.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1;} renderResigned();
+  });
 }
 
 let passUserId=null;
@@ -2782,6 +2785,7 @@ function initSelects(){
   refreshDynamic();
 }
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
+document.addEventListener("input",e=>{if(e.target.id==="resignedSearch"){PAGE.resigned=1;renderResigned();}});
 ["visitSearch","filterResult","filterType","visitVisitor","visitFrom","visitTo"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
 ["visitedSearch","visitedOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
