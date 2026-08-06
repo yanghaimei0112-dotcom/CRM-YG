@@ -518,8 +518,9 @@
         <div class="field"><label>其他联系电话</label><input id="c_otherPhone"></div>
         <div class="field"><label>主营产品</label><input id="c_product"></div>
         <div class="field full"><label>客户地址</label><input id="c_address"></div>
-        <div class="field"><label>平台网址</label><textarea id="c_platformUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
+        <div class="field"><label>阿里巴巴网址</label><textarea id="c_platformUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
         <div class="field"><label>独立站网址</label><textarea id="c_siteUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
+        <div class="field"><label>中国制造网址</label><textarea id="c_micUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
         <div class="field"><label>建立日期</label><input id="c_createDate" type="date"></div>
         <div class="field"><label>下次跟进</label><input id="c_nextFollow" type="date"></div>
         <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
@@ -644,8 +645,9 @@
         <div class="field"><label>其他联系电话</label><input id="p_otherPhone"></div>
         <div class="field full"><label>主营产品</label><input id="p_product"></div>
         <div class="field full"><label>客户地址</label><input id="p_address"></div>
-        <div class="field"><label>平台网址</label><textarea id="p_platformUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
+        <div class="field"><label>阿里巴巴网址</label><textarea id="p_platformUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
         <div class="field"><label>独立站网址</label><textarea id="p_siteUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
+        <div class="field"><label>中国制造网址</label><textarea id="p_micUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
         <div class="field"><label>客户来源</label><select id="p_source"></select></div>
         <div class="field"><label>建立日期</label><input id="p_createDate" type="date"></div>
       </div>
@@ -760,12 +762,12 @@ let nameToId={}, idToName={};
 function buildNameMaps(){ nameToId={}; idToName={}; (DB.users||[]).forEach(u=>{ if(u.name){nameToId[u.name]=u.id;} idToName[u.id]=u.name; }); }
 const D=v=>v?v:null;   // 空日期转 null
 // 字段映射（前端 camelCase <-> 云端 snake_case）
-function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
-function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:(r.updated_at||r.created_at||"")};}
+function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",mic_url:c.micUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
+function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,created_by:v.createdBy||(CURRENT?CURRENT.id:null),type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,createdBy:r.created_by||"",type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
-function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",other_contact:p.otherContact||"",other_phone:p.otherPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
-function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:(r.updated_at||r.created_at||"")};}
+function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",mic_url:p.micUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",other_contact:p.otherContact||"",other_phone:p.otherPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
+function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function caseToRow(c){const r={id:c.id,name:c.name||"",region:c.region||"",product:c.product||""}; if(!_casesNoIndustry)r.industry=c.industry||""; return r;}
 function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",industry:r.industry||"",product:r.product||""};}
 
@@ -942,7 +944,7 @@ function bulkReleaseToPool(view){
     const sameIds=new Set(DB.customers.filter(x=>x.name===c.name&&(x.owner||"")===(c.owner||"")).map(x=>x.id));
     const flog=customerVisitsToNote(sameIds);
     let p=(DB.pool||[]).find(x=>x.name===c.name);
-    if(!p){ p={id:uid(),origin:"手动放入"}; ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||""); DB.pool.push(p);}
+    if(!p){ p={id:uid(),origin:"手动放入"}; ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||""); DB.pool.push(p);}
     if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
     p.updatedAt=new Date().toISOString();
     sameIds.forEach(x=>removeIds.add(x));
@@ -971,7 +973,7 @@ async function bulkClaimPool(){
     let c=DB.customers.find(x=>x.name===p.name&&x.owner===CURRENT.name);
     if(!c){
       c={id:uid(),code:"",owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
-      ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c);
+      ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c);
     }
     if(p.note) poolNoteToVisits(p.note, c.id);   // 公海跟进记录 → 客户跟进记录
     DB.pool=(DB.pool||[]).filter(x=>x.id!==id); ok++;
@@ -1439,7 +1441,7 @@ function openCustomer(id,defaultStage){
   $("#c_shareholder").value=c.shareholder||""; $("#c_shareholderPhone").value=c.shareholderPhone||"";
   $("#c_otherContact").value=c.otherContact||""; $("#c_otherPhone").value=c.otherPhone||"";
   $("#c_product").value=c.product||""; $("#c_address").value=c.address||""; $("#c_platformUrl").value=c.platformUrl||"";
-  $("#c_siteUrl").value=c.siteUrl||""; $("#c_createDate").value=c.createDate||today(); $("#c_nextFollow").value=c.nextFollow||"";
+  $("#c_siteUrl").value=c.siteUrl||""; $("#c_micUrl").value=c.micUrl||""; $("#c_createDate").value=c.createDate||today(); $("#c_nextFollow").value=c.nextFollow||"";
   $("#c_peerCase").value=c.peerCase||""; $("#c_note").value=c.note||"";
   checkDupHint();
   openModal("custModal");
@@ -1471,7 +1473,7 @@ function saveCustomer(){
     visited:$("#c_visited").value,source:$("#c_source").value,contact:$("#c_contact").value,
     position:$("#c_position").value,phone:$("#c_phone").value,tradeContact:$("#c_tradeContact").value,tradePhone:$("#c_tradePhone").value,
     shareholder:$("#c_shareholder").value,shareholderPhone:$("#c_shareholderPhone").value,otherContact:$("#c_otherContact").value,otherPhone:$("#c_otherPhone").value,
-    product:$("#c_product").value,address:$("#c_address").value,platformUrl:$("#c_platformUrl").value,siteUrl:$("#c_siteUrl").value,
+    product:$("#c_product").value,address:$("#c_address").value,platformUrl:$("#c_platformUrl").value,siteUrl:$("#c_siteUrl").value,micUrl:$("#c_micUrl").value,
     createDate:$("#c_createDate").value,nextFollow:$("#c_nextFollow").value,peerCase:$("#c_peerCase").value,
     note:$("#c_note").value};
   data.updatedAt=new Date().toISOString();
@@ -1533,8 +1535,9 @@ function showDetail(id){
       ${kv("外贸部联系人",c.tradeContact)}${kv("外贸部电话",c.tradePhone)}
       ${kv("股东联系人",c.shareholder)}${kv("股东电话",c.shareholderPhone)}${kv("其他联系人",c.otherContact)}${kv("其他电话",c.otherPhone)}
       ${kv("主营产品",c.product)}${kv("客户地址",c.address)}
-      ${c.platformUrl?`<div class="k">平台网址</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.platformUrl)}</div>`:""}
+      ${c.platformUrl?`<div class="k">阿里巴巴</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.platformUrl)}</div>`:""}
       ${c.siteUrl?`<div class="k">独立站</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.siteUrl)}</div>`:""}
+      ${c.micUrl?`<div class="k">中国制造</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.micUrl)}</div>`:""}
       ${kv("同行案例",c.peerCase)}${kv("建立日期",c.createDate)}${kv("下次跟进",c.nextFollow)}
       ${kv("备注",c.note)}
     </div>
@@ -1736,7 +1739,7 @@ document.querySelectorAll(".modal-bg").forEach(m=>m.addEventListener("mousedown"
 const CSV_FIELDS=[["code","编号"],["name","公司名字"],["owner","负责人"],["stage","客户阶段"],["attr","客户属性"],["region","区域"],
   ["visited","是否拜访"],["contact","联系人"],["position","职位"],["phone","电话"],
   ["tradeContact","外贸部联系人"],["tradePhone","外贸部联系电话"],["otherContact","其他联系人"],["otherPhone","其他联系电话"],["product","主营产品"],
-  ["address","客户地址"],["source","客户来源"],["platformUrl","平台网址"],["siteUrl","独立站网址"],
+  ["address","客户地址"],["source","客户来源"],["platformUrl","阿里巴巴网址"],["siteUrl","独立站网址"],["micUrl","中国制造网址"],
   ["peerCase","同行案例"],["createDate","建立日期"],["nextFollow","下次跟进"],["note","备注"]];
 // 兼容 Notion / YG 导出表头的别名（全角括号、冒号、不同叫法）
 const HEADER_ALIASES={
@@ -1745,6 +1748,7 @@ const HEADER_ALIASES={
   "attr":["客户属性 "],"source":["客户来源 ","资料来源"],
   "peerCase":["同行案例：","同行案例:"],"createDate":["建立日期 ","创建日期"],
   "tradeContact":["外贸联系人"],"tradePhone":["外贸联系电话","外贸部电话"],
+  "platformUrl":["平台网址","阿里网址","阿里巴巴"],"micUrl":["中国制造","MIC","made-in-china"],
   "otherContact":["其他联系人","联系人（B)","联系人（B）","联系人B"],
   "otherPhone":["其他联系人电话","其他联系电话","其他联系人联系电话","联系人（B）电话","联系人B电话"]
 };
@@ -1770,8 +1774,8 @@ function exportVisitsCSV(){
 function openImport(){ const el=$("#importOwnerName"); if(el)el.textContent=CURRENT?CURRENT.name:"你"; openModal("importModal"); }
 function downloadTemplate(){
   const headers=CSV_FIELDS.filter(f=>f[0]!=="code").map(f=>f[1]);
-  // 示例行与表头严格一一对应（22 列：公司名字/负责人/客户阶段/…/备注）
-  const sample=["示例公司有限公司","张三","跟进中","A+M+","慈溪","未拜访","李四","A+","13800000000","王五","13900000000","赵六","13700000000","家用电器","××路1号","阿里巴巴","https://example.en.alibaba.com","","同行A公司","2026-06-01","2026-07-01","备注示例"];
+  // 示例行与表头严格一一对应（23 列：公司名字/负责人/客户阶段/…/备注）
+  const sample=["示例公司有限公司","张三","跟进中","A+M+","慈溪","未拜访","李四","A+","13800000000","王五","13900000000","赵六","13700000000","家用电器","××路1号","阿里巴巴","https://example.en.alibaba.com","","","同行A公司","2026-06-01","2026-07-01","备注示例"];
   if(sample.length!==headers.length){toast("模板列数异常，请联系管理员");return;}
   downloadFile("客户导入模板.csv",toCSV(headers,[sample]));toast("模板已下载");
 }
@@ -1977,7 +1981,7 @@ function parseNameListTxt(text){
     } else { name=name.split(NL_STATUS)[0].trim(); }
     name=cleanCompanyName(name);   // 去掉开头/结尾多余标点（如前面多个逗号）
     if(!/(公司|厂|合伙|中心)/.test(name))continue;
-    let contact="",phone="",addr="",addr2="",plat="",site="",site2="",prod=[],coll=false,otherContact="",otherPhone="";
+    let contact="",phone="",addr="",addr2="",plat="",site="",site2="",prod=[],coll=false,otherContact="",otherPhone="",mic="";
     for(const l of lines){
       if(l.startsWith("法定代表人")||l.startsWith("经营者")||l.startsWith("企业法人")){ const m=l.match(/[：:]\s*([^\s，,、%0-9]+)/); if(m&&!contact)contact=m[1]; const _bps=nlPhones(l); if(!phone&&_bps.length)phone=_bps[0]; if(_bps.length>1&&!otherPhone)otherPhone=_bps[1]; }
       else if(l.startsWith("注册地址")){ addr=l.replace(/^注册地址[：:]\s*/,"").trim(); }
@@ -1985,6 +1989,7 @@ function parseNameListTxt(text){
       else if(l.startsWith("地址")){ addr2=l.replace(/^地址[：:]\s*/,"").trim(); }
       else if(l.startsWith("阿里")||l.startsWith("AL")){ plat=nlAli(l); }
       else if(l.startsWith("alibaba.com")){ const m=l.match(/([A-Za-z0-9\-]+\.[A-Za-z0-9.\-]*alibaba\.com[A-Za-z0-9./]*)/); if(m)plat="https://"+m[1]; }
+      else if(l.startsWith("中国制造")){ const _mv=nlUrl(l); if(_mv)mic=_mv; }
       else if(l.startsWith("企业官网")){ const v=l.replace(/^企业官网[：:]\s*/,"").trim(); if(v&&v!=="--"&&v!=="-")site=nlUrl(v); }
       else if(l.startsWith("官网")){ const v=l.replace(/^官网[：:]\s*/,"").trim(); if(v&&v!=="--"&&v!=="-")site2=nlUrl(v); }
       else if(l.startsWith("主营产品")||l.startsWith("主要分类")){ prod.push(l.replace(/^(主营产品|主要分类)[：:]\s*/,"").trim()); coll=true; }
@@ -1993,6 +1998,7 @@ function parseNameListTxt(text){
     }
     {const _aps=nlPhones(b); if(!phone&&_aps.length)phone=_aps[0]; if(_aps.length>1&&!otherPhone)otherPhone=_aps.find(n=>n!==phone)||"";}
     if(!plat)plat=nlAli(b);   // 阿里链接兜底：全块里找第一个 alibaba 链接
+    if(!mic){ const _mm=String(b).match(/https?:\/\/[A-Za-z0-9.\-]*made-in-china\.com[^\s，、）)]*/i); if(_mm)mic=_mm[0]; }   // 中国制造链接兜底
     // 外贸联系人 / 股东联系人（据部门·角色抽取）
     let tradeContact="",tradePhone="",shWith=null,shAny=null;
     for(const l of lines){
@@ -2009,7 +2015,7 @@ function parseNameListTxt(text){
     const sh=shWith||shAny||{label:"",ph:""};
     let product=prod.filter(Boolean).join("、").replace(/，/g,"、"); if(product.length>380)product=product.slice(0,380);
     const address=(addr||addr2).trim();
-    out.push({name,region:nlRegion(address||name),contact,phone,product,address,platformUrl:plat,siteUrl:(site||site2),
+    out.push({name,region:nlRegion(address||name),contact,phone,product,address,platformUrl:plat,siteUrl:(site||site2),micUrl:mic,
       tradeContact,tradePhone,otherContact,otherPhone,shareholder:sh.label,shareholderPhone:sh.ph});
   }
   return out;
@@ -2352,7 +2358,7 @@ function refreshDynamic(){
 }
 
 /* ===================== 公海客户（独立资料库） ===================== */
-function poolFields(){return ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","peerCase","createDate","note","origin"];}
+function poolFields(){return ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","peerCase","createDate","note","origin"];}
 function renderPool(){
   if(!CURRENT)return;
   const q=($("#poolSearch").value||"").toLowerCase(), fr=$("#poolRegion").value, fa=$("#poolAttr").value, ff=$("#poolFollow").value;
@@ -2427,7 +2433,7 @@ async function claimPool(poolId){
   let c=DB.customers.find(x=>x.name===p.name && x.owner===CURRENT.name);
   if(!c){
     c={id:uid(),code:"",owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
-    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||"");
+    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||"");
     DB.customers.push(c);
   }
   if(p.note) poolNoteToVisits(p.note, c.id);   // 公海跟进记录 → 客户跟进记录
@@ -2445,7 +2451,7 @@ function releaseToPool(id){
   let p=(DB.pool||[]).find(x=>x.name===c.name);
   if(!p){
     p={id:uid(),origin:"手动放入"};
-    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||"");
+    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||"");
     DB.pool.push(p);
   }
   if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
@@ -2495,7 +2501,7 @@ function openPool(id){
   $("#p_contact").value=p.contact||""; $("#p_phone").value=p.phone||""; $("#p_tradeContact").value=p.tradeContact||""; $("#p_tradePhone").value=p.tradePhone||"";
   $("#p_shareholder").value=p.shareholder||""; $("#p_shareholderPhone").value=p.shareholderPhone||"";
   $("#p_otherContact").value=p.otherContact||""; $("#p_otherPhone").value=p.otherPhone||"";
-  $("#p_product").value=p.product||""; $("#p_address").value=p.address||""; $("#p_platformUrl").value=p.platformUrl||""; $("#p_siteUrl").value=p.siteUrl||"";
+  $("#p_product").value=p.product||""; $("#p_address").value=p.address||""; $("#p_platformUrl").value=p.platformUrl||""; $("#p_siteUrl").value=p.siteUrl||""; $("#p_micUrl").value=p.micUrl||"";
   setSourceSelect("#p_source",p.source||""); $("#p_createDate").value=p.createDate||"";
   $("#poolClaimBtn").onclick=()=>{ if(editPoolId){closeModal("poolModal");claimPool(editPoolId);} };
   openModal("poolModal");
@@ -2506,7 +2512,7 @@ function savePool(){
   const data={name,attr:$("#p_attr").value,region:$("#p_region").value,origin:$("#p_origin").value,
     contact:$("#p_contact").value,phone:$("#p_phone").value,tradeContact:$("#p_tradeContact").value,tradePhone:$("#p_tradePhone").value,
     shareholder:$("#p_shareholder").value,shareholderPhone:$("#p_shareholderPhone").value,otherContact:$("#p_otherContact").value,otherPhone:$("#p_otherPhone").value,
-    product:$("#p_product").value,address:$("#p_address").value,platformUrl:$("#p_platformUrl").value,siteUrl:$("#p_siteUrl").value,
+    product:$("#p_product").value,address:$("#p_address").value,platformUrl:$("#p_platformUrl").value,siteUrl:$("#p_siteUrl").value,micUrl:$("#p_micUrl").value,
     source:$("#p_source").value,createDate:$("#p_createDate").value,note:poolNote};
   data.updatedAt=new Date().toISOString();
   if(editPoolId){Object.assign(DB.pool.find(x=>x.id===editPoolId),data);}
@@ -2535,7 +2541,8 @@ const POOL_ALIASES={
   phone:["电话","老板电话","决策人（A)电话","决策人(A)电话","联系电话","股东联系方式","联系方式"],
   attr:["客户属性"], region:["区域"], product:["主营产品"],
   address:["客户地址","公司地址","地址"], source:["客户来源","资料来源"],
-  platformUrl:["平台网址","阿里网址","平台"], siteUrl:["独立站网址","独立站"],
+  platformUrl:["阿里巴巴网址","阿里网址","平台网址","阿里巴巴","平台"], siteUrl:["独立站网址","独立站"],
+  micUrl:["中国制造网址","中国制造","MIC网址","MIC"],
   tradeContact:["外贸部联系人","外贸部经理"],
   tradePhone:["外贸部联系电话","外贸部经理人联系电话"],
   otherContact:["其他联系人","联系人（B)","联系人（B）","联系人B"],
@@ -2567,7 +2574,7 @@ function importPoolCSV(input,originName){
     const ex=poolByName[normName(name)];
     if(ex){ // 已存在：补全空字段（不覆盖已有内容）
       let changed=false;
-      ["contact","phone","attr","region","product","address","source","platformUrl","siteUrl","tradeContact","tradePhone","otherContact","otherPhone","createDate"].forEach(k=>{ if(!ex[k]&&f[k]){ex[k]=f[k];changed=true;} });
+      ["contact","phone","attr","region","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","otherContact","otherPhone","createDate"].forEach(k=>{ if(!ex[k]&&f[k]){ex[k]=f[k];changed=true;} });
       changed?updated++:skip++;
     } else {
       const p=Object.assign({id:uid(),name,origin:originName||"CSV导入"},f);
