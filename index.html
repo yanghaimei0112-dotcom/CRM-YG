@@ -228,7 +228,7 @@
     <button data-view="visits">📍 客户跟进记录</button>
     <button data-view="won">💰 成交客户</button>
     <button data-view="cases">📚 客户案例库</button>
-    <button data-view="resigned">🚶 离职人员潜在</button>
+    <button data-view="resigned">👥 公共潜在</button>
     <button data-view="users" data-admin="1">👤 用户管理</button>
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
   </nav>
@@ -494,12 +494,12 @@
     <div id="userList" class="tbl-wrap"></div>
   </section>
 
-  <!-- ============ 离职人员潜在 ============ -->
+  <!-- ============ 公共潜在 ============ -->
   <section id="view-resigned" class="view">
     <div class="toolbar">
-      <input type="text" id="resignedSearch" placeholder="🔍 搜索公司 / 原负责人 / 联系人 / 电话">
+      <input type="text" id="resignedSearch" placeholder="🔍 搜索公司 / 负责人 / 联系人 / 电话">
       <div class="spacer"></div>
-      <div class="hint">已注销账号（离职人员）名下的客户，团队所有人可见；管理员勾选后可「分配给…」新负责人</div>
+      <div class="hint">公共潜在：无负责人的客户（管理员转入 / 离职人员遗留），团队所有人可见可跟进；管理员勾选后可「分配给…」业务员</div>
     </div>
     <div id="resignedList" class="tbl-wrap"></div>
   </section>
@@ -932,7 +932,7 @@ function bulkBar(view){
     : "";
   const acts = view==="pool"
     ? `<button class="btn sm" onclick="bulkClaimPool()">捡入到我的潜在客户</button>${isAdmin()?`<button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeletePool()">🗑 删除</button>`:""}`
-    : `${assign}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button>${isAdmin()?`<button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`:''}`;
+    : `${assign}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button>${isAdmin()?`<button class="btn ghost sm" onclick="bulkToCommon('${view}')">👥 转入公共潜在</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`:''}`;
   return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#eef2ff;border-bottom:1px solid var(--line);flex-wrap:wrap">
     <span style="font-size:13px">已选 <b style="color:var(--brand)">${n}</b> 家</span>${acts}
     <button class="btn ghost sm" onclick="clearSel('${view}')">取消选择</button></div>`;
@@ -948,6 +948,18 @@ function bulkAssign(view,name){
   save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderVisited();renderDash();
   if(PAGE_RENDER[view])PAGE_RENDER[view]();
   toast("已把 "+n+" 家分配给「"+name+"」");
+}
+// 管理员：把选中客户转移到「公共潜在」（清空负责人，全员可见，可再分配）
+function bulkToCommon(view){
+  view=view||"customers"; const sel=SEL[view]; const ids=[...sel]; if(!ids.length)return;
+  if(!isAdmin()){toast("仅管理员可转移");return;}
+  if(!confirm("确定把选中的 "+ids.length+" 家客户转移到「公共潜在」？\n转移后不再属于任何负责人，团队所有人都可在「公共潜在」查看，管理员可再分配给业务员。"))return;
+  const evs=[]; let n=0;
+  ids.forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(c){evs.push({id:c.id,name:c.name,action:"转移",detail:(c.owner||"（无负责人）")+" → 公共潜在"});c.owner="";c.updatedAt=new Date().toISOString();n++;} });
+  sel.clear(); logCustEvents(evs);
+  save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderVisited();renderDash();
+  if(PAGE_RENDER[view])PAGE_RENDER[view]();
+  toast("已把 "+n+" 家客户转移到「公共潜在」");
 }
 function selCell(view,id){ return `<td style="width:34px;text-align:center"><input type="checkbox" ${SEL[view].has(id)?"checked":""} onclick="event.stopPropagation();toggleSel('${view}','${id}',this.checked)"></td>`; }
 function selHead(view,ids){ const all=ids.length&&ids.every(id=>SEL[view].has(id)); return `<th style="width:34px;text-align:center"><input type="checkbox" ${all?"checked":""} onclick="toggleSelAll('${view}',[${ids.map(id=>`'${id}'`).join(",")}],this.checked)"></th>`; }
@@ -2732,7 +2744,7 @@ async function loadCustEvents(cid){
 /* ===================== 离职人员潜在 ===================== */
 function resignedRows(){
   const active=new Set((DB.users||[]).map(u=>u.name));
-  return DB.customers.filter(c=>c.owner&&!active.has(c.owner));   // 账号已注销 → 名字不在 profiles 里
+  return DB.customers.filter(c=>!c.owner||!active.has(c.owner));   // 公共潜在＝无负责人（管理员转入）或负责人已注销（离职遗留）
 }
 function renderResigned(){
   const el=$("#resignedList"); if(!el)return;
@@ -2747,10 +2759,10 @@ function renderResigned(){
     if(sortKey==="lastFollow"){ const x=lastFollowDate(a.id)||"",y=lastFollowDate(b.id)||""; return (x>y?1:x<y?-1:0)*sortDir; }
     let x=a[sortKey]||"",y=b[sortKey]||""; return (x>y?1:x<y?-1:0)*sortDir;
   });
-  if(!rows.length){el.innerHTML=`<div class="empty" style="padding:30px 0">🎉 没有离职人员遗留的潜在客户</div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty" style="padding:30px 0">🎉 公共潜在暂无客户（管理员从潜在客户转入 / 离职人员遗留的客户会出现在这里）</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"resigned");
   const pageIds=pageRows.map(c=>c.id);
-  const cols=[["code","编号"],["name","公司名字"],["owner","原负责人"],["stage","阶段"],["attr","属性"],["region","区域"],
+  const cols=[["code","编号"],["name","公司名字"],["owner","负责人"],["stage","阶段"],["attr","属性"],["region","区域"],
              ["contact","联系人"],["phone","电话"],["product","主营产品"],["lastFollow","最新跟进"]];
   el.innerHTML=(adm?bulkBar("resigned"):"")+`<table><thead><tr>${adm?selHead("resigned",pageIds):""}${cols.map(c=>`<th data-k="${c[0]}">${c[1]}${sortKey===c[0]?(sortDir===1?" ▲":" ▼"):""}</th>`).join("")}<th></th></tr></thead><tbody>${
     pageRows.map(c=>{
@@ -2759,7 +2771,7 @@ function renderResigned(){
         ${adm?selCell("resigned",c.id):""}
         <td style="color:var(--muted)">${esc(c.code)}</td>
         <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
-        <td>${c.owner?pill(c.owner,"#94a3b8"):""}</td>
+        <td>${c.owner?pill(c.owner,"#94a3b8"):pill("公共","#0ea5e9")}</td>
         <td>${pill(c.stage,STAGE_COLOR[c.stage])}</td>
         <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
         <td>${esc(c.region||"")}</td>
