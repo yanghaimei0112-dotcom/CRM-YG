@@ -223,12 +223,12 @@
         <button data-view="mobai">🚪 陌拜客户</button>
         <button data-view="visited">✅ 已拜访客户</button>
         <button data-view="pool">🌊 公海客户</button>
+        <button data-view="resigned">👥 公共潜在</button>
       </div>
     </div>
     <button data-view="visits">📍 客户跟进记录</button>
     <button data-view="won">💰 成交客户</button>
     <button data-view="cases">📚 客户案例库</button>
-    <button data-view="resigned">👥 公共潜在</button>
     <button data-view="users" data-admin="1">👤 用户管理</button>
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
   </nav>
@@ -1053,7 +1053,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   b.classList.add("active");
   // 「客户数据」父级高亮
   const cg=document.getElementById('custGroupBtn');
-  if(cg) cg.classList.toggle('parent-active', ["customers","mobai","visited","pool"].includes(b.dataset.view));
+  if(cg) cg.classList.toggle('parent-active', ["customers","mobai","visited","pool","resigned"].includes(b.dataset.view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="dash")renderDash();
