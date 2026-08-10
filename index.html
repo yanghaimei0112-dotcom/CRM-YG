@@ -499,6 +499,9 @@
   <section id="view-resigned" class="view">
     <div class="toolbar">
       <input type="text" id="resignedSearch" placeholder="🔍 搜索公司 / 负责人 / 联系人 / 电话">
+      <select id="resignedRegion"><option value="">全部区域</option></select>
+      <select id="resignedAttr"><option value="">全部属性</option></select>
+      <select id="resignedFollow"><option value="">全部跟进状态</option><option value="today">今日有跟进</option><option value="week">本周有跟进</option><option value="idle7">7 天未跟进</option><option value="idle15">15 天未跟进</option><option value="never">从未跟进</option></select>
       <div class="spacer"></div>
       <div class="hint">公共潜在：无负责人的客户（管理员转入 / 离职人员遗留），团队所有人可见可跟进；管理员勾选后可「分配给…」业务员</div>
     </div>
@@ -2769,7 +2772,22 @@ function renderResigned(){
   const el=$("#resignedList"); if(!el)return;
   const adm=isAdmin();   // 团队所有人可见；勾选与分配仅管理员
   const q=($("#resignedSearch")?$("#resignedSearch").value:"").toLowerCase();
-  let rows=resignedRows().filter(c=>{
+  const fr=$("#resignedRegion")?$("#resignedRegion").value:"", fa=$("#resignedAttr")?$("#resignedAttr").value:"", ff=$("#resignedFollow")?$("#resignedFollow").value:"";
+  // 区域 / 属性下拉：从公共潜在实际数据动态生成（保留当前选中）
+  const base=resignedRows();
+  const fillDyn=(sel,vals,label)=>{ if(!sel)return; const cur=sel.value;
+    sel.innerHTML=`<option value="">${label}</option>`+vals.map(v=>`<option${v===cur?" selected":""}>${esc(v)}</option>`).join(""); sel.value=cur; };
+  fillDyn($("#resignedRegion"),[...new Set(base.map(c=>c.region).filter(Boolean))].sort(),"全部区域");
+  fillDyn($("#resignedAttr"),[...new Set(base.map(c=>c.attr).filter(Boolean))].sort(),"全部属性");
+  let rows=base.filter(c=>{
+    if(fr&&c.region!==fr)return false;
+    if(fa&&c.attr!==fa)return false;
+    if(ff){ const t=today(), lf=lastFollowDate(c.id);
+      if(ff==="today"&&lf!==t)return false;
+      if(ff==="week"){ const ws=weekStart(); if(!lf||lf<ws)return false; }
+      if(ff==="idle7"||ff==="idle15"){ const lim=ff==="idle7"?7:15; const days=lf?Math.floor((new Date(t)-new Date(lf))/86400000):9999; if(days<lim)return false; }
+      if(ff==="never"&&lf)return false;
+    }
     if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
     return true;
   });
@@ -2858,7 +2876,7 @@ function initSelects(){
   refreshDynamic();
 }
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr","filterQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
-document.addEventListener("input",e=>{if(e.target.id==="resignedSearch"){PAGE.resigned=1;renderResigned();}});
+["resignedSearch","resignedRegion","resignedAttr","resignedFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.resigned=1;renderResigned();}}));
 ["visitSearch","filterResult","filterType","visitVisitor","visitFrom","visitTo"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
 ["visitedSearch","visitedOwner","visitedQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
