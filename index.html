@@ -2195,9 +2195,8 @@ function renderVisited(){
   if(!CURRENT)return;
   const q=($("#visitedSearch").value||"").toLowerCase(), fo=$("#visitedOwner").value, fq=($("#visitedQuick")?$("#visitedQuick").value:"");
   const lastVisit=c=>DB.visits.filter(v=>v.customerId===c.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
-  // 1) 潜在客户里已拜访的（互斥：公共潜在的客户不在此重复）
-  const actSet=new Set((DB.users||[]).map(u=>u.name));
-  let items=visibleCustomers().filter(c=>c.visited==="已拜访"&&c.owner&&actSet.has(c.owner)).map(c=>{const lv=lastVisit(c)||{};const vs=DB.visits.filter(v=>v.customerId===c.id);
+  // 1) 已拜访的客户（离职人员名下的已拜访客户在此留存显示；仅排除无负责人的公共潜在，避免重复）
+  let items=followableCustomers().filter(c=>c.visited==="已拜访"&&c.owner).map(c=>{const lv=lastVisit(c)||{};const vs=DB.visits.filter(v=>v.customerId===c.id);
     return {id:c.id,pool:false,name:c.name,owner:c.owner||"",stage:c.stage,attr:c.attr,region:c.region,contact:c.contact,phone:c.phone,product:c.product,lastFollow:lv.date||"",visits:vs.length,recency:recency(c),visitor:lv.visitor||""};});
   // 2) 公海里有「拜访」记录的（丢入公海的已拜访客户，仍在此体现）
   (DB.pool||[]).forEach(p=>{ if(!/【[^】]*拜访/.test(p.note||""))return;
