@@ -442,6 +442,7 @@
     <div class="toolbar">
       <input type="text" id="visitedSearch" placeholder="🔍 搜索公司 / 决策人 / 拜访人">
       <select id="visitedOwner"><option value="">全部负责人</option></select>
+      <select id="visitedQuick"><option value="">全部时间</option><option value="today">当天拜访</option><option value="week">本周拜访</option><option value="month">本月拜访</option></select>
       <div class="spacer"></div>
       <div class="hint">已拜访客户＝潜在客户中标记「已拜访」的客户（含从 YG 拜访记录同步的）。</div>
     </div>
@@ -886,9 +887,11 @@ function poolCustomers(){
   return DB.pool||[];
 }
 function visibleCustIds(){ return new Set(visibleCustomers().map(c=>c.id)); }
+// 可跟进客户＝可见客户 + 公共潜在（公共潜在全员可写跟进/拜访）
+function followableCustomers(){ const m=new Map(); visibleCustomers().forEach(c=>m.set(c.id,c)); resignedRows().forEach(c=>m.set(c.id,c)); return [...m.values()]; }
 function visibleVisits(){
   if(isAdmin()) return DB.visits;
-  const ids=visibleCustIds();
+  const ids=new Set(followableCustomers().map(c=>c.id));
   return DB.visits.filter(v=> !v.customerId || ids.has(v.customerId));
 }
 function uid(){ return (crypto&&crypto.randomUUID)?crypto.randomUUID():('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);})); }
@@ -1684,8 +1687,8 @@ function openVisit(id,presetCust){
   const v=id?DB.visits.find(x=>x.id===id):{};
   $("#visitModalTitle").textContent=id?"编辑拜访":"新增拜访";
   $("#visitDeleteBtn").style.display=id?"":"none";
-  // 关联客户：可输入搜索的下拉（仅自己的+公共客户；管理员全部）
-  $("#vCustList").innerHTML=visibleCustomers().map(c=>`<option value="${esc(c.name)}">`).join("");
+  // 关联客户：可输入搜索的下拉（自己的+公共客户+公共潜在；管理员全部）
+  $("#vCustList").innerHTML=followableCustomers().map(c=>`<option value="${esc(c.name)}">`).join("");
   const cid=v.customerId||presetCust||"";
   const cc=cid?DB.customers.find(x=>x.id===cid):null;
   $("#v_customer").value=cc?cc.name:"";
@@ -1701,7 +1704,7 @@ function saveVisit(){
   const title=$("#v_title").value.trim();
   if(!title){toast("请填写拜访主题");return;}
   const cName=$("#v_customer").value.trim();
-  const matched=cName?visibleCustomers().find(c=>c.name===cName):null;
+  const matched=cName?followableCustomers().find(c=>c.name===cName):null;
   const data={title,customerId:matched?matched.id:null,company:matched?"":cName,date:$("#v_date").value,visitor:$("#v_visitor").value,
     decider:$("#v_decider").value,position:$("#v_position").value,phone:$("#v_phone").value,
     address:$("#v_address").value,situation:$("#v_situation").value,result:$("#v_result").value,
@@ -2190,7 +2193,7 @@ function loadYGVisits(){
 /* 已拜访客户类目 —— 按公司去重，每家一行（取最近一次拜访 + 拜访次数） */
 function renderVisited(){
   if(!CURRENT)return;
-  const q=($("#visitedSearch").value||"").toLowerCase(), fo=$("#visitedOwner").value;
+  const q=($("#visitedSearch").value||"").toLowerCase(), fo=$("#visitedOwner").value, fq=($("#visitedQuick")?$("#visitedQuick").value:"");
   const lastVisit=c=>DB.visits.filter(v=>v.customerId===c.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
   // 1) 潜在客户里已拜访的（互斥：公共潜在的客户不在此重复）
   const actSet=new Set((DB.users||[]).map(u=>u.name));
@@ -2206,7 +2209,12 @@ function renderVisited(){
   $("#visitedOwner").value=cur;
   if(fo)items=items.filter(i=>(i.owner||"")===fo);
   if(q)items=items.filter(i=>[i.name,i.contact,i.phone,i.product,i.visitor].join(" ").toLowerCase().includes(q));
-  items.sort((a,b)=>{const x=a.recency||"",y=b.recency||"";return x>y?-1:x<y?1:0;});
+  if(fq){ const t=today();   // 按最近拜访日期过滤：当天 / 本周 / 本月
+    if(fq==="today")items=items.filter(i=>i.lastFollow===t);
+    else if(fq==="week"){ const ws=weekStart(); items=items.filter(i=>i.lastFollow&&i.lastFollow>=ws); }
+    else if(fq==="month"){ const ms=t.slice(0,8)+"01"; items=items.filter(i=>i.lastFollow&&i.lastFollow>=ms); }
+  }
+  items.sort((a,b)=>{const x=a.lastFollow||"",y=b.lastFollow||"";return x>y?-1:x<y?1:0;});   // 最近拜访时间倒序
   if(!items.length){$("#visitedList").innerHTML=`<div class="empty">暂无已拜访客户。在客户详情里「新增拜访」即可，放入公海的已拜访客户也会在此显示。</div>`;return;}
   const total=items.length, pageRows=pageSlice(items,"visited"), pageIds=pageRows.filter(i=>!i.pool).map(i=>i.id);
   const cols=["公司名字","负责人","阶段","属性","区域","联系人","电话"];
@@ -2845,7 +2853,7 @@ function initSelects(){
 ["custSearch","filterOwner","filterStage","filterRegion","filterAttr","filterQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
 document.addEventListener("input",e=>{if(e.target.id==="resignedSearch"){PAGE.resigned=1;renderResigned();}});
 ["visitSearch","filterResult","filterType","visitVisitor","visitFrom","visitTo"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
-["visitedSearch","visitedOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
+["visitedSearch","visitedOwner","visitedQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
