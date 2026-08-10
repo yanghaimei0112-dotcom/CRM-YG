@@ -1494,15 +1494,23 @@ function saveCustomer(){
   const name=$("#c_name").value.trim();
   if(!name){toast("请填写公司名字");return;}
   const wasNew=!editCustId;
-  // 新建时查重：提示已在谁的潜在客户 / 是否在公海；在公海可直接捡入
+  // 新建时查重：提示已在谁的名下、哪个类目；在公海可直接捡入
   if(!editCustId){
     const nn=normName(name);
+    const actN=new Set((DB.users||[]).map(u=>u.name));
+    const catOf=c=>{
+      if(!c.owner||!actN.has(c.owner))return "公共潜在";
+      if(c.stage==="已成交")return "成交客户";
+      if(c.stage==="陌拜客户")return "陌拜客户";
+      if(c.visited==="已拜访")return "已拜访客户";
+      return "潜在客户";
+    };
     const dupCust=DB.customers.filter(c=>normName(c.name)===nn);
     const dupPool=(DB.pool||[]).find(p=>normName(p.name)===nn);
     if(dupCust.length||dupPool){
       let msg="⚠️ 系统中已存在「"+name+"」：\n";
-      if(dupCust.length){const os=[...new Set(dupCust.map(c=>c.owner||"（未分配）"))];msg+="· 已在潜在客户中，负责人："+os.join("、")+"\n";}
-      if(dupPool)msg+="· 该客户在公海客户中\n";
+      dupCust.forEach(c=>{ msg+="· 已在【"+catOf(c)+"】，负责人："+(c.owner||"（未分配）")+"\n"; });
+      if(dupPool)msg+="· 该客户在【公海客户】中\n";
       if(dupPool && !dupCust.length){
         if(confirm(msg+"\n是否直接从公海「捡入」到你的潜在客户？\n（确定＝捡入领取；取消＝返回，不新建）")){ closeModal("custModal"); claimPool(dupPool.id); return; }
         return;
