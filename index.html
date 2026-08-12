@@ -1262,7 +1262,7 @@ function renderHomeReport(stats){
   const rt=$("#reportTime"); if(rt)rt.textContent="更新于 "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const fmt=n=>"¥"+Math.round(n).toLocaleString("zh-CN");
   const total=stats.reduce((a,s)=>a+(+s.amount||0),0);
-  const dealers=stats.filter(s=>(s.new_deals||0)>0).length;
+  const dealers=stats.filter(s=>(+s.amount||0)>0||(s.new_deals||0)>0).length;   // 有业绩或有新开单即算「出单」
   const avg=dealers?total/dealers:0;
   const top=stats.filter(s=>(+s.amount||0)>0).sort((a,b)=>(+b.amount||0)-(+a.amount||0))[0];
   el.innerHTML=`
@@ -2147,14 +2147,15 @@ function addDays(n){const d=new Date();d.setDate(d.getDate()+n);return d.toISOSt
 function loadYG(){
   if(typeof window.YG_SEED==="undefined"){toast("未找到 yg-data.js，请确认它与本页面在同一文件夹");return;}
   const seed=window.YG_SEED, owner=seed.owner||"姚子泓";
-  const existing=new Set(DB.customers.map(c=>c.name));
+  const existing=new Set(DB.customers.map(c=>normName(c.name)));   // 归一化查重，防止重复建档
   let added=0,skip=0;
   seed.customers.forEach(s=>{
-    if(existing.has(s.name)){skip++;return;}
+    const _nk=normName(s.name);
+    if(existing.has(_nk)){skip++;return;}
     DB.customers.push(Object.assign({
       id:uid(),code:"",owner:owner,stage:"潜在客户",source:s.custSource||seed.source||""
     },s,{source:s.custSource||seed.source||""}));
-    existing.add(s.name);added++;
+    existing.add(_nk);added++;
   });
   save();refreshDynamic();renderDash();renderCustomers();
   toast("YG 同步完成：新增 "+added+" 家"+(skip?"，跳过重复 "+skip+" 家":"")+"（负责人："+owner+"）");
@@ -2171,7 +2172,8 @@ function loadYGVisits(){
   const recs=window.YG_VISITS.records;
   let custNew=0,custUpd=0,visAdd=0;
   recs.forEach(r=>{
-    let c=DB.customers.find(x=>x.name===r.company);
+    const _nk=normName(r.company);
+    let c=DB.customers.find(x=>normName(x.name)===_nk);   // 归一化查重，防止重复建档
     if(!c){
       c={id:uid(),code:"",name:r.company,owner:r.owner||"",attr:r.attr||"",region:"",
          contact:r.decider||r.otherContact||"",phone:r.deciderPhone||r.otherPhone||"",
