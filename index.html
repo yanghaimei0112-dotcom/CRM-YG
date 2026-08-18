@@ -471,6 +471,7 @@
       <select id="ygoldVersion"><option value="">全部合作版本</option></select>
       <select id="ygoldRegion"><option value="">全部区域</option></select>
       <div class="spacer"></div>
+      <button class="btn" onclick="openCustomer(null,'YG老客户')">＋ 新建YG老客户</button>
       <div class="hint">YG老客户＝YG 部门已合作客户的档案（含星级 / 合作金额 / 年限 / 版本）；从其它类目「转移到 YG老客户」或编辑阶段归入此处。</div>
     </div>
     <div id="ygoldList" class="tbl-wrap"></div>
@@ -557,10 +558,10 @@
         <div class="field"><label>下次跟进</label><input id="c_nextFollow" type="date"></div>
         <div class="field full" style="border-top:1px dashed var(--line);padding-top:10px;margin-top:2px"><label style="color:var(--brand)">🏆 合作信息（YG老客户档案用）</label></div>
         <div class="field"><label>星级</label><select id="c_star"><option value="">未设置</option><option>⭐</option><option>⭐⭐</option><option>⭐⭐⭐</option><option>⭐⭐⭐⭐</option><option>⭐⭐⭐⭐⭐</option></select></div>
-        <div class="field"><label>客户归属</label><input id="c_operation" list="operationList" placeholder="如：自己运营"><datalist id="operationList"><option value="自己运营"></option><option value="代运营"></option></datalist></div>
+        <div class="field"><label>客户归属</label><select id="c_operation" onchange="pickToggle('c_operation','c_operationCustom')"></select><input id="c_operationCustom" placeholder="输入新的客户归属" style="display:none;margin-top:6px"></div>
         <div class="field"><label>合作金额</label><input id="c_coopAmount" type="number" min="0" placeholder="如：106800"></div>
         <div class="field"><label>合作年限</label><input id="c_coopYears" placeholder="如：2"></div>
-        <div class="field"><label>合作版本</label><input id="c_coopVersion" list="versionList" placeholder="如：专业版（浙江）"><datalist id="versionList"><option value="专业版（浙江）"></option><option value="标准版"></option><option value="旗舰版"></option></datalist></div>
+        <div class="field"><label>合作版本</label><select id="c_coopVersion" onchange="pickToggle('c_coopVersion','c_coopVersionCustom')"></select><input id="c_coopVersionCustom" placeholder="输入新的合作版本" style="display:none;margin-top:6px"></div>
         <div class="field"><label>合作的网站</label><input id="c_coopSite" placeholder="https://…"></div>
         <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
         <div class="field full"><label>备注</label><textarea id="c_note"></textarea></div>
@@ -1514,8 +1515,21 @@ function fillTargetSelect(cid,current,inputSel,listSel){
   const dl=$(listSel); if(dl)dl.innerHTML=names.map(n=>`<option value="${esc(n)}"></option>`).join("");
   const el=$(inputSel); if(el)el.value=current||c.contact||"";
 }
-function openCustomer(id,defaultStage){
-  editCustId=id||null;
+/* 客户归属 / 合作版本：下拉选择（预设 + 数据已有值），选「自定义…」时可输入新值 */
+const OPERATION_PRESET=["自己运营","代运营","和TM合作"];
+const VERSION_PRESET=["专业版（浙江）","专业版（全国）","商务版（全国）","标准版（全国）","旗舰版（全国）","网站客户","全球计划"];
+function fillPickSelect(selId,customId,preset,values,cur){
+  const sel=$("#"+selId),cus=$("#"+customId); if(!sel)return;
+  const opts=[...new Set([...preset,...values.filter(Boolean)])];
+  sel.innerHTML=`<option value="">（未选择）</option>`+opts.map(o=>`<option>${esc(o)}</option>`).join("")+`<option value="__custom">✏️ 自定义…</option>`;
+  if(cur&&opts.includes(cur)){sel.value=cur;cus.style.display="none";cus.value="";}
+  else if(cur){sel.value="__custom";cus.style.display="";cus.value=cur;}
+  else{sel.value="";cus.style.display="none";cus.value="";}
+}
+function pickToggle(selId,customId){ const sel=$("#"+selId),cus=$("#"+customId);
+  const on=sel.value==="__custom"; cus.style.display=on?"":"none"; if(!on)cus.value=""; if(on)cus.focus(); }
+function pickVal(selId,customId){ const v=$("#"+selId).value; return v==="__custom"?$("#"+customId).value.trim():v; }
+function openCustomer(id,defaultStage){  editCustId=id||null;
   const c=id?DB.customers.find(x=>x.id===id):{};
   $("#custModalTitle").textContent=id?"编辑客户":"新增客户";
   $("#custDeleteBtn").style.display=(id&&isAdmin())?"":"none";
@@ -1534,8 +1548,10 @@ function openCustomer(id,defaultStage){
   $("#c_product").value=c.product||""; $("#c_address").value=c.address||""; $("#c_platformUrl").value=c.platformUrl||"";
   $("#c_siteUrl").value=c.siteUrl||""; $("#c_micUrl").value=c.micUrl||""; $("#c_createDate").value=c.createDate||today(); $("#c_nextFollow").value=c.nextFollow||"";
   $("#c_peerCase").value=c.peerCase||""; $("#c_note").value=c.note||"";
-  $("#c_star").value=c.star||""; $("#c_operation").value=c.operation||""; $("#c_coopAmount").value=c.coopAmount||"";
-  $("#c_coopYears").value=c.coopYears||""; $("#c_coopVersion").value=c.coopVersion||""; $("#c_coopSite").value=c.coopSite||"";
+  $("#c_star").value=c.star||""; $("#c_coopAmount").value=c.coopAmount||"";
+  $("#c_coopYears").value=c.coopYears||""; $("#c_coopSite").value=c.coopSite||"";
+  fillPickSelect("c_operation","c_operationCustom",OPERATION_PRESET,DB.customers.map(x=>x.operation),c.operation||"");
+  fillPickSelect("c_coopVersion","c_coopVersionCustom",VERSION_PRESET,DB.customers.map(x=>x.coopVersion),c.coopVersion||"");
   checkDupHint();
   openModal("custModal");
 }
@@ -1587,8 +1603,8 @@ function saveCustomer(){
     shareholder:$("#c_shareholder").value,shareholderPhone:$("#c_shareholderPhone").value,otherContact:$("#c_otherContact").value,otherPhone:$("#c_otherPhone").value,
     product:$("#c_product").value,address:$("#c_address").value,platformUrl:$("#c_platformUrl").value,siteUrl:$("#c_siteUrl").value,micUrl:$("#c_micUrl").value,
     createDate:$("#c_createDate").value,nextFollow:$("#c_nextFollow").value,peerCase:$("#c_peerCase").value,
-    star:$("#c_star").value,operation:$("#c_operation").value.trim(),coopAmount:$("#c_coopAmount").value,coopYears:$("#c_coopYears").value.trim(),
-    coopVersion:$("#c_coopVersion").value.trim(),coopSite:$("#c_coopSite").value.trim(),
+    star:$("#c_star").value,operation:pickVal("c_operation","c_operationCustom"),coopAmount:$("#c_coopAmount").value,coopYears:$("#c_coopYears").value.trim(),
+    coopVersion:pickVal("c_coopVersion","c_coopVersionCustom"),coopSite:$("#c_coopSite").value.trim(),
     note:$("#c_note").value};
   data.updatedAt=new Date().toISOString();
   if(editCustId){Object.assign(DB.customers.find(x=>x.id===editCustId),data);}
