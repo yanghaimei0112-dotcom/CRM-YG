@@ -466,6 +466,10 @@
     <div class="toolbar">
       <input type="text" id="ygoldSearch" placeholder="🔍 搜索公司 / 联系人 / 产品 / 合作版本">
       <select id="ygoldOwner"><option value="">全部负责人</option></select>
+      <select id="ygoldStar"><option value="">全部星级</option></select>
+      <select id="ygoldOperation"><option value="">全部客户归属</option></select>
+      <select id="ygoldVersion"><option value="">全部合作版本</option></select>
+      <select id="ygoldRegion"><option value="">全部区域</option></select>
       <div class="spacer"></div>
       <div class="hint">YG老客户＝YG 部门已合作客户的档案（含星级 / 合作金额 / 年限 / 版本）；从其它类目「转移到 YG老客户」或编辑阶段归入此处。</div>
     </div>
@@ -2353,13 +2357,23 @@ function renderWon(){
 function renderYgold(){
   if(!CURRENT)return;
   const q=($("#ygoldSearch").value||"").toLowerCase(), fo=$("#ygoldOwner").value;
+  const fStar=$("#ygoldStar").value, fOp=$("#ygoldOperation").value, fVer=$("#ygoldVersion").value, fReg=$("#ygoldRegion").value;
   const actSet=new Set((DB.users||[]).map(u=>u.name));
   let rows=visibleCustomers().filter(c=>c.stage==="YG老客户"&&c.owner&&actSet.has(c.owner));   // 互斥：公共潜在不在此重复
   const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
-  const cur=$("#ygoldOwner").value;
-  $("#ygoldOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
-  $("#ygoldOwner").value=cur;
+  const fillSel=(id,label,vals)=>{const el=$("#"+id),cur=el.value;
+    el.innerHTML=`<option value="">${label}</option>`+vals.map(v=>`<option>${esc(v)}</option>`).join("");
+    el.value=vals.includes(cur)?cur:"";};
+  fillSel("ygoldOwner","全部负责人",owners);
+  fillSel("ygoldStar","全部星级",[...new Set(rows.map(c=>c.star).filter(Boolean))].sort((a,b)=>a.length-b.length));
+  fillSel("ygoldOperation","全部客户归属",[...new Set(rows.map(c=>c.operation).filter(Boolean))].sort());
+  fillSel("ygoldVersion","全部合作版本",[...new Set(rows.map(c=>c.coopVersion).filter(Boolean))].sort());
+  fillSel("ygoldRegion","全部区域",[...new Set(rows.map(c=>c.region).filter(Boolean))].sort());
   if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
+  if(fStar)rows=rows.filter(c=>(c.star||"")===fStar);
+  if(fOp)rows=rows.filter(c=>(c.operation||"")===fOp);
+  if(fVer)rows=rows.filter(c=>(c.coopVersion||"")===fVer);
+  if(fReg)rows=rows.filter(c=>(c.region||"")===fReg);
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.coopVersion,c.operation].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
   if(!rows.length){$("#ygoldList").innerHTML=`<div class="empty">暂无 YG老客户。勾选客户后「🔀 转移到… → YG老客户」，或编辑客户把阶段改为「YG老客户」。</div>`;return;}
@@ -2975,7 +2989,7 @@ function initSelects(){
 ["visitedSearch","visitedOwner","visitedQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
-["ygoldSearch","ygoldOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.ygold=1;renderYgold();}}));
+["ygoldSearch","ygoldOwner","ygoldStar","ygoldOperation","ygoldVersion","ygoldRegion"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.ygold=1;renderYgold();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
 ["caseSearch","caseRegion","caseIndustry"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
 $("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
