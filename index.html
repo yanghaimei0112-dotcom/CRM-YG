@@ -1569,6 +1569,16 @@ function saveCustomer(){
       alert(msg+"\n❌ 该客户已存在，不能重复添加。");
       return;
     }
+  }else{
+    // 编辑改名时同样查重：不能改成系统中已存在的其他客户名
+    const nn=normName(name);
+    const dup=DB.customers.find(c=>c.id!==editCustId&&normName(c.name)===nn);
+    if(dup){
+      const actN=new Set((DB.users||[]).map(u=>u.name));
+      const cat=(!dup.owner||!actN.has(dup.owner))?"公共潜在":(dup.stage==="已成交"?"成交客户":dup.stage==="YG老客户"?"YG老客户":dup.stage==="陌拜客户"?"陌拜客户":(dup.visited==="已拜访"?"已拜访客户":"潜在客户"));
+      alert("⚠️ 改名后与现有客户重复：「"+name+"」已在【"+cat+"】，负责人："+(dup.owner||"（未分配）")+"\n❌ 系统内客户不可重复，已取消保存。");
+      return;
+    }
   }
   const ownerVal=isAdmin()?$("#c_owner").value.trim():(editCustId?DB.customers.find(x=>x.id===editCustId).owner:(CURRENT?CURRENT.name:""));
   const data={name,owner:ownerVal,isPublic:$("#c_public").checked,stage:$("#c_stage").value,attr:$("#c_attr").value,region:$("#c_region").value,
@@ -2320,12 +2330,12 @@ function renderVisited(){
   }</tbody></table>`+pageBar(total,"visited");
 }
 
-/* 成交客户类目 —— 阶段=已成交 的客户，展示模式同潜在客户 */
+/* 成交客户类目 —— 阶段=已成交 的客户；公共归属：全员可见，不进公共潜在 */
 function renderWon(){
   if(!CURRENT)return;
   const q=($("#wonSearch").value||"").toLowerCase(), fo=$("#wonOwner").value;
   const actSet=new Set((DB.users||[]).map(u=>u.name));
-  let rows=visibleCustomers().filter(c=>c.stage==="已成交"&&c.owner&&actSet.has(c.owner));   // 互斥：公共潜在不在此重复
+  let rows=DB.customers.filter(c=>c.stage==="已成交");   // 公共归属：成交客户全员可见（含负责人已注销的）
   const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
   const cur=$("#wonOwner").value;
   $("#wonOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
@@ -2341,14 +2351,14 @@ function renderWon(){
       return `<tr>
         ${selCell("won",c.id)}
         <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
-        <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
+        <td>${c.owner?(actSet.has(c.owner)?pill(c.owner,"#0ea5e9"):pill(c.owner,"#94a3b8")):pill("公共","#0ea5e9")}</td>
         <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
         <td>${esc(c.region||"")}</td>
         <td>${esc(c.contact||"")}</td>
         <td>${esc(c.phone||"")}</td>
         <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
-        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+        <td><div class="row-act">${(isAdmin()||c.owner===CURRENT.name)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
   }</tbody></table>`+pageBar(total,"won");
 }
@@ -2359,7 +2369,7 @@ function renderYgold(){
   const q=($("#ygoldSearch").value||"").toLowerCase(), fo=$("#ygoldOwner").value;
   const fStar=$("#ygoldStar").value, fOp=$("#ygoldOperation").value, fVer=$("#ygoldVersion").value, fReg=$("#ygoldRegion").value;
   const actSet=new Set((DB.users||[]).map(u=>u.name));
-  let rows=visibleCustomers().filter(c=>c.stage==="YG老客户"&&c.owner&&actSet.has(c.owner));   // 互斥：公共潜在不在此重复
+  let rows=DB.customers.filter(c=>c.stage==="YG老客户");   // 合作档案公共归属：全员可见，不进公共潜在
   const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
   const fillSel=(id,label,vals)=>{const el=$("#"+id),cur=el.value;
     el.innerHTML=`<option value="">${label}</option>`+vals.map(v=>`<option>${esc(v)}</option>`).join("");
@@ -2385,7 +2395,7 @@ function renderYgold(){
       return `<tr>
         ${selCell("ygold",c.id)}
         <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
-        <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
+        <td>${c.owner?(actSet.has(c.owner)?pill(c.owner,"#0ea5e9"):pill(c.owner,"#94a3b8")):pill("公共","#0ea5e9")}</td>
         <td>${c.star?`<span style="color:#f59e0b">${esc(c.star)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
         <td>${c.operation?pill(c.operation,"#0d9488"):'<span style="color:var(--muted)">—</span>'}</td>
         <td style="font-weight:600;color:#b45309">${money(c)}</td>
@@ -2395,7 +2405,7 @@ function renderYgold(){
         <td>${esc(c.contact||"")}</td>
         <td>${esc(c.phone||"")}</td>
         <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
-        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+        <td><div class="row-act">${(isAdmin()||c.owner===CURRENT.name)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
   }</tbody></table>`+pageBar(total,"ygold");
 }
@@ -2874,7 +2884,8 @@ async function loadCustEvents(cid){
 /* ===================== 离职人员潜在 ===================== */
 function resignedRows(){
   const active=new Set((DB.users||[]).map(u=>u.name));
-  return DB.customers.filter(c=>!c.owner||!active.has(c.owner));   // 公共潜在＝无负责人（管理员转入）或负责人已注销（离职遗留）
+  // 公共潜在＝无负责人或负责人已注销的「潜在类」客户；已成交 / YG老客户为合作档案，即使无负责人也留在各自类目（公共归属），不进公共潜在
+  return DB.customers.filter(c=>(!c.owner||!active.has(c.owner))&&c.stage!=="已成交"&&c.stage!=="YG老客户");
 }
 function renderResigned(){
   const el=$("#resignedList"); if(!el)return;
