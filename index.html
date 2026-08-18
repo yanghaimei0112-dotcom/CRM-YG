@@ -228,6 +228,7 @@
     </div>
     <button data-view="visits">📍 客户跟进记录</button>
     <button data-view="won">💰 成交客户</button>
+    <button data-view="ygold">🏆 YG老客户</button>
     <button data-view="cases">📚 客户案例库</button>
     <button data-view="users" data-admin="1">👤 用户管理</button>
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
@@ -460,6 +461,17 @@
     <div id="wonList" class="tbl-wrap"></div>
   </section>
 
+  <!-- ============ YG老客户 ============ -->
+  <section id="view-ygold" class="view">
+    <div class="toolbar">
+      <input type="text" id="ygoldSearch" placeholder="🔍 搜索公司 / 联系人 / 产品 / 合作版本">
+      <select id="ygoldOwner"><option value="">全部负责人</option></select>
+      <div class="spacer"></div>
+      <div class="hint">YG老客户＝YG 部门已合作客户的档案（含星级 / 合作金额 / 年限 / 版本）；从其它类目「转移到 YG老客户」或编辑阶段归入此处。</div>
+    </div>
+    <div id="ygoldList" class="tbl-wrap"></div>
+  </section>
+
   <!-- ============ 陌拜客户 ============ -->
   <section id="view-mobai" class="view">
     <div class="toolbar">
@@ -539,6 +551,13 @@
         <div class="field"><label>中国制造网址</label><textarea id="c_micUrl" rows="2" style="resize:vertical;word-break:break-all"></textarea></div>
         <div class="field"><label>建立日期</label><input id="c_createDate" type="date"></div>
         <div class="field"><label>下次跟进</label><input id="c_nextFollow" type="date"></div>
+        <div class="field full" style="border-top:1px dashed var(--line);padding-top:10px;margin-top:2px"><label style="color:var(--brand)">🏆 合作信息（YG老客户档案用）</label></div>
+        <div class="field"><label>星级</label><select id="c_star"><option value="">未设置</option><option>⭐</option><option>⭐⭐</option><option>⭐⭐⭐</option><option>⭐⭐⭐⭐</option><option>⭐⭐⭐⭐⭐</option></select></div>
+        <div class="field"><label>客户归属</label><input id="c_operation" list="operationList" placeholder="如：自己运营"><datalist id="operationList"><option value="自己运营"></option><option value="代运营"></option></datalist></div>
+        <div class="field"><label>合作金额</label><input id="c_coopAmount" type="number" min="0" placeholder="如：106800"></div>
+        <div class="field"><label>合作年限</label><input id="c_coopYears" placeholder="如：2"></div>
+        <div class="field"><label>合作版本</label><input id="c_coopVersion" list="versionList" placeholder="如：专业版（浙江）"><datalist id="versionList"><option value="专业版（浙江）"></option><option value="标准版"></option><option value="旗舰版"></option></datalist></div>
+        <div class="field"><label>合作的网站</label><input id="c_coopSite" placeholder="https://…"></div>
         <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
         <div class="field full"><label>备注</label><textarea id="c_note"></textarea></div>
       </div>
@@ -748,8 +767,8 @@
 <script src="yg-pool.js"></script>
 <script>
 /* ===================== Config / options ===================== */
-const STAGES = ["陌拜客户","潜在客户","初步接触","跟进中","已拜访","已成交","已流失"];
-const STAGE_COLOR = {"陌拜客户":"#7c3aed","潜在客户":"#6b7280","初步接触":"#2563eb","跟进中":"#ca8a04","已拜访":"#ea580c","已成交":"#16a34a","已流失":"#dc2626"};
+const STAGES = ["陌拜客户","潜在客户","初步接触","跟进中","已拜访","已成交","YG老客户","已流失"];
+const STAGE_COLOR = {"陌拜客户":"#7c3aed","潜在客户":"#6b7280","初步接触":"#2563eb","跟进中":"#ca8a04","已拜访":"#ea580c","已成交":"#16a34a","YG老客户":"#b45309","已流失":"#dc2626"};
 const ATTRS = ["A+M+","A+M-","A-M+","A-M-"];
 const ATTR_COLOR = {"A+M+":"#7c3aed","A+M-":"#dc2626","A-M+":"#ea580c","A-M-":"#6b7280"};
 const REGIONS = ["市区","海曙","江北","镇海","北仑","余姚","慈溪","奉化","宁海","象山","绍兴","舟山","市外"];
@@ -778,8 +797,8 @@ let nameToId={}, idToName={};
 function buildNameMaps(){ nameToId={}; idToName={}; (DB.users||[]).forEach(u=>{ if(u.name){nameToId[u.name]=u.id;} idToName[u.id]=u.name; }); }
 const D=v=>v?v:null;   // 空日期转 null
 // 字段映射（前端 camelCase <-> 云端 snake_case）
-function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",mic_url:c.micUrl||"",peer_case:c.peerCase||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
-function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",peerCase:r.peer_case||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",createdAt:r.created_at||"",updatedAt:(r.updated_at||r.created_at||"")};}
+function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",mic_url:c.micUrl||"",peer_case:c.peerCase||"",star:c.star||"",operation:c.operation||"",coop_amount:c.coopAmount||null,coop_years:c.coopYears||"",coop_version:c.coopVersion||"",coop_site:c.coopSite||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
+function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",peerCase:r.peer_case||"",star:r.star||"",operation:r.operation||"",coopAmount:r.coop_amount||"",coopYears:r.coop_years||"",coopVersion:r.coop_version||"",coopSite:r.coop_site||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",createdAt:r.created_at||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,created_by:v.createdBy||(CURRENT?CURRENT.id:null),type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,createdBy:r.created_by||"",type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",mic_url:p.micUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",other_contact:p.otherContact||"",other_phone:p.otherPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
@@ -920,13 +939,13 @@ function custName(id){const c=DB.customers.find(x=>x.id===id);return c?c.name:""
 
 /* ===================== 分页（每页20条） ===================== */
 let PAGE_SIZE=20;
-const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1, resigned:1};
-const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases(), resigned:()=>renderResigned()};
+const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1, resigned:1, ygold:1};
+const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases(), resigned:()=>renderResigned(), ygold:()=>renderYgold()};
 function gotoPage(key,n){ PAGE[key]=n; PAGE_RENDER[key](); }
 function setPageSize(key,val){ PAGE_SIZE=parseInt(val)||20; Object.keys(PAGE).forEach(k=>PAGE[k]=1); PAGE_RENDER[key](); }
 
 /* ===================== 勾选 / 批量操作 ===================== */
-const SEL={customers:new Set(), pool:new Set(), visited:new Set(), won:new Set(), mobai:new Set(), cases:new Set(), resigned:new Set()};
+const SEL={customers:new Set(), pool:new Set(), visited:new Set(), won:new Set(), mobai:new Set(), cases:new Set(), resigned:new Set(), ygold:new Set()};
 function toggleSel(view,id,on){ on?SEL[view].add(id):SEL[view].delete(id); PAGE_RENDER[view](); }
 function toggleSelAll(view,ids,on){ ids.forEach(id=>{on?SEL[view].add(id):SEL[view].delete(id);}); PAGE_RENDER[view](); }
 function clearSel(view){ SEL[view].clear(); PAGE_RENDER[view](); }
@@ -936,9 +955,13 @@ function bulkBar(view){
   const assign = (view!=="pool" && isAdmin())
     ? `<select onchange="bulkAssign('${view}',this.value);this.value=''" style="padding:5px 8px;border:1px solid var(--brand);border-radius:6px;color:var(--brand);font-size:13px;background:#fff"><option value="">👤 分配给…</option>${(DB.users||[]).map(u=>u.name).filter(Boolean).map(nm=>`<option value="${esc(nm)}">${esc(nm)}</option>`).join("")}</select>`
     : "";
+  // 类目迁移：转移到 潜在/陌拜/成交/YG老客户（业务员仅限自己名下）
+  const move = view!=="pool"
+    ? `<select onchange="bulkMoveStage('${view}',this.value);this.value=''" style="padding:5px 8px;border:1px solid var(--brand);border-radius:6px;color:var(--brand);font-size:13px;background:#fff"><option value="">🔀 转移到…</option>${["潜在客户","陌拜客户","已成交","YG老客户"].map(s=>`<option value="${s}">${s}</option>`).join("")}</select>`
+    : "";
   const acts = view==="pool"
     ? `<button class="btn sm" onclick="bulkClaimPool()">捡入到我的潜在客户</button>${isAdmin()?`<button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeletePool()">🗑 删除</button>`:""}`
-    : `${assign}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button>${isAdmin()?`<button class="btn ghost sm" onclick="bulkToCommon('${view}')">👥 转入公共潜在</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`:''}`;
+    : `${assign}${move}<button class="btn ghost sm" onclick="bulkReleaseToPool('${view}')">🌊 放入公海</button>${isAdmin()?`<button class="btn ghost sm" onclick="bulkToCommon('${view}')">👥 转入公共潜在</button><button class="btn ghost sm" style="color:var(--red)" onclick="bulkDeleteCustomers('${view}')">🗑 删除</button>`:''}`;
   return `<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#eef2ff;border-bottom:1px solid var(--line);flex-wrap:wrap">
     <span style="font-size:13px">已选 <b style="color:var(--brand)">${n}</b> 家</span>${acts}
     <button class="btn ghost sm" onclick="clearSel('${view}')">取消选择</button></div>`;
@@ -966,6 +989,22 @@ function bulkToCommon(view){
   save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderVisited();renderDash();
   if(PAGE_RENDER[view])PAGE_RENDER[view]();
   toast("已把 "+n+" 家客户转移到「公共潜在」");
+}
+// 类目迁移：把选中客户转移到目标类目（改阶段；业务员仅限自己名下），转移后从原类目移除
+function bulkMoveStage(view,stage){
+  if(!stage)return;
+  view=view||"customers"; const sel=SEL[view]; const ids=[...sel]; if(!ids.length)return;
+  if(!isAdmin()){
+    const me=CURRENT?CURRENT.name:"";
+    if(ids.some(id=>{const c=DB.customers.find(x=>x.id===id);return c&&(c.owner||"")!==me;})){toast("只能转移自己名下的客户");return;}
+  }
+  if(!confirm("确定把选中的 "+ids.length+" 家客户转移到「"+stage+"」？\n转移后将从当前类目移除，可在「"+stage+"」类目查看。"))return;
+  const evs=[]; let n=0;
+  ids.forEach(id=>{ const c=DB.customers.find(x=>x.id===id); if(c&&c.stage!==stage){evs.push({id:c.id,name:c.name,action:"转移",detail:(c.stage||"潜在客户")+" → "+stage});c.stage=stage;c.updatedAt=new Date().toISOString();n++;} });
+  sel.clear(); logCustEvents(evs);
+  save();refreshDynamic();renderCustomers();renderMobai();renderWon();renderVisited();renderYgold();renderDash();
+  if(PAGE_RENDER[view])PAGE_RENDER[view]();
+  toast("已把 "+n+" 家客户转移到「"+stage+"」");
 }
 function selCell(view,id){ return `<td style="width:34px;text-align:center"><input type="checkbox" ${SEL[view].has(id)?"checked":""} onclick="event.stopPropagation();toggleSel('${view}','${id}',this.checked)"></td>`; }
 function selHead(view,ids){ const all=ids.length&&ids.every(id=>SEL[view].has(id)); return `<th style="width:34px;text-align:center"><input type="checkbox" ${all?"checked":""} onclick="toggleSelAll('${view}',[${ids.map(id=>`'${id}'`).join(",")}],this.checked)"></th>`; }
@@ -1069,6 +1108,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   if(b.dataset.view==="visited")renderVisited();
   if(b.dataset.view==="mobai")renderMobai();
   if(b.dataset.view==="won")renderWon();
+  if(b.dataset.view==="ygold")renderYgold();
   if(b.dataset.view==="cases")renderCases();
   if(b.dataset.view==="users")renderUsers();
   if(b.dataset.view==="resigned")renderResigned();
@@ -1276,7 +1316,7 @@ function renderHomeReport(stats){
 function renderDash(){
   const cs=visibleCustomers();
   const won=cs.filter(c=>c.stage==="已成交").length;
-  const active=cs.filter(c=>!["已成交","已流失"].includes(c.stage)).length;
+  const active=cs.filter(c=>!["已成交","已流失","YG老客户"].includes(c.stage)).length;
   // 待跟进：7 天内（不含逾期）与逾期分开统计
   const followAll=collectFollowups();
   const ups=followAll.filter(f=>f.days!=null&&f.days>=0&&f.days<=7).length;
@@ -1376,7 +1416,7 @@ function renderCustomers(){
     if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
     return true;
   });
-  if(custView==="list"){ $("#custList").style.display=""; $("#custKanban").style.display="none"; renderCustTable(rows.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交")); }   // 已拜访是跟进状态不是去向，仍留在潜在客户主列表；「已拜访客户」分类作统计视图
+  if(custView==="list"){ $("#custList").style.display=""; $("#custKanban").style.display="none"; renderCustTable(rows.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交"&&c.stage!=="YG老客户")); }   // 已拜访是跟进状态仍留主列表；陌拜/成交/YG老客户各有类目不重复
   else { $("#custList").style.display="none"; $("#custKanban").style.display="flex"; renderKanban(rows); }
 }
 function localDate(s){ if(!s)return ""; const d=new Date(s); if(isNaN(d))return String(s).slice(0,10);
@@ -1490,6 +1530,8 @@ function openCustomer(id,defaultStage){
   $("#c_product").value=c.product||""; $("#c_address").value=c.address||""; $("#c_platformUrl").value=c.platformUrl||"";
   $("#c_siteUrl").value=c.siteUrl||""; $("#c_micUrl").value=c.micUrl||""; $("#c_createDate").value=c.createDate||today(); $("#c_nextFollow").value=c.nextFollow||"";
   $("#c_peerCase").value=c.peerCase||""; $("#c_note").value=c.note||"";
+  $("#c_star").value=c.star||""; $("#c_operation").value=c.operation||""; $("#c_coopAmount").value=c.coopAmount||"";
+  $("#c_coopYears").value=c.coopYears||""; $("#c_coopVersion").value=c.coopVersion||""; $("#c_coopSite").value=c.coopSite||"";
   checkDupHint();
   openModal("custModal");
 }
@@ -1504,6 +1546,7 @@ function saveCustomer(){
     const catOf=c=>{
       if(!c.owner||!actN.has(c.owner))return "公共潜在";
       if(c.stage==="已成交")return "成交客户";
+      if(c.stage==="YG老客户")return "YG老客户";
       if(c.stage==="陌拜客户")return "陌拜客户";
       if(c.visited==="已拜访")return "已拜访客户";
       return "潜在客户";
@@ -1530,13 +1573,15 @@ function saveCustomer(){
     shareholder:$("#c_shareholder").value,shareholderPhone:$("#c_shareholderPhone").value,otherContact:$("#c_otherContact").value,otherPhone:$("#c_otherPhone").value,
     product:$("#c_product").value,address:$("#c_address").value,platformUrl:$("#c_platformUrl").value,siteUrl:$("#c_siteUrl").value,micUrl:$("#c_micUrl").value,
     createDate:$("#c_createDate").value,nextFollow:$("#c_nextFollow").value,peerCase:$("#c_peerCase").value,
+    star:$("#c_star").value,operation:$("#c_operation").value.trim(),coopAmount:$("#c_coopAmount").value,coopYears:$("#c_coopYears").value.trim(),
+    coopVersion:$("#c_coopVersion").value.trim(),coopSite:$("#c_coopSite").value.trim(),
     note:$("#c_note").value};
   data.updatedAt=new Date().toISOString();
   if(editCustId){Object.assign(DB.customers.find(x=>x.id===editCustId),data);}
   else{const _nc=Object.assign({id:uid(),code:""},data); DB.customers.push(_nc); logCustEvents([{id:_nc.id,name:_nc.name,action:"新建"}]);}
   save();refreshDynamic();closeModal("custModal");
-  if(wasNew){ const tgt=(data.stage==="陌拜客户")?"mobai":"customers"; const b=document.querySelector('nav button[data-view='+tgt+']'); if(b)b.click(); }
-  renderCustomers();renderMobai();renderWon();renderDash();toast("已保存");
+  if(wasNew){ const tgt=(data.stage==="陌拜客户")?"mobai":(data.stage==="已成交")?"won":(data.stage==="YG老客户")?"ygold":"customers"; const b=document.querySelector('nav button[data-view='+tgt+']'); if(b)b.click(); }
+  renderCustomers();renderMobai();renderWon();renderYgold();renderDash();toast("已保存");
 }
 function deleteCustomer(){
   if(!editCustId)return;
@@ -1557,8 +1602,14 @@ function checkDupHint(){
   const exactPool=(DB.pool||[]).find(p=>normName(p.name)===nn);
   if(exactCust.length||exactPool){
     const parts=[];
-    if(exactCust.length){const os=[...new Set(exactCust.map(c=>c.owner||"（未分配）"))];parts.push("已在潜在客户 · 负责人："+os.join("、"));}
-    if(exactPool)parts.push("在公海客户中");
+    if(exactCust.length){
+      const actN=new Set((DB.users||[]).map(u=>u.name));
+      const catOf=c=>{ if(!c.owner||!actN.has(c.owner))return "公共潜在";
+        if(c.stage==="已成交")return "成交客户"; if(c.stage==="YG老客户")return "YG老客户";
+        if(c.stage==="陌拜客户")return "陌拜客户"; if(c.visited==="已拜访")return "已拜访客户"; return "潜在客户"; };
+      exactCust.forEach(c=>parts.push("已在【"+catOf(c)+"】 · 负责人："+(c.owner||"（未分配）")));
+    }
+    if(exactPool)parts.push("在【公海客户】中");
     el.innerHTML=`<span style="color:var(--red)">⚠️ 已存在：${esc(parts.join("；"))}</span>`+(exactPool?` <span class="link" onclick="claimFromHint('${exactPool.id}')">立即捡入</span>`:"");
     return;
   }
@@ -1594,6 +1645,10 @@ function showDetail(id){
       ${c.siteUrl?`<div class="k">独立站</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.siteUrl)}</div>`:""}
       ${c.micUrl?`<div class="k">中国制造</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.micUrl)}</div>`:""}
       ${kv("同行案例",c.peerCase)}${kv("建立日期",c.createDate)}${kv("下次跟进",c.nextFollow)}
+      ${kv("星级",c.star)}${kv("客户归属",c.operation)}
+      ${kv("合作金额",(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"")}${kv("合作年限",c.coopYears)}
+      ${kv("合作版本",c.coopVersion)}
+      ${c.coopSite?`<div class="k">合作的网站</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.coopSite)}</div>`:""}
       ${kv("系统创建",fmtDT(c.createdAt))}
       ${kv("备注",c.note)}
     </div>
@@ -1800,7 +1855,7 @@ const CSV_FIELDS=[["code","编号"],["name","公司名字"],["owner","负责人"
   ["visited","是否拜访"],["contact","联系人"],["position","职位"],["phone","电话"],
   ["tradeContact","外贸部联系人"],["tradePhone","外贸部联系电话"],["otherContact","其他联系人"],["otherPhone","其他联系电话"],["product","主营产品"],
   ["address","客户地址"],["source","客户来源"],["platformUrl","阿里巴巴网址"],["siteUrl","独立站网址"],["micUrl","中国制造网址"],
-  ["peerCase","同行案例"],["createDate","建立日期"],["nextFollow","下次跟进"],["note","备注"]];
+  ["peerCase","同行案例"],["star","星级"],["operation","客户归属"],["coopAmount","合作金额"],["coopYears","合作年限"],["coopVersion","合作版本"],["coopSite","合作的网站"],["createDate","建立日期"],["nextFollow","下次跟进"],["note","备注"]];
 // 兼容 Notion / YG 导出表头的别名（全角括号、冒号、不同叫法）
 const HEADER_ALIASES={
   "name":["公司名称","公司"],"owner":["业务员","跟进人","负责业务员"],
@@ -2292,6 +2347,43 @@ function renderWon(){
         <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
   }</tbody></table>`+pageBar(total,"won");
+}
+
+/* YG老客户类目 —— 阶段=YG老客户 的客户档案（YG 部门已合作客户），展示合作信息 */
+function renderYgold(){
+  if(!CURRENT)return;
+  const q=($("#ygoldSearch").value||"").toLowerCase(), fo=$("#ygoldOwner").value;
+  const actSet=new Set((DB.users||[]).map(u=>u.name));
+  let rows=visibleCustomers().filter(c=>c.stage==="YG老客户"&&c.owner&&actSet.has(c.owner));   // 互斥：公共潜在不在此重复
+  const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
+  const cur=$("#ygoldOwner").value;
+  $("#ygoldOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
+  $("#ygoldOwner").value=cur;
+  if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
+  if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.coopVersion,c.operation].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
+  if(!rows.length){$("#ygoldList").innerHTML=`<div class="empty">暂无 YG老客户。勾选客户后「🔀 转移到… → YG老客户」，或编辑客户把阶段改为「YG老客户」。</div>`;return;}
+  const total=rows.length, pageRows=pageSlice(rows,"ygold"), pageIds=pageRows.map(c=>c.id);
+  const money=c=>(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"";
+  const cols=["公司名字","负责人","星级","客户归属","合作金额","合作年限","合作版本","区域","联系人","电话"];
+  $("#ygoldList").innerHTML=bulkBar("ygold")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家 YG老客户</div><table><thead><tr>${selHead("ygold",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最新跟进</th><th></th></tr></thead><tbody>${
+    pageRows.map(c=>{
+      return `<tr>
+        ${selCell("ygold",c.id)}
+        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
+        <td>${c.star?`<span style="color:#f59e0b">${esc(c.star)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+        <td>${c.operation?pill(c.operation,"#0d9488"):'<span style="color:var(--muted)">—</span>'}</td>
+        <td style="font-weight:600;color:#b45309">${money(c)}</td>
+        <td>${esc(c.coopYears||"")}</td>
+        <td>${c.coopVersion?pill(c.coopVersion,"#b45309"):'<span style="color:var(--muted)">—</span>'}</td>
+        <td>${esc(c.region||"")}</td>
+        <td>${esc(c.contact||"")}</td>
+        <td>${esc(c.phone||"")}</td>
+        <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
+        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+      </tr>`;}).join("")
+  }</tbody></table>`+pageBar(total,"ygold");
 }
 
 function renderMobai(){
@@ -2883,6 +2975,7 @@ function initSelects(){
 ["visitedSearch","visitedOwner","visitedQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
+["ygoldSearch","ygoldOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.ygold=1;renderYgold();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
 ["caseSearch","caseRegion","caseIndustry"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
 $("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
