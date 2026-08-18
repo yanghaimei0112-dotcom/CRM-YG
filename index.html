@@ -1376,7 +1376,7 @@ function renderCustomers(){
     if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
     return true;
   });
-  if(custView==="list"){ $("#custList").style.display=""; $("#custKanban").style.display="none"; renderCustTable(rows.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交"&&c.visited!=="已拜访")); }   // 互斥：已拜访客户不在潜在客户列表重复
+  if(custView==="list"){ $("#custList").style.display=""; $("#custKanban").style.display="none"; renderCustTable(rows.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交")); }   // 已拜访是跟进状态不是去向，仍留在潜在客户主列表；「已拜访客户」分类作统计视图
   else { $("#custList").style.display="none"; $("#custKanban").style.display="flex"; renderKanban(rows); }
 }
 function localDate(s){ if(!s)return ""; const d=new Date(s); if(isNaN(d))return String(s).slice(0,10);
