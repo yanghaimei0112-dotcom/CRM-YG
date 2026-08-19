@@ -720,7 +720,8 @@
         <div class="field full"><label>姓名（用作客户负责人）*</label><input id="u_name" placeholder="如：姚子泓"></div>
         <div class="field"><label>登录邮箱 *</label><input id="u_username" type="email" autocomplete="off" placeholder="如 yzh@yg.crm"></div>
         <div class="field"><label>密码 *（≥6位）</label><input id="u_password" autocomplete="off"></div>
-        <div class="field full"><label>角色</label><select id="u_role"><option value="sales">业务员（仅看自己+公共客户）</option><option value="admin">管理员 / YG主管（全部+用户与数据管理）</option></select></div>
+        <div class="field full"><label>角色</label><select id="u_role"><option value="sales">业务员（仅看自己+公共客户）</option><option value="manager">二级管理员 / 分组主管（看自己+管辖成员的客户）</option><option value="admin">超级管理员 / YG主管（全部+用户与数据管理）</option></select></div>
+        <div class="field full" id="u_managesWrap"><label>可管理成员（二级管理员生效，可多选）</label><div id="u_manages" style="display:flex;flex-wrap:wrap;gap:8px 14px;padding:6px 0"></div></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -834,7 +835,7 @@ async function loadFromCloud(){
     fetchAllRows("cases")
   ]);
   if(pf.error) throw new Error("profiles 拉取失败："+pf.error.message);
-  DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,username:r.name}));
+  DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,manages:r.manages||[],username:r.name}));
   buildNameMaps();
   DB.customers=(cu||[]).map(rowToCust);
   DB.visits=(vi||[]).map(rowToVisit);
@@ -903,10 +904,19 @@ async function syncTable(tbl,arr,toRow){
 
 /* ===== 权限 / 可见范围 ===== */
 function isAdmin(){ return CURRENT && CURRENT.role==="admin"; }
+function isManager(){ return CURRENT && CURRENT.role==="manager"; }   // 二级管理员（分组主管）
+// 当前用户管辖的成员 id 列表（二级管理员由超级管理员分配）
+function managedIds(){ return new Set((CURRENT&&CURRENT.manages)||[]); }
+function managesName(name){ if(!name)return false; const mid=nameToId[name]; return !!mid&&managedIds().has(mid); }
+function roleLabel(r){ return r==="admin"?"YG主管":(r==="manager"?"分组主管":"业务员"); }
+// 是否可编辑该客户：超管 / 自己名下 / 二级管理员对管辖成员名下
+function canEditCust(c){ if(!CURRENT)return false; if(isAdmin()||c.owner===CURRENT.name)return true; if(isManager()&&managesName(c.owner))return true; return false; }
 // 潜在客户（按权限）
 function visibleCustomers(){
   if(!CURRENT) return [];
-  return isAdmin()? DB.customers : DB.customers.filter(c=> c.owner===CURRENT.name || c.isPublic);
+  if(isAdmin()) return DB.customers;
+  if(isManager()){ const ids=managedIds(); return DB.customers.filter(c=> c.owner===CURRENT.name || c.isPublic || managesName(c.owner)); }
+  return DB.customers.filter(c=> c.owner===CURRENT.name || c.isPublic);
 }
 // 公海客户（独立资料库，全员可见；可与潜在客户同时存在同一公司）
 function poolCustomers(){
@@ -1145,7 +1155,7 @@ async function login(){
 }
 async function afterAuth(user){
   const {data:prof}=await SB.from("profiles").select("*").eq("id",user.id).single();
-  CURRENT={id:user.id,name:(prof&&prof.name)||user.email,role:(prof&&prof.role)||"sales"};
+  CURRENT={id:user.id,name:(prof&&prof.name)||user.email,role:(prof&&prof.role)||"sales",manages:(prof&&prof.manages)||[]};
   // 切换账号防串号：先清空上一个用户残留的本地数据
   DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[];
   _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear();
@@ -1462,7 +1472,7 @@ function renderCustTable(rows){
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
         <td>${lf?esc(lf):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="row-act">
-          <button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>
+          ${canEditCust(c)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}
           <button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button>
         </div></td></tr>`;
     }).join("")
@@ -2341,7 +2351,7 @@ function renderVisited(){
         <td>${esc(c.phone||"")}</td>
         <td>${esc(c.lastFollow||"")}</td>
         <td>${c.visits}</td>
-        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+        <td><div class="row-act">${canEditCust(c)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`).join("")
   }</tbody></table>`+pageBar(total,"visited");
 }
@@ -2374,7 +2384,7 @@ function renderWon(){
         <td>${esc(c.phone||"")}</td>
         <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
-        <td><div class="row-act">${(isAdmin()||c.owner===CURRENT.name)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+        <td><div class="row-act">${canEditCust(c)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
   }</tbody></table>`+pageBar(total,"won");
 }
@@ -2421,7 +2431,7 @@ function renderYgold(){
         <td>${esc(c.contact||"")}</td>
         <td>${esc(c.phone||"")}</td>
         <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
-        <td><div class="row-act">${(isAdmin()||c.owner===CURRENT.name)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+        <td><div class="row-act">${canEditCust(c)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
   }</tbody></table>`+pageBar(total,"ygold");
 }
@@ -2453,7 +2463,7 @@ function renderMobai(){
         <td>${esc(c.phone||"")}</td>
         <td>${lastFollowDate(c.id)?esc(lastFollowDate(c.id)):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
-        <td><div class="row-act"><button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button><button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
+        <td><div class="row-act">${canEditCust(c)?`<button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>`:`<button class="btn ghost sm" onclick="showDetail('${c.id}')">查看</button>`}<button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button></div></td>
       </tr>`;}).join("")
   }</tbody></table>`+pageBar(total,"mobai");
 }
@@ -2790,18 +2800,20 @@ function importPoolCSV(input,originName){
 /* ===================== 用户管理（管理员） ===================== */
 function renderUserBox(){
   if(!CURRENT){$("#userBox").innerHTML="";return;}
-  $("#userBox").innerHTML=`<span style="font-size:13px;color:var(--muted)">${esc(CURRENT.name)}（${isAdmin()?"YG主管":"业务员"}）</span>
+  $("#userBox").innerHTML=`<span style="font-size:13px;color:var(--muted)">${esc(CURRENT.name)}（${roleLabel(CURRENT.role)}）</span>
     <button class="btn ghost sm" onclick="logout()">退出</button>`;
 }
 function renderUsers(){
   if(!isAdmin()){ $("#userList").innerHTML=`<div class="empty">仅管理员（YG主管）可访问</div>`; return; }
-  $("#userList").innerHTML=`<table><thead><tr><th>姓名</th><th>登录用户名</th><th>角色</th><th>名下客户</th><th></th></tr></thead><tbody>${
+  $("#userList").innerHTML=`<table><thead><tr><th>姓名</th><th>登录用户名</th><th>角色</th><th>管辖成员</th><th>名下客户</th><th></th></tr></thead><tbody>${
     DB.users.map(u=>{
       const cnt=DB.customers.filter(c=>c.owner===u.name).length;
+      const mg=(u.manages||[]).map(id=>(DB.users.find(x=>x.id===id)||{}).name).filter(Boolean);
       return `<tr>
         <td style="font-weight:600">${esc(u.name)}</td>
         <td>${esc(u.username)}</td>
-        <td>${pill(u.role==='admin'?'YG主管':'业务员', u.role==='admin'?'#7c3aed':'#0ea5e9')}</td>
+        <td>${pill(roleLabel(u.role), u.role==='admin'?'#7c3aed':(u.role==='manager'?'#0d9488':'#0ea5e9'))}</td>
+        <td>${u.role==='manager'?(mg.length?mg.map(n=>pill(n,"#0d9488")).join(" "):'<span style="color:var(--muted)">未分配</span>'):'<span style="color:var(--muted)">—</span>'}</td>
         <td>${cnt}</td>
         <td><div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="openUser('${u.id}')">编辑</button><button class="btn ghost sm" onclick="openPass('${u.id}','${esc(u.name)}')">改密码</button>${(CURRENT&&u.id!==CURRENT.id)?`<button class="btn ghost sm" style="color:var(--red)" onclick="delUser('${u.id}','${esc(u.name)}')">删除</button>`:'<span style="color:var(--muted);font-size:12px;align-self:center">（当前登录）</span>'}</div></td>
       </tr>`;
@@ -2816,6 +2828,10 @@ function openUser(id){
   $("#userModalTitle").textContent=id?"编辑成员（姓名/角色）":"新增业务员账号";
   $("#userDeleteBtn").style.display="none";
   $("#u_name").value=u.name||""; $("#u_username").value=""; $("#u_password").value=""; $("#u_role").value=u.role||"sales";
+  // 管辖成员勾选（排除自己；二级管理员生效）
+  const curMg=new Set(u.manages||[]);
+  $("#u_manages").innerHTML=DB.users.filter(x=>x.id!==id).map(x=>
+    `<label style="display:flex;gap:4px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" class="u_mg" value="${x.id}"${curMg.has(x.id)?" checked":""}> ${esc(x.name)}</label>`).join("");
   // 新增时填邮箱+密码建账号；编辑时只改姓名/角色（登录凭据不在这改）
   const uu=$("#u_username").parentElement, up=$("#u_password").parentElement;
   if(uu)uu.style.display=id?"none":""; if(up)up.style.display=id?"none":"";
@@ -2823,12 +2839,13 @@ function openUser(id){
 }
 async function saveUser(){
   const name=$("#u_name").value.trim(), role=$("#u_role").value;
+  const manages=[...document.querySelectorAll("#u_manages .u_mg:checked")].map(i=>i.value);
   if(!name){toast("请填写姓名");return;}
   if(editUserId){ // 编辑：更新档案
     const old=DB.users.find(x=>x.id===editUserId), oldName=old.name;
-    const {error}=await SB.from("profiles").update({name,role}).eq("id",editUserId);
+    const {error}=await SB.from("profiles").update({name,role,manages}).eq("id",editUserId);
     if(error){toast("保存失败："+error.message);return;}
-    Object.assign(old,{name,role}); buildNameMaps();
+    Object.assign(old,{name,role,manages}); buildNameMaps();
     if(oldName!==name){ DB.customers.forEach(c=>{if(c.owner===oldName)c.owner=name;}); save(); }
     if(CURRENT&&CURRENT.id===editUserId){CURRENT=old;renderUserBox();}
     closeModal("userModal");renderUsers();refreshDynamic();renderCustomers();toast("已保存");
@@ -2852,12 +2869,12 @@ async function saveUser(){
     await new Promise(r=>setTimeout(r,500));
   }
   if(!prof){toast("账号已注册，但资料行尚未就绪，请稍后在用户管理里重新设置姓名/角色");return;}
-  const {error:e2}=await SB.from("profiles").update({name,role}).eq("id",nid);
+  const {error:e2}=await SB.from("profiles").update({name,role,manages}).eq("id",nid);
   if(e2){toast("角色设置失败："+e2.message);return;}
   const pf=await SB.from("profiles").select("*");
-  DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,username:r.name})); buildNameMaps();
+  DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,manages:r.manages||[],username:r.name})); buildNameMaps();
   closeModal("userModal");renderUsers();refreshDynamic();
-  toast("账号已创建："+email+"（"+name+" · "+(role==="admin"?"主管":"业务员")+"）");
+  toast("账号已创建："+email+"（"+name+" · "+roleLabel(role)+"）");
 }
 function deleteUser(){ toast("请在用户列表里点该成员的「删除」按钮"); }
 async function delUser(id,name){
