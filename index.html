@@ -560,7 +560,9 @@
         <div class="field"><label>星级</label><select id="c_star"><option value="">未设置</option><option>⭐</option><option>⭐⭐</option><option>⭐⭐⭐</option><option>⭐⭐⭐⭐</option><option>⭐⭐⭐⭐⭐</option></select></div>
         <div class="field"><label>客户归属</label><select id="c_operation" onchange="pickToggle('c_operation','c_operationCustom')"></select><input id="c_operationCustom" placeholder="输入新的客户归属" style="display:none;margin-top:6px"></div>
         <div class="field"><label>合作金额</label><input id="c_coopAmount" type="number" min="0" placeholder="如：106800"></div>
+        <div class="field"><label>累积合作金额</label><input id="c_coopTotal" type="number" min="0" placeholder="如：320000"></div>
         <div class="field"><label>合作年限</label><input id="c_coopYears" placeholder="如：2"></div>
+        <div class="field"><label>合作时间（开始）</label><input id="c_coopStart" type="date"></div>
         <div class="field"><label>合作版本</label><select id="c_coopVersion" onchange="pickToggle('c_coopVersion','c_coopVersionCustom')"></select><input id="c_coopVersionCustom" placeholder="输入新的合作版本" style="display:none;margin-top:6px"></div>
         <div class="field"><label>合作的网站</label><input id="c_coopSite" placeholder="https://…"></div>
         <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
@@ -803,8 +805,8 @@ let nameToId={}, idToName={};
 function buildNameMaps(){ nameToId={}; idToName={}; (DB.users||[]).forEach(u=>{ if(u.name){nameToId[u.name]=u.id;} idToName[u.id]=u.name; }); }
 const D=v=>v?v:null;   // 空日期转 null
 // 字段映射（前端 camelCase <-> 云端 snake_case）
-function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",mic_url:c.micUrl||"",peer_case:c.peerCase||"",star:c.star||"",operation:c.operation||"",coop_amount:c.coopAmount||null,coop_years:c.coopYears||"",coop_version:c.coopVersion||"",coop_site:c.coopSite||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
-function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",peerCase:r.peer_case||"",star:r.star||"",operation:r.operation||"",coopAmount:r.coop_amount||"",coopYears:r.coop_years||"",coopVersion:r.coop_version||"",coopSite:r.coop_site||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",createdAt:r.created_at||"",updatedAt:(r.updated_at||r.created_at||"")};}
+function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",mic_url:c.micUrl||"",peer_case:c.peerCase||"",star:c.star||"",operation:c.operation||"",coop_amount:c.coopAmount||null,coop_total:c.coopTotal||null,coop_years:c.coopYears||"",coop_start:D(c.coopStart),coop_version:c.coopVersion||"",coop_site:c.coopSite||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
+function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",peerCase:r.peer_case||"",star:r.star||"",operation:r.operation||"",coopAmount:r.coop_amount||"",coopTotal:r.coop_total||"",coopYears:r.coop_years||"",coopStart:r.coop_start||"",coopVersion:r.coop_version||"",coopSite:r.coop_site||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",createdAt:r.created_at||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,created_by:v.createdBy||(CURRENT?CURRENT.id:null),type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,createdBy:r.created_by||"",type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",mic_url:p.micUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",other_contact:p.otherContact||"",other_phone:p.otherPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
@@ -1559,7 +1561,8 @@ function openCustomer(id,defaultStage){  editCustId=id||null;
   $("#c_siteUrl").value=c.siteUrl||""; $("#c_micUrl").value=c.micUrl||""; $("#c_createDate").value=c.createDate||today(); $("#c_nextFollow").value=c.nextFollow||"";
   $("#c_peerCase").value=c.peerCase||""; $("#c_note").value=c.note||"";
   $("#c_star").value=c.star||""; $("#c_coopAmount").value=c.coopAmount||"";
-  $("#c_coopYears").value=c.coopYears||""; $("#c_coopSite").value=c.coopSite||"";
+  $("#c_coopTotal").value=c.coopTotal||""; $("#c_coopYears").value=c.coopYears||"";
+  $("#c_coopStart").value=c.coopStart||""; $("#c_coopSite").value=c.coopSite||"";
   fillPickSelect("c_operation","c_operationCustom",OPERATION_PRESET,DB.customers.map(x=>x.operation),c.operation||"");
   fillPickSelect("c_coopVersion","c_coopVersionCustom",VERSION_PRESET,DB.customers.map(x=>x.coopVersion),c.coopVersion||"");
   checkDupHint();
@@ -1613,8 +1616,8 @@ function saveCustomer(){
     shareholder:$("#c_shareholder").value,shareholderPhone:$("#c_shareholderPhone").value,otherContact:$("#c_otherContact").value,otherPhone:$("#c_otherPhone").value,
     product:$("#c_product").value,address:$("#c_address").value,platformUrl:$("#c_platformUrl").value,siteUrl:$("#c_siteUrl").value,micUrl:$("#c_micUrl").value,
     createDate:$("#c_createDate").value,nextFollow:$("#c_nextFollow").value,peerCase:$("#c_peerCase").value,
-    star:$("#c_star").value,operation:pickVal("c_operation","c_operationCustom"),coopAmount:$("#c_coopAmount").value,coopYears:$("#c_coopYears").value.trim(),
-    coopVersion:pickVal("c_coopVersion","c_coopVersionCustom"),coopSite:$("#c_coopSite").value.trim(),
+    star:$("#c_star").value,operation:pickVal("c_operation","c_operationCustom"),coopAmount:$("#c_coopAmount").value,coopTotal:$("#c_coopTotal").value,coopYears:$("#c_coopYears").value.trim(),
+    coopStart:$("#c_coopStart").value,coopVersion:pickVal("c_coopVersion","c_coopVersionCustom"),coopSite:$("#c_coopSite").value.trim(),
     note:$("#c_note").value};
   data.updatedAt=new Date().toISOString();
   if(editCustId){Object.assign(DB.customers.find(x=>x.id===editCustId),data);}
@@ -1686,8 +1689,8 @@ function showDetail(id){
       ${c.micUrl?`<div class="k">中国制造</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.micUrl)}</div>`:""}
       ${kv("同行案例",c.peerCase)}${kv("建立日期",c.createDate)}${kv("下次跟进",c.nextFollow)}
       ${kv("星级",c.star)}${kv("客户归属",c.operation)}
-      ${kv("合作金额",(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"")}${kv("合作年限",c.coopYears)}
-      ${kv("合作版本",c.coopVersion)}
+      ${kv("合作金额",(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"")}${kv("累积合作金额",(c.coopTotal!==""&&c.coopTotal!=null)?("¥"+Number(c.coopTotal).toLocaleString("zh-CN")):"")}${kv("合作年限",c.coopYears)}
+      ${kv("合作时间",c.coopStart)}${kv("合作版本",c.coopVersion)}
       ${c.coopSite?`<div class="k">合作的网站</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.coopSite)}</div>`:""}
       ${kv("系统创建",fmtDT(c.createdAt))}
       ${kv("备注",c.note)}
@@ -1895,7 +1898,7 @@ const CSV_FIELDS=[["code","编号"],["name","公司名字"],["owner","负责人"
   ["visited","是否拜访"],["contact","联系人"],["position","职位"],["phone","电话"],
   ["tradeContact","外贸部联系人"],["tradePhone","外贸部联系电话"],["otherContact","其他联系人"],["otherPhone","其他联系电话"],["product","主营产品"],
   ["address","客户地址"],["source","客户来源"],["platformUrl","阿里巴巴网址"],["siteUrl","独立站网址"],["micUrl","中国制造网址"],
-  ["peerCase","同行案例"],["star","星级"],["operation","客户归属"],["coopAmount","合作金额"],["coopYears","合作年限"],["coopVersion","合作版本"],["coopSite","合作的网站"],["createDate","建立日期"],["nextFollow","下次跟进"],["note","备注"]];
+  ["peerCase","同行案例"],["star","星级"],["operation","客户归属"],["coopAmount","合作金额"],["coopTotal","累积合作金额"],["coopYears","合作年限"],["coopStart","合作时间"],["coopVersion","合作版本"],["coopSite","合作的网站"],["createDate","建立日期"],["nextFollow","下次跟进"],["note","备注"]];
 // 兼容 Notion / YG 导出表头的别名（全角括号、冒号、不同叫法）
 const HEADER_ALIASES={
   "name":["公司名称","公司"],"owner":["业务员","跟进人","负责业务员"],
@@ -2415,8 +2418,11 @@ function renderYgold(){
   if(!rows.length){$("#ygoldList").innerHTML=`<div class="empty">暂无 YG老客户。勾选客户后「🔀 转移到… → YG老客户」，或编辑客户把阶段改为「YG老客户」。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"ygold"), pageIds=pageRows.map(c=>c.id);
   const money=c=>(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"";
-  const cols=["公司名字","负责人","星级","客户归属","合作金额","合作年限","合作版本","区域","联系人","电话"];
-  $("#ygoldList").innerHTML=bulkBar("ygold")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家 YG老客户</div><table><thead><tr>${selHead("ygold",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最新跟进</th><th></th></tr></thead><tbody>${
+  const moneyT=c=>(c.coopTotal!==""&&c.coopTotal!=null)?("¥"+Number(c.coopTotal).toLocaleString("zh-CN")):"";
+  const sumTotal=rows.reduce((s,c)=>s+(Number(c.coopTotal)||0),0);
+  const sumTxt=sumTotal>0?`　·　累积合作金额合计 <b style="color:#b45309">¥${sumTotal.toLocaleString("zh-CN")}</b>`:"";
+  const cols=["公司名字","负责人","星级","客户归属","合作金额","累积合作金额","合作年限","合作时间","合作版本","区域","联系人","电话"];
+  $("#ygoldList").innerHTML=bulkBar("ygold")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家 YG老客户${sumTxt}</div><table><thead><tr>${selHead("ygold",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最新跟进</th><th></th></tr></thead><tbody>${
     pageRows.map(c=>{
       return `<tr>
         ${selCell("ygold",c.id)}
@@ -2425,7 +2431,9 @@ function renderYgold(){
         <td>${c.star?`<span style="color:#f59e0b">${esc(c.star)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
         <td>${c.operation?pill(c.operation,"#0d9488"):'<span style="color:var(--muted)">—</span>'}</td>
         <td style="font-weight:600;color:#b45309">${money(c)}</td>
+        <td style="font-weight:600;color:#92400e">${moneyT(c)}</td>
         <td>${esc(c.coopYears||"")}</td>
+        <td>${esc(c.coopStart||"")}</td>
         <td>${c.coopVersion?pill(c.coopVersion,"#b45309"):'<span style="color:var(--muted)">—</span>'}</td>
         <td>${esc(c.region||"")}</td>
         <td>${esc(c.contact||"")}</td>
