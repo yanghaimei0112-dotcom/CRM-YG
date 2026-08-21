@@ -472,6 +472,7 @@
       <select id="ygoldRegion"><option value="">全部区域</option></select>
       <div class="spacer"></div>
       <button class="btn" onclick="openCustomer(null,'YG老客户')">＋ 新建YG老客户</button>
+      <button class="btn ghost" id="optSettingsBtn" onclick="openOptSettings()">⚙️ 选项设置</button>
       <div class="hint">YG老客户＝YG 部门已合作客户的档案（含星级 / 合作金额 / 年限 / 版本）；从其它类目「转移到 YG老客户」或编辑阶段归入此处。</div>
     </div>
     <div id="ygoldList" class="tbl-wrap"></div>
@@ -713,7 +714,24 @@
   </div>
 </div>
 
-<!-- ===== User Modal ===== -->
+<!-- ===== 选项设置 Modal（超管统一维护下拉清单） ===== -->
+<div class="modal-bg" id="optModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h3>⚙️ 选项设置（全团队统一生效）</h3><button class="x" onclick="closeModal('optModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full"><label>客户归属选项（一行一个）</label><textarea id="opt_operations" rows="5"></textarea></div>
+        <div class="field full"><label>合作版本选项（一行一个）</label><textarea id="opt_coop_versions" rows="7"></textarea></div>
+        <div class="field full" style="color:var(--muted);font-size:12px">YG老客户筛选项、客户表单下拉框都使用这份清单。历史客户已有的值不受影响（仍会正常显示）。</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('optModal')">取消</button>
+      <button class="btn" onclick="saveOptSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="userModal">
   <div class="modal" style="max-width:460px">
     <div class="modal-head"><h3 id="userModalTitle">新增用户</h3><button class="x" onclick="closeModal('userModal')">×</button></div>
@@ -787,7 +805,7 @@ const RESULTS = ["有意向","继续跟进","暂无意向","已成交","已流�
 const RESULT_COLOR = {"有意向":"#16a34a","继续跟进":"#2563eb","暂无意向":"#6b7280","已成交":"#7c3aed","已流失":"#dc2626"};
 
 /* ===================== State / storage ===================== */
-let DB = {customers:[], visits:[], users:[], pool:[], seq:0};
+let DB = {customers:[], visits:[], users:[], pool:[], seq:0, settings:{}};
 let CURRENT = null;                       // 当前登录用户
 const LS_KEY = "crm_local_db_v1";
 const SESS_KEY = "crm_session_user";
@@ -829,14 +847,16 @@ async function fetchAllRows(table){
 }
 async function loadFromCloud(){
   if(!SB)return;
-  const [pf,cu,vi,po,ca]=await Promise.all([
+  const [pf,cu,vi,po,ca,st]=await Promise.all([
     SB.from("profiles").select("*"),
     fetchAllRows("customers"),
     fetchAllRows("visits"),
     fetchAllRows("pool"),
-    fetchAllRows("cases")
+    fetchAllRows("cases"),
+    SB.from("app_settings").select("*")
   ]);
   if(pf.error) throw new Error("profiles 拉取失败："+pf.error.message);
+  DB.settings={}; ((st&&st.data)||[]).forEach(r=>{DB.settings[r.key]=r.value;});
   DB.users=(pf.data||[]).map(r=>({id:r.id,name:r.name,role:r.role,manages:r.manages||[],username:r.name}));
   buildNameMaps();
   DB.customers=(cu||[]).map(rowToCust);
@@ -1527,12 +1547,17 @@ function fillTargetSelect(cid,current,inputSel,listSel){
   const dl=$(listSel); if(dl)dl.innerHTML=names.map(n=>`<option value="${esc(n)}"></option>`).join("");
   const el=$(inputSel); if(el)el.value=current||c.contact||"";
 }
-/* 客户归属 / 合作版本：下拉选择（预设 + 数据已有值），选「自定义…」时可输入新值 */
+/* 客户归属 / 合作版本：下拉选择（选项由超级管理员在「⚙️ 选项设置」统一维护；选「自定义…」可临时输入） */
 const OPERATION_PRESET=["自己运营","代运营","和TM合作"];
 const VERSION_PRESET=["专业版（浙江）","专业版（全国）","商务版（全国）","标准版（全国）","旗舰版（全国）","网站客户","全球计划"];
-function fillPickSelect(selId,customId,preset,values,cur){
+function optList(key,preset,values){
+  const s=(DB.settings||{})[key];
+  if(Array.isArray(s)&&s.length)return s;
+  return [...new Set([...preset,...(values||[]).filter(Boolean)])];
+}
+function fillPickSelect(selId,customId,options,cur){
   const sel=$("#"+selId),cus=$("#"+customId); if(!sel)return;
-  const opts=[...new Set([...preset,...values.filter(Boolean)])];
+  const opts=options;
   sel.innerHTML=`<option value="">（未选择）</option>`+opts.map(o=>`<option>${esc(o)}</option>`).join("")+`<option value="__custom">✏️ 自定义…</option>`;
   if(cur&&opts.includes(cur)){sel.value=cur;cus.style.display="none";cus.value="";}
   else if(cur){sel.value="__custom";cus.style.display="";cus.value=cur;}
@@ -1541,6 +1566,22 @@ function fillPickSelect(selId,customId,preset,values,cur){
 function pickToggle(selId,customId){ const sel=$("#"+selId),cus=$("#"+customId);
   const on=sel.value==="__custom"; cus.style.display=on?"":"none"; if(!on)cus.value=""; if(on)cus.focus(); }
 function pickVal(selId,customId){ const v=$("#"+selId).value; return v==="__custom"?$("#"+customId).value.trim():v; }
+/* ⚙️ 选项设置：超管统一维护 客户归属 / 合作版本 清单（存 app_settings，全团队生效） */
+function openOptSettings(){
+  if(!isAdmin()){toast("仅超级管理员可维护选项");return;}
+  $("#opt_operations").value=optList("operations",OPERATION_PRESET,DB.customers.map(x=>x.operation)).join("\n");
+  $("#opt_coop_versions").value=optList("coop_versions",VERSION_PRESET,DB.customers.map(x=>x.coopVersion)).join("\n");
+  openModal("optModal");
+}
+async function saveOptSettings(){
+  if(!isAdmin())return;
+  const parse=id=>[...new Set($("#"+id).value.split("\n").map(s=>s.trim()).filter(Boolean))];
+  const ops=parse("opt_operations"), vers=parse("opt_coop_versions");
+  const {error}=await SB.from("app_settings").upsert([{key:"operations",value:ops},{key:"coop_versions",value:vers}]);
+  if(error){toast("保存失败："+error.message);return;}
+  DB.settings=DB.settings||{}; DB.settings.operations=ops; DB.settings.coop_versions=vers;
+  closeModal("optModal"); renderYgold(); toast("选项清单已保存，全团队生效");
+}
 function openCustomer(id,defaultStage){  editCustId=id||null;
   const c=id?DB.customers.find(x=>x.id===id):{};
   $("#custModalTitle").textContent=id?"编辑客户":"新增客户";
@@ -1563,8 +1604,8 @@ function openCustomer(id,defaultStage){  editCustId=id||null;
   $("#c_star").value=c.star||""; $("#c_coopAmount").value=c.coopAmount||"";
   $("#c_coopTotal").value=c.coopTotal||""; $("#c_coopYears").value=c.coopYears||"";
   $("#c_coopStart").value=c.coopStart||""; $("#c_coopSite").value=c.coopSite||"";
-  fillPickSelect("c_operation","c_operationCustom",OPERATION_PRESET,DB.customers.map(x=>x.operation),c.operation||"");
-  fillPickSelect("c_coopVersion","c_coopVersionCustom",VERSION_PRESET,DB.customers.map(x=>x.coopVersion),c.coopVersion||"");
+  fillPickSelect("c_operation","c_operationCustom",optList("operations",OPERATION_PRESET,DB.customers.map(x=>x.operation)),c.operation||"");
+  fillPickSelect("c_coopVersion","c_coopVersionCustom",optList("coop_versions",VERSION_PRESET,DB.customers.map(x=>x.coopVersion)),c.coopVersion||"");
   checkDupHint();
   openModal("custModal");
 }
@@ -2395,6 +2436,7 @@ function renderWon(){
 /* YG老客户类目 —— 阶段=YG老客户 的客户档案（YG 部门已合作客户），展示合作信息 */
 function renderYgold(){
   if(!CURRENT)return;
+  const ob=$("#optSettingsBtn"); if(ob)ob.style.display=isAdmin()?"":"none";   // 选项设置仅超管可见
   const q=($("#ygoldSearch").value||"").toLowerCase(), fo=$("#ygoldOwner").value;
   const fStar=$("#ygoldStar").value, fOp=$("#ygoldOperation").value, fVer=$("#ygoldVersion").value, fReg=$("#ygoldRegion").value;
   const actSet=new Set((DB.users||[]).map(u=>u.name));
@@ -2405,8 +2447,8 @@ function renderYgold(){
     el.value=vals.includes(cur)?cur:"";};
   fillSel("ygoldOwner","全部负责人",owners);
   fillSel("ygoldStar","全部星级",[...new Set(rows.map(c=>c.star).filter(Boolean))].sort((a,b)=>a.length-b.length));
-  fillSel("ygoldOperation","全部客户归属",[...new Set(rows.map(c=>c.operation).filter(Boolean))].sort());
-  fillSel("ygoldVersion","全部合作版本",[...new Set(rows.map(c=>c.coopVersion).filter(Boolean))].sort());
+  fillSel("ygoldOperation","全部客户归属",optList("operations",OPERATION_PRESET,rows.map(c=>c.operation)));
+  fillSel("ygoldVersion","全部合作版本",optList("coop_versions",VERSION_PRESET,rows.map(c=>c.coopVersion)));
   fillSel("ygoldRegion","全部区域",[...new Set(rows.map(c=>c.region).filter(Boolean))].sort());
   if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
   if(fStar)rows=rows.filter(c=>(c.star||"")===fStar);
