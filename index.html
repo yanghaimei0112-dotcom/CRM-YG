@@ -469,7 +469,7 @@
       <select id="ygoldStar"><option value="">全部星级</option></select>
       <select id="ygoldOperation"><option value="">全部客户归属</option></select>
       <select id="ygoldVersion"><option value="">全部合作版本</option></select>
-      <select id="ygoldStatus"><option value="">全部客户阶段</option><option>已上线</option><option>未上线</option><option>制作中</option><option>未启动</option><option>已断约</option></select>
+      <select id="ygoldStatus"><option value="">全部客户阶段</option><option>已上线</option><option>未上线</option><option>制作中</option><option>未启动</option><option>已续费</option><option>已断约</option></select>
       <select id="ygoldRegion"><option value="">全部区域</option></select>
       <div class="spacer"></div>
       <button class="btn" onclick="openCustomer(null,'YG老客户')">＋ 新建YG老客户</button>
@@ -566,7 +566,7 @@
         <div class="field"><label>合作年限</label><input id="c_coopYears" placeholder="填合作时间后自动计算，可手改"></div>
         <div class="field"><label>合作时间（开始）</label><input id="c_coopStart" type="date" onchange="coopSyncYears()"></div>
         <div class="field"><label>合作版本</label><select id="c_coopVersion" onchange="pickToggle('c_coopVersion','c_coopVersionCustom')"></select><input id="c_coopVersionCustom" placeholder="输入新的合作版本" style="display:none;margin-top:6px"></div>
-        <div class="field"><label>客户阶段</label><select id="c_coopStatus"><option value="">未设置</option><option>已上线</option><option>未上线</option><option>制作中</option><option>未启动</option><option>已断约</option></select></div>
+        <div class="field"><label>客户阶段</label><select id="c_coopStatus"><option value="">未设置</option><option>已上线</option><option>未上线</option><option>制作中</option><option>未启动</option><option>已续费</option><option>已断约</option></select></div>
         <div class="field"><label>合作的网站</label><input id="c_coopSite" placeholder="https://…"></div>
         <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
         <div class="field full"><label>备注</label><textarea id="c_note"></textarea></div>
@@ -2487,7 +2487,7 @@ function renderYgold(){
   const moneyT=c=>(c.coopTotal!==""&&c.coopTotal!=null)?("¥"+Number(c.coopTotal).toLocaleString("zh-CN")):"";
   const sumTotal=rows.reduce((s,c)=>s+(Number(c.coopTotal)||0),0);
   const sumTxt=sumTotal>0?`　·　累积合作金额合计 <b style="color:#b45309">¥${sumTotal.toLocaleString("zh-CN")}</b>`:"";
-  const ST_COLOR={"已上线":"#16a34a","制作中":"#d97706","未启动":"#64748b","未上线":"#ea580c","已断约":"#dc2626"};
+  const ST_COLOR={"已上线":"#16a34a","制作中":"#d97706","未启动":"#64748b","未上线":"#ea580c","已续费":"#0d9488","已断约":"#dc2626"};
   const cols=["公司名字","负责人","星级","客户归属","合作金额","累积合作金额","合作年限","合作时间","合作版本","客户阶段","区域","联系人","电话"];
   $("#ygoldList").innerHTML=bulkBar("ygold")+`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 家 YG老客户${sumTxt}</div><table><thead><tr>${selHead("ygold",pageIds)}${cols.map(t=>`<th>${t}</th>`).join("")}<th>最新跟进</th><th></th></tr></thead><tbody>${
     pageRows.map(c=>{
