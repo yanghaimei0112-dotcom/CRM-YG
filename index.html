@@ -561,9 +561,9 @@
         <div class="field"><label>星级</label><select id="c_star"><option value="">未设置</option><option>⭐</option><option>⭐⭐</option><option>⭐⭐⭐</option><option>⭐⭐⭐⭐</option><option>⭐⭐⭐⭐⭐</option></select></div>
         <div class="field"><label>客户归属</label><select id="c_operation" onchange="pickToggle('c_operation','c_operationCustom')"></select><input id="c_operationCustom" placeholder="输入新的客户归属" style="display:none;margin-top:6px"></div>
         <div class="field"><label>合作金额</label><input id="c_coopAmount" type="number" min="0" placeholder="如：106800"></div>
-        <div class="field"><label>累积合作金额</label><input id="c_coopTotal" type="number" min="0" placeholder="如：320000"></div>
-        <div class="field"><label>合作年限</label><input id="c_coopYears" placeholder="如：2"></div>
-        <div class="field"><label>合作时间（开始）</label><input id="c_coopStart" type="date"></div>
+        <div class="field"><label>累积合作金额</label><div style="display:flex;gap:6px;align-items:center"><input id="c_coopTotal" type="number" min="0" placeholder="如：320000" style="flex:1"><button type="button" class="btn ghost sm" title="把左侧「合作金额」累加进累积金额" onclick="coopAddTotal()">＋累加</button></div></div>
+        <div class="field"><label>合作年限</label><input id="c_coopYears" placeholder="填合作时间后自动计算，可手改"></div>
+        <div class="field"><label>合作时间（开始）</label><input id="c_coopStart" type="date" onchange="coopSyncYears()"></div>
         <div class="field"><label>合作版本</label><select id="c_coopVersion" onchange="pickToggle('c_coopVersion','c_coopVersionCustom')"></select><input id="c_coopVersionCustom" placeholder="输入新的合作版本" style="display:none;margin-top:6px"></div>
         <div class="field"><label>合作的网站</label><input id="c_coopSite" placeholder="https://…"></div>
         <div class="field full"><label>同行案例</label><input id="c_peerCase"></div>
@@ -1582,6 +1582,26 @@ async function saveOptSettings(){
   DB.settings=DB.settings||{}; DB.settings.operations=ops; DB.settings.coop_versions=vers;
   closeModal("optModal"); renderYgold(); toast("选项清单已保存，全团队生效");
 }
+/* 累积合作金额：把当前「合作金额」累加进「累积合作金额」 */
+function coopAddTotal(){
+  const add=Number($("#c_coopAmount").value)||0;
+  if(add<=0){toast("请先在左侧填写本次合作金额");return;}
+  const cur=Number($("#c_coopTotal").value)||0;
+  $("#c_coopTotal").value=cur+add;
+  toast("已累加 ¥"+add.toLocaleString("zh-CN")+" → 累积 ¥"+(cur+add).toLocaleString("zh-CN"));
+}
+/* 合作年限：根据合作时间（开始）自动计算至今年限（1 位小数；不足 1 年显示月数） */
+function calcCoopYears(start){
+  if(!start)return "";
+  const d=new Date(start); if(isNaN(d))return "";
+  const days=Math.floor((Date.now()-d.getTime())/86400000);
+  if(days<0)return "";
+  if(days<365)return Math.max(1,Math.round(days/30.4))+"个月";
+  return String(Math.round(days/365.25*10)/10);
+}
+function coopSyncYears(){ const y=calcCoopYears($("#c_coopStart").value); if(y!=="")$("#c_coopYears").value=y; }
+// 展示用：有合作时间则按时间动态算，否则用手填值
+function dispYears(c){ return c.coopStart?(calcCoopYears(c.coopStart)||c.coopYears||""):(c.coopYears||""); }
 function openCustomer(id,defaultStage){  editCustId=id||null;
   const c=id?DB.customers.find(x=>x.id===id):{};
   $("#custModalTitle").textContent=id?"编辑客户":"新增客户";
@@ -1604,6 +1624,7 @@ function openCustomer(id,defaultStage){  editCustId=id||null;
   $("#c_star").value=c.star||""; $("#c_coopAmount").value=c.coopAmount||"";
   $("#c_coopTotal").value=c.coopTotal||""; $("#c_coopYears").value=c.coopYears||"";
   $("#c_coopStart").value=c.coopStart||""; $("#c_coopSite").value=c.coopSite||"";
+  if(!c.coopYears&&c.coopStart)coopSyncYears();   // 有合作时间但年限为空 → 自动算
   fillPickSelect("c_operation","c_operationCustom",optList("operations",OPERATION_PRESET,DB.customers.map(x=>x.operation)),c.operation||"");
   fillPickSelect("c_coopVersion","c_coopVersionCustom",optList("coop_versions",VERSION_PRESET,DB.customers.map(x=>x.coopVersion)),c.coopVersion||"");
   checkDupHint();
@@ -1730,7 +1751,7 @@ function showDetail(id){
       ${c.micUrl?`<div class="k">中国制造</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.micUrl)}</div>`:""}
       ${kv("同行案例",c.peerCase)}${kv("建立日期",c.createDate)}${kv("下次跟进",c.nextFollow)}
       ${kv("星级",c.star)}${kv("客户归属",c.operation)}
-      ${kv("合作金额",(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"")}${kv("累积合作金额",(c.coopTotal!==""&&c.coopTotal!=null)?("¥"+Number(c.coopTotal).toLocaleString("zh-CN")):"")}${kv("合作年限",c.coopYears)}
+      ${kv("合作金额",(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"")}${kv("累积合作金额",(c.coopTotal!==""&&c.coopTotal!=null)?("¥"+Number(c.coopTotal).toLocaleString("zh-CN")):"")}${kv("合作年限",dispYears(c))}
       ${kv("合作时间",c.coopStart)}${kv("合作版本",c.coopVersion)}
       ${c.coopSite?`<div class="k">合作的网站</div><div style="word-break:break-all;line-height:1.7">${urlLinks(c.coopSite)}</div>`:""}
       ${kv("系统创建",fmtDT(c.createdAt))}
@@ -2474,7 +2495,7 @@ function renderYgold(){
         <td>${c.operation?pill(c.operation,"#0d9488"):'<span style="color:var(--muted)">—</span>'}</td>
         <td style="font-weight:600;color:#b45309">${money(c)}</td>
         <td style="font-weight:600;color:#92400e">${moneyT(c)}</td>
-        <td>${esc(c.coopYears||"")}</td>
+        <td>${esc(dispYears(c))}</td>
         <td>${esc(c.coopStart||"")}</td>
         <td>${c.coopVersion?pill(c.coopVersion,"#b45309"):'<span style="color:var(--muted)">—</span>'}</td>
         <td>${esc(c.region||"")}</td>
