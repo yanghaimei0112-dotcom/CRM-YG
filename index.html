@@ -225,7 +225,6 @@
   <div class="logo">🗂️ CRM 客户管理系统</div>
   <nav>
     <button data-view="home" class="active">🏠 首页</button>
-    <button data-view="dash">📊 仪表盘</button>
     <button data-view="goals">🎯 计划目标</button>
     <div class="nav-drop">
       <button type="button" class="nav-drop-btn" id="custGroupBtn">📂 客户数据 ▾</button>
@@ -339,21 +338,18 @@
     </div>
     </div>
 
-    <div class="home-foot">今天打出的每一个电话、跑过的每一家客户，都在为这个月的自己加薪。<b>加油，开单就在今天！</b> 💪</div>
-  </section>
-
-  <!-- ============ DASHBOARD ============ -->
-  <section id="view-dash" class="view">
-    <div class="cards" id="statCards"></div>
+    <!-- 数据看板（原仪表盘内容并入首页） -->
+    <div class="cards" id="statCards" style="margin-top:16px"></div>
     <div class="grid2">
       <div class="panel"><h3>📈 销售漏斗（按阶段）</h3><div id="funnel"></div></div>
       <div class="panel"><h3>🗺️ 区域分布</h3><div id="regionChart"></div></div>
     </div>
     <div class="grid2">
       <div class="panel"><h3>⭐ 客户属性分布</h3><div id="attrChart"></div></div>
-      <div class="panel"><h3>🔔 待跟进提醒（近期 / 逾期）</h3><div id="followups"></div></div>
+      <div class="panel"><h3>👤 团队潜在客户数（按负责人）</h3><div id="teamChart"></div></div>
     </div>
-    <div class="panel"><h3>👤 团队业绩（按负责人）</h3><div id="teamChart"></div></div>
+
+    <div class="home-foot">今天打出的每一个电话、跑过的每一家客户，都在为这个月的自己加薪。<b>加油，开单就在今天！</b> 💪</div>
   </section>
 
   <!-- ============ GOALS 计划目标 ============ -->
@@ -1193,7 +1189,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   if(cg) cg.classList.toggle('parent-active', ["customers","mobai","visited","pool","resigned"].includes(b.dataset.view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("#view-"+b.dataset.view).classList.add("active");
-  if(b.dataset.view==="dash")renderDash();
+  if(b.dataset.view==="home"){renderHome();renderDash();}
   if(b.dataset.view==="goals")renderGoals();
   if(b.dataset.view==="customers")renderCustomers();
   if(b.dataset.view==="pool")renderPool();
@@ -1511,27 +1507,17 @@ function renderDash(){
       <div class="bar-fill" style="width:${Math.max(n/max*100,n?6:0)}%;background:${ATTR_COLOR[a]}">${n||""}</div></div></div>`;
   }).join("") || `<div class="empty">暂无数据</div>`;
 
-  // team performance by owner
-  const owners=[...new Set(cs.map(c=>c.owner).filter(Boolean))];
+  // 团队潜在客户数 by owner（仅「潜在客户」阶段）
+  const pot=cs.filter(c=>c.stage==="潜在客户");
+  const owners=[...new Set(pot.map(c=>c.owner).filter(Boolean))];
   if(owners.length){
-    const omax=Math.max(1,...owners.map(o=>cs.filter(c=>c.owner===o).length));
+    const omax=Math.max(1,...owners.map(o=>pot.filter(c=>c.owner===o).length));
     $("#teamChart").innerHTML=owners.map(o=>{
-      const list=cs.filter(c=>c.owner===o);
-      const w=list.filter(c=>c.stage==="已成交").length;
+      const n=pot.filter(c=>c.owner===o).length;
       return `<div class="bar-row"><div class="lbl">${esc(o)}</div><div class="bar-track">
-        <div class="bar-fill" style="width:${Math.max(list.length/omax*100,8)}%;background:#0ea5e9">${list.length} 家${w?'｜成交'+w:''}</div></div></div>`;
+        <div class="bar-fill" style="width:${Math.max(n/omax*100,8)}%;background:#0ea5e9">${n} 家</div></div></div>`;
     }).join("");
-  } else $("#teamChart").innerHTML=`<div class="empty">暂无负责人数据（在客户里填写「负责人」即可按业务员统计）</div>`;
-
-  // followups
-  const fu=collectFollowups().filter(f=>f.days!=null).sort((a,b)=>a.days-b.days).slice(0,12);
-  $("#followups").innerHTML = fu.length? fu.map(f=>{
-    const cls=f.days<0?"overdue":(f.days<=3?"soon":"");
-    const tag=f.days<0?`逾期${-f.days}天`:(f.days===0?"今天":`${f.days}天后`);
-    return `<div class="followup-item"><span class="date ${cls}">${f.date}</span>
-      <span style="flex:1">${esc(f.label)}</span>
-      <span class="${cls}" style="font-weight:600">${tag}</span></div>`;
-  }).join("") : `<div class="empty">暂无待跟进</div>`;
+  } else $("#teamChart").innerHTML=`<div class="empty">暂无潜在客户数据</div>`;
 }
 function drawDist(sel,keys,color,getter){
   const cs=visibleCustomers();
