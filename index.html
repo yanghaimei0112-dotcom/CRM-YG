@@ -79,6 +79,15 @@
   tbody tr:hover{background:#f8faff}
   .clip{display:block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   td.namecol .link{display:inline-block;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+  /* YG老客户列表列多：容器内横向滚动，冻结「勾选+公司名」两列，紧凑排版 */
+  #view-ygold .tbl-wrap{overflow-x:auto}
+  #view-ygold table{font-size:12.5px}
+  #view-ygold th,#view-ygold td{padding:8px 9px}
+  #view-ygold td.namecol .link{max-width:170px}
+  #view-ygold th:nth-child(1),#view-ygold td:nth-child(1){position:sticky;left:0;background:var(--panel);z-index:6}
+  #view-ygold th:nth-child(2),#view-ygold td:nth-child(2){position:sticky;left:52px;background:var(--panel);z-index:6}
+  #view-ygold th:nth-child(1),#view-ygold th:nth-child(2){background:#fafbfc;z-index:12}
+  #view-ygold tbody tr:hover td:nth-child(1),#view-ygold tbody tr:hover td:nth-child(2){background:#f8faff}
   td .row-act{opacity:0;display:flex;gap:6px}
   tr:hover .row-act{opacity:1}
   .link{color:var(--brand);cursor:pointer;font-weight:600}
