@@ -180,6 +180,9 @@
   .reim-row .cond{font-size:12px;color:var(--muted);width:100%;margin-top:4px}
   .home-foot{text-align:center;color:#5d7a66;font-size:13px;margin:18px 0 6px;line-height:1.8}
   .home-foot b{color:#1b5e33}
+  /* 首页数据看板条形图统一绿色系 */
+  #view-home .bar-track{background:#eef4ef}
+  #view-home .bar-row .lbl{color:#5d7a66}
   .team-board{margin-top:0}
   .report-board{margin-top:0}
   .home-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start}
@@ -338,15 +341,32 @@
     </div>
     </div>
 
-    <!-- 数据看板（原仪表盘内容并入首页） -->
-    <div class="cards" id="statCards" style="margin-top:16px"></div>
-    <div class="grid2">
-      <div class="panel"><h3>📈 销售漏斗（按阶段）</h3><div id="funnel"></div></div>
-      <div class="panel"><h3>🗺️ 区域分布</h3><div id="regionChart"></div></div>
+    <!-- 数据看板（原仪表盘内容并入首页，绿色系卡片统一风格） -->
+    <div class="home-card" style="margin-top:16px">
+      <div class="hd"><div class="ico">📌</div><h3>数据总览</h3><span class="sub">实时统计 · 按你的可见范围</span></div>
+      <div class="bd"><div class="kpi-grid" id="statCards"></div></div>
     </div>
-    <div class="grid2">
-      <div class="panel"><h3>⭐ 客户属性分布</h3><div id="attrChart"></div></div>
-      <div class="panel"><h3>👤 团队潜在客户数（按负责人）</h3><div id="teamChart"></div></div>
+
+    <div class="home-duo">
+      <div class="home-card">
+        <div class="hd"><div class="ico">📈</div><h3>销售漏斗</h3><span class="sub">按阶段</span></div>
+        <div class="bd" id="funnel"></div>
+      </div>
+      <div class="home-card">
+        <div class="hd"><div class="ico">🗺️</div><h3>区域分布</h3><span class="sub">客户都在哪里</span></div>
+        <div class="bd" id="regionChart"></div>
+      </div>
+    </div>
+
+    <div class="home-duo">
+      <div class="home-card">
+        <div class="hd"><div class="ico">⭐</div><h3>客户属性分布</h3></div>
+        <div class="bd" id="attrChart"></div>
+      </div>
+      <div class="home-card">
+        <div class="hd"><div class="ico">👤</div><h3>团队潜在客户数</h3><span class="sub">按负责人 · 谁的池子大</span></div>
+        <div class="bd" id="teamChart"></div>
+      </div>
     </div>
 
     <div class="home-foot">今天打出的每一个电话、跑过的每一家客户，都在为这个月的自己加薪。<b>加油，开单就在今天！</b> 💪</div>
@@ -1487,7 +1507,7 @@ function renderDash(){
     ["已成交",won,"var(--green)"],
     ["7天内待跟进",ups,"var(--orange)"],
     ["已逾期",overdue,"var(--red)"]
-  ].map(([k,v,c])=>`<div class="card"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div></div>`).join("");
+  ].map(([k,v,c])=>`<div class="kpi"><div class="l">${k}</div><div class="v" style="color:${c}">${v}</div></div>`).join("");
 
   // funnel
   const fmax=Math.max(1,...STAGES.map(s=>cs.filter(c=>c.stage===s).length));
@@ -1498,7 +1518,7 @@ function renderDash(){
   }).join("");
 
   // region
-  drawDist("#regionChart", REGIONS, "#2563eb", c=>c.region);
+  drawDist("#regionChart", REGIONS, "#2f9455", c=>c.region);
   // attr
   $("#attrChart").innerHTML=ATTRS.map(a=>{
     const n=cs.filter(c=>c.attr===a).length;
@@ -1515,7 +1535,7 @@ function renderDash(){
     $("#teamChart").innerHTML=owners.map(o=>{
       const n=pot.filter(c=>c.owner===o).length;
       return `<div class="bar-row"><div class="lbl">${esc(o)}</div><div class="bar-track">
-        <div class="bar-fill" style="width:${Math.max(n/omax*100,8)}%;background:#0ea5e9">${n} 家</div></div></div>`;
+        <div class="bar-fill" style="width:${Math.max(n/omax*100,8)}%;background:linear-gradient(90deg,#57ab76,#1b5e33)">${n} 家</div></div></div>`;
     }).join("");
   } else $("#teamChart").innerHTML=`<div class="empty">暂无潜在客户数据</div>`;
 }
