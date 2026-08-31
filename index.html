@@ -226,6 +226,7 @@
   <nav>
     <button data-view="home" class="active">🏠 首页</button>
     <button data-view="dash">📊 仪表盘</button>
+    <button data-view="goals">🎯 计划目标</button>
     <div class="nav-drop">
       <button type="button" class="nav-drop-btn" id="custGroupBtn">📂 客户数据 ▾</button>
       <div class="nav-drop-menu">
@@ -353,6 +354,12 @@
       <div class="panel"><h3>🔔 待跟进提醒（近期 / 逾期）</h3><div id="followups"></div></div>
     </div>
     <div class="panel"><h3>👤 团队业绩（按负责人）</h3><div id="teamChart"></div></div>
+  </section>
+
+  <!-- ============ GOALS 计划目标 ============ -->
+  <section id="view-goals" class="view">
+    <div id="goalTeam"></div>
+    <div class="panel" style="margin-top:16px"><h3>👤 成员目标（本月，每人自行填写）</h3><div id="goalList"></div></div>
   </section>
 
   <!-- ============ CUSTOMERS ============ -->
@@ -794,6 +801,42 @@
   </div>
 </div>
 
+<!-- ===== Goal Modal（成员计划目标） ===== -->
+<div class="modal-bg" id="goalModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head"><h3 id="goalModalTitle">填写本月计划目标</h3><button class="x" onclick="closeModal('goalModal')">×</button></div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:12px"><label>🎯 本月业绩目标（元；填 8 即 8 万）</label><input id="g_goal" type="number" min="0" placeholder="如 80000"></div>
+      <div class="field" style="margin-bottom:12px"><label>📅 每周节点业绩目标（元）</label><input id="g_weekGoal" type="number" min="0" placeholder="如 20000"></div>
+      <div class="field" style="margin-bottom:12px"><label>📞 每周邀约目标（个）</label><input id="g_invite" type="number" min="0" step="1" placeholder="如 15"></div>
+      <div class="field"><label>🚶 每周拜访目标（次）</label><input id="g_visit" type="number" min="0" step="1" placeholder="如 5"></div>
+      <p class="hint" style="margin-top:10px">只填目标，不影响已填报的业绩数据；填 0 表示不设置该项。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('goalModal')">取消</button>
+      <button class="btn" onclick="saveGoal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Team Goal Modal（团队目标，仅超管） ===== -->
+<div class="modal-bg" id="teamGoalModal">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head"><h3>🚩 设置本月团队目标</h3><button class="x" onclick="closeModal('teamGoalModal')">×</button></div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:12px"><label>🎯 团队本月业绩目标（元；填 60 即 60 万）</label><input id="t_goal" type="number" min="0" placeholder="如 600000"></div>
+      <div class="field" style="margin-bottom:12px"><label>📅 团队每周节点业绩目标（元）</label><input id="t_weekGoal" type="number" min="0" placeholder="如 150000"></div>
+      <div class="field" style="margin-bottom:12px"><label>📞 团队每周邀约目标（个）</label><input id="t_invite" type="number" min="0" step="1" placeholder="如 90"></div>
+      <div class="field"><label>🚶 团队每周拜访目标（次）</label><input id="t_visit" type="number" min="0" step="1" placeholder="如 30"></div>
+      <p class="hint" style="margin-top:10px">团队目标全团队可见，仅超级管理员可修改。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('teamGoalModal')">取消</button>
+      <button class="btn" onclick="saveTeamGoal()">保存</button>
+    </div>
+  </div>
+</div>
+
 <datalist id="ownerList"></datalist>
 <datalist id="sourceList"></datalist>
 <div class="toast" id="toast"></div>
@@ -1151,6 +1194,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="dash")renderDash();
+  if(b.dataset.view==="goals")renderGoals();
   if(b.dataset.view==="customers")renderCustomers();
   if(b.dataset.view==="pool")renderPool();
   if(b.dataset.view==="visits")renderVisits();
@@ -1341,6 +1385,71 @@ async function savePerf(){
   const {error}=await SB.from("monthly_performance").upsert({user_id:perfUserId,month,amount,new_deals:deals,updated_by:CURRENT.id,updated_at:new Date().toISOString()},{onConflict:"user_id,month"});
   if(error){toast("保存失败："+error.message);return;}
   closeModal("perfModal");toast("已保存，进度榜已更新");renderHomeTeam();
+}
+
+/* ===================== 计划目标页（团队目标 + 成员目标，每人自填） ===================== */
+function curMonth(){ const n=new Date(); return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-01"; }
+let _goalUserId=null;
+async function renderGoals(){
+  const teamBox=$("#goalTeam"), listBox=$("#goalList"); if(!teamBox||!listBox)return;
+  const month=curMonth();
+  let perf=[];
+  if(SB){ try{ const r=await SB.from("monthly_performance").select("*").eq("month",month); if(!r.error&&r.data)perf=r.data; }catch(e){} }
+  window._goalPerf=perf;
+  const tg=(DB.settings&&DB.settings.team_goal)||{};
+  const tcard=(label,val)=>`<div style="flex:1;min-width:160px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:12px 14px"><div style="font-size:12px;color:var(--muted)">${label}</div><div style="font-size:20px;font-weight:700;margin-top:4px;color:#166534">${val||'<span style="color:var(--muted);font-size:13px;font-weight:400">未设置</span>'}</div></div>`;
+  teamBox.innerHTML=`<div class="panel"><h3>🚩 本月团队目标 ${isAdmin()?`<button class="btn ghost sm" style="float:right" onclick="openTeamGoal()">✏️ 设置团队目标</button>`:""}</h3><div style="display:flex;gap:12px;flex-wrap:wrap">${tcard("🎯 团队业绩目标",+tg.goal>0?fmtWan(tg.goal):"")}${tcard("📅 每周节点业绩目标",+tg.week_goal>0?fmtWan(tg.week_goal):"")}${tcard("📞 每周邀约目标",+tg.invite>0?tg.invite+" 个":"")}${tcard("🚶 每周拜访目标",+tg.visit>0?tg.visit+" 次":"")}</div></div>`;
+  const money=v=>+v>0?("¥"+fmtMoney(v)):'<span style="color:var(--muted)">—</span>';
+  const num=(v,suf)=>+v>0?(v+suf):'<span style="color:var(--muted)">—</span>';
+  listBox.innerHTML=`<div class="tbl-wrap" style="border:none;box-shadow:none"><table><thead><tr><th>成员</th><th>🎯 本月业绩目标</th><th>📅 每周节点业绩目标</th><th>📞 每周邀约目标</th><th>🚶 每周拜访目标</th><th>本月已达成</th><th></th></tr></thead><tbody>${
+    DB.users.map(u=>{
+      const p=perf.find(x=>x.user_id===u.id)||{};
+      const canEdit=isAdmin()||(CURRENT&&CURRENT.id===u.id);
+      return `<tr>
+        <td style="font-weight:600">${esc(u.name)}${u.role==="manager"?" "+pill("分组主管","#0d9488"):""}</td>
+        <td>${money(p.goal)}</td>
+        <td>${money(p.week_goal)}</td>
+        <td>${num(p.invite_target," 个")}</td>
+        <td>${num(p.visit_target," 次")}</td>
+        <td style="color:#b45309;font-weight:600">${+p.amount>0?("¥"+fmtMoney(p.amount)):'<span style="color:var(--muted)">—</span>'}</td>
+        <td>${canEdit?`<button class="btn ghost sm" onclick="openGoal('${u.id}')">✏️ 填写目标</button>`:""}</td>
+      </tr>`;
+    }).join("")
+  }</tbody></table></div>`;
+}
+function openGoal(uid){
+  if(!isAdmin()&&(!CURRENT||CURRENT.id!==uid)){toast("只能填写自己的目标");return;}
+  _goalUserId=uid;
+  const u=DB.users.find(x=>x.id===uid);
+  const p=(window._goalPerf||[]).find(x=>x.user_id===uid)||{};
+  $("#goalModalTitle").textContent="填写计划目标："+(u?u.name:"")+"（本月）";
+  $("#g_goal").value=+p.goal||""; $("#g_weekGoal").value=+p.week_goal||""; $("#g_invite").value=+p.invite_target||""; $("#g_visit").value=+p.visit_target||"";
+  openModal("goalModal");
+}
+async function saveGoal(){
+  if(!_goalUserId)return;
+  let goal=parseFloat($("#g_goal").value)||0, wg=parseFloat($("#g_weekGoal").value)||0;
+  const inv=parseInt($("#g_invite").value)||0, vis=parseInt($("#g_visit").value)||0;
+  if(goal>0&&goal<1000)goal*=10000; if(wg>0&&wg<1000)wg*=10000;   // 小数值按「万元」理解
+  const {error}=await SB.from("monthly_performance").upsert({user_id:_goalUserId,month:curMonth(),goal,week_goal:wg,invite_target:inv,visit_target:vis,updated_by:CURRENT.id,updated_at:new Date().toISOString()},{onConflict:"user_id,month"});
+  if(error){toast("保存失败："+error.message);return;}
+  closeModal("goalModal"); toast("计划目标已保存"); renderGoals(); renderHeroGoal();
+}
+function openTeamGoal(){
+  if(!isAdmin()){toast("仅超级管理员可设置团队目标");return;}
+  const tg=(DB.settings&&DB.settings.team_goal)||{};
+  $("#t_goal").value=+tg.goal||""; $("#t_weekGoal").value=+tg.week_goal||""; $("#t_invite").value=+tg.invite||""; $("#t_visit").value=+tg.visit||"";
+  openModal("teamGoalModal");
+}
+async function saveTeamGoal(){
+  if(!isAdmin())return;
+  let goal=parseFloat($("#t_goal").value)||0, wg=parseFloat($("#t_weekGoal").value)||0;
+  if(goal>0&&goal<1000)goal*=10000; if(wg>0&&wg<1000)wg*=10000;
+  const v={goal,week_goal:wg,invite:parseInt($("#t_invite").value)||0,visit:parseInt($("#t_visit").value)||0};
+  const {error}=await SB.from("app_settings").upsert([{key:"team_goal",value:v}]);
+  if(error){toast("保存失败："+error.message);return;}
+  DB.settings=DB.settings||{}; DB.settings.team_goal=v;
+  closeModal("teamGoalModal"); toast("团队目标已保存"); renderGoals();
 }
 
 /* YG 业绩报表中心：与进度榜同源（monthly_performance 手工填报 + 自动统计） */
