@@ -91,6 +91,10 @@
   #view-ygold tbody tr:hover td:nth-child(1),#view-ygold tbody tr:hover td:nth-child(2){background:#f8faff}
   td .row-act{opacity:0;display:flex;gap:6px}
   tr:hover .row-act{opacity:1}
+  .pin-btn{background:none;border:none;cursor:pointer;font-size:14px;line-height:1;padding:0 3px;opacity:.28;transition:opacity .15s;vertical-align:middle}
+  .pin-btn:hover{opacity:.8}
+  .pin-btn.on{opacity:1}
+  .pin-tag{font-size:13px;margin-right:3px}
   .link{color:var(--brand);cursor:pointer;font-weight:600}
   .empty{text-align:center;color:var(--muted);padding:50px 0}
 
@@ -894,8 +898,8 @@ let nameToId={}, idToName={};
 function buildNameMaps(){ nameToId={}; idToName={}; (DB.users||[]).forEach(u=>{ if(u.name){nameToId[u.name]=u.id;} idToName[u.id]=u.name; }); }
 const D=v=>v?v:null;   // 空日期转 null
 // 字段映射（前端 camelCase <-> 云端 snake_case）
-function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",mic_url:c.micUrl||"",peer_case:c.peerCase||"",star:c.star||"",operation:c.operation||"",coop_amount:c.coopAmount||null,coop_total:c.coopTotal||null,coop_years:c.coopYears||"",coop_start:D(c.coopStart),coop_status:c.coopStatus||"",coop_version:c.coopVersion||"",coop_site:c.coopSite||"",note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
-function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",peerCase:r.peer_case||"",star:r.star||"",operation:r.operation||"",coopAmount:r.coop_amount||"",coopTotal:r.coop_total||"",coopYears:r.coop_years||"",coopStart:r.coop_start||"",coopStatus:r.coop_status||"",coopVersion:r.coop_version||"",coopSite:r.coop_site||"",note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",createdAt:r.created_at||"",updatedAt:(r.updated_at||r.created_at||"")};}
+function custToRow(c){return{id:c.id,name:c.name||"",owner_id:nameToId[c.owner]||null,owner_name:c.owner||"",is_public:!!c.isPublic,stage:c.stage||"潜在客户",attr:c.attr||"",region:c.region||"",visited:c.visited||"未拜访",contact:c.contact||"",position:c.position||"",phone:c.phone||"",trade_contact:c.tradeContact||"",trade_phone:c.tradePhone||"",shareholder:c.shareholder||"",shareholder_phone:c.shareholderPhone||"",other_contact:c.otherContact||"",other_phone:c.otherPhone||"",product:c.product||"",address:c.address||"",source:c.source||"",platform_url:c.platformUrl||"",site_url:c.siteUrl||"",mic_url:c.micUrl||"",peer_case:c.peerCase||"",star:c.star||"",operation:c.operation||"",coop_amount:c.coopAmount||null,coop_total:c.coopTotal||null,coop_years:c.coopYears||"",coop_start:D(c.coopStart),coop_status:c.coopStatus||"",coop_version:c.coopVersion||"",coop_site:c.coopSite||"",is_key:!!c.isKey,note:c.note||"",create_date:D(c.createDate),next_follow:D(c.nextFollow)};}
+function rowToCust(r){return{id:r.id,code:r.code_num?("CUS-"+String(r.code_num).padStart(3,"0")):"",name:r.name,owner:r.owner_name||idToName[r.owner_id]||"",isPublic:!!r.is_public,stage:r.stage||"潜在客户",attr:r.attr||"",region:r.region||"",visited:r.visited||"未拜访",contact:r.contact||"",position:r.position||"",phone:r.phone||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",peerCase:r.peer_case||"",star:r.star||"",operation:r.operation||"",coopAmount:r.coop_amount||"",coopTotal:r.coop_total||"",coopYears:r.coop_years||"",coopStart:r.coop_start||"",coopStatus:r.coop_status||"",coopVersion:r.coop_version||"",coopSite:r.coop_site||"",isKey:!!r.is_key,note:r.note||"",createDate:r.create_date||"",nextFollow:r.next_follow||"",createdAt:r.created_at||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function visitToRow(v){return{id:v.id,customer_id:v.customerId||null,created_by:v.createdBy||(CURRENT?CURRENT.id:null),type:v.type||"拜访",title:v.title||"",visit_date:D(v.date),visitor:v.visitor||"",decider:v.decider||"",position:v.position||"",phone:v.phone||"",address:v.address||"",situation:v.situation||"",result:v.result||"",next_follow:D(v.nextFollow),a:v.A||"",m:v.M||"",n:v.N||"",t:v.T||"",company:v.company||"",owner:v.owner||"",attr:v.attr||"",signed:v.signed||"",notes:v.notes||"",product:v.product||""};}
 function rowToVisit(r){return{id:r.id,customerId:r.customer_id,createdBy:r.created_by||"",type:r.type||"拜访",title:r.title||"",date:r.visit_date||"",visitor:r.visitor||"",decider:r.decider||"",position:r.position||"",phone:r.phone||"",address:r.address||"",situation:r.situation||"",result:r.result||"",nextFollow:r.next_follow||"",A:r.a||"",M:r.m||"",N:r.n||"",T:r.t||"",company:r.company||"",owner:r.owner||"",attr:r.attr||"",signed:r.signed||"",notes:r.notes||"",product:r.product||"",_yg:!!r.company};}
 function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.attr||"",contact:p.contact||"",phone:p.phone||"",product:p.product||"",address:p.address||"",source:p.source||"",platform_url:p.platformUrl||"",site_url:p.siteUrl||"",mic_url:p.micUrl||"",trade_contact:p.tradeContact||"",trade_phone:p.tradePhone||"",shareholder:p.shareholder||"",shareholder_phone:p.shareholderPhone||"",other_contact:p.otherContact||"",other_phone:p.otherPhone||"",peer_case:p.peerCase||"",create_date:D(p.createDate),origin:p.origin||"",note:p.note||""};}
@@ -1594,8 +1598,28 @@ function recency(c){ let x=c.updatedAt||""; const cd=c.createDate||""; const f=l
 function poolRecency(p){ let x=p.updatedAt||""; const cd=p.createDate||""; if(cd>x)x=cd; return x; }
 // 公海最新跟进：跟进记录（note）最新一条的日期（记录置顶，取第一行的日期）
 function poolLastFollow(p){ const m=(((p&&p.note)||"").split("\n")[0]||"").match(/\d{4}-\d{2}-\d{2}/); return m?m[0]:""; }
+/* 重点客户标记 📌 —— 置顶排序，点击切换（需有该客户编辑权限） */
+function pinBtn(c){
+  if(c.isKey){
+    return canEditCust(c)
+      ? `<button class="pin-btn on" onclick="event.stopPropagation();toggleKey('${c.id}')" title="取消重点标记">📌</button>`
+      : `<span class="pin-tag" title="重点客户">📌</span>`;
+  }
+  return canEditCust(c)
+    ? `<button class="pin-btn" onclick="event.stopPropagation();toggleKey('${c.id}')" title="设为重点客户">📌</button>`
+    : "";
+}
+function toggleKey(id){
+  const c=DB.customers.find(x=>x.id===id); if(!c)return;
+  if(!canEditCust(c)){ toast("⚠️ 只有负责人或管理员可以标记"); return; }
+  c.isKey=!c.isKey;
+  save();
+  renderCustomers();renderVisited();renderYgold();
+  toast(c.isKey?("📌 已将「"+c.name+"」设为重点客户"):("已取消「"+c.name+"」的重点标记"));
+}
 function renderCustTable(rows){
   rows=rows.slice().sort((a,b)=>{
+    if(!!b.isKey!==!!a.isKey) return b.isKey?1:-1;   // 重点客户置顶
     if(sortKey==="recency"){ const x=recency(a),y=recency(b); return x>y?-1:x<y?1:0; }
     if(sortKey==="lastFollow"){ const x=lastFollowDate(a.id)||"",y=lastFollowDate(b.id)||""; return (x>y?1:x<y?-1:0)*sortDir; }
     let x=a[sortKey]||"",y=b[sortKey]||""; return (x>y?1:x<y?-1:0)*sortDir;
@@ -1611,7 +1635,7 @@ function renderCustTable(rows){
       return `<tr>
         ${selCell("customers",c.id)}
         <td style="color:var(--muted)">${esc(c.code)}</td>
-        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td class="namecol">${pinBtn(c)}<span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
         <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
         <td>${pill(c.stage,STAGE_COLOR[c.stage])}</td>
         <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
@@ -1632,11 +1656,11 @@ function renderCustTable(rows){
 }
 function renderKanban(rows){
   $("#custKanban").innerHTML=STAGES.map(s=>{
-    const items=rows.filter(c=>c.stage===s);
+    const items=rows.filter(c=>c.stage===s).sort((a,b)=>{ if(!!b.isKey!==!!a.isKey) return b.isKey?1:-1; const x=recency(a),y=recency(b); return x>y?-1:x<y?1:0; });   // 重点客户置顶
     return `<div class="kcol" data-stage="${s}">
       <h4><span>${pill(s,STAGE_COLOR[s])}</span><span class="cnt">${items.length}</span></h4>
       ${items.map(c=>`<div class="kcard" draggable="true" data-id="${c.id}" onclick="showDetail('${c.id}')">
-        <div class="name">${esc(c.name)}</div>
+        <div class="name">${pinBtn(c)}${esc(c.name)}</div>
         <div class="meta">${pill(c.attr,ATTR_COLOR[c.attr])}${c.owner?pill(c.owner,"#0ea5e9"):''}${c.region?'<span>'+esc(c.region)+'</span>':''}</div>
       </div>`).join("")}
     </div>`;
@@ -2497,7 +2521,7 @@ function renderVisited(){
   const lastVisit=c=>DB.visits.filter(v=>v.customerId===c.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
   // 1) 已拜访的客户（离职人员名下的已拜访客户在此留存显示；仅排除无负责人的公共潜在，避免重复）
   let items=followableCustomers().filter(c=>c.visited==="已拜访"&&c.owner).map(c=>{const lv=lastVisit(c)||{};const vs=DB.visits.filter(v=>v.customerId===c.id);
-    return {id:c.id,pool:false,name:c.name,owner:c.owner||"",stage:c.stage,attr:c.attr,region:c.region,contact:c.contact,phone:c.phone,product:c.product,lastFollow:lv.date||"",visits:vs.length,recency:recency(c),visitor:lv.visitor||""};});
+    return {id:c.id,pool:false,name:c.name,owner:c.owner||"",stage:c.stage,attr:c.attr,region:c.region,contact:c.contact,phone:c.phone,product:c.product,isKey:!!c.isKey,lastFollow:lv.date||"",visits:vs.length,recency:recency(c),visitor:lv.visitor||""};});
   // 2) 公海里有「拜访」记录的（丢入公海的已拜访客户，仍在此体现）
   (DB.pool||[]).forEach(p=>{ if(!/【[^】]*拜访/.test(p.note||""))return;
     const cnt=(p.note||"").split("\n").filter(l=>/【[^】]*拜访/.test(l)).length; const lf=poolLastFollow(p);
@@ -2513,7 +2537,7 @@ function renderVisited(){
     else if(fq==="week"){ const ws=weekStart(); items=items.filter(i=>i.lastFollow&&i.lastFollow>=ws); }
     else if(fq==="month"){ const ms=t.slice(0,8)+"01"; items=items.filter(i=>i.lastFollow&&i.lastFollow>=ms); }
   }
-  items.sort((a,b)=>{const x=a.lastFollow||"",y=b.lastFollow||"";return x>y?-1:x<y?1:0;});   // 最近拜访时间倒序
+  items.sort((a,b)=>{ if(!!b.isKey!==!!a.isKey) return b.isKey?1:-1; const x=a.lastFollow||"",y=b.lastFollow||"";return x>y?-1:x<y?1:0;});   // 重点客户置顶，其余按最近拜访时间倒序
   if(!items.length){$("#visitedList").innerHTML=`<div class="empty">暂无已拜访客户。在客户详情里「新增拜访」即可，放入公海的已拜访客户也会在此显示。</div>`;return;}
   const total=items.length, pageRows=pageSlice(items,"visited"), pageIds=pageRows.filter(i=>!i.pool).map(i=>i.id);
   const cols=["公司名字","负责人","阶段","属性","区域","联系人","电话"];
@@ -2534,7 +2558,7 @@ function renderVisited(){
       </tr>`
       : `<tr>
         ${selCell("visited",c.id)}
-        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td class="namecol">${pinBtn(c)}<span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
         <td>${c.owner?pill(c.owner,"#0ea5e9"):""}</td>
         <td>${pill(c.stage,STAGE_COLOR[c.stage])}</td>
         <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
@@ -2605,7 +2629,7 @@ function renderYgold(){
   if(fSt)rows=rows.filter(c=>(c.coopStatus||"")===fSt);
   if(fReg)rows=rows.filter(c=>(c.region||"")===fReg);
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.coopVersion,c.operation].join(" ").toLowerCase().includes(q));
-  rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
+  rows.sort((a,b)=>{ if(!!b.isKey!==!!a.isKey) return b.isKey?1:-1; const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});   // 重点客户置顶，其余按最近活动
   if(!rows.length){$("#ygoldList").innerHTML=`<div class="empty">暂无 YG老客户。勾选客户后「🔀 转移到… → YG老客户」，或编辑客户把阶段改为「YG老客户」。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"ygold"), pageIds=pageRows.map(c=>c.id);
   const money=c=>(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"";
@@ -2618,7 +2642,7 @@ function renderYgold(){
     pageRows.map(c=>{
       return `<tr>
         ${selCell("ygold",c.id)}
-        <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
+        <td class="namecol">${pinBtn(c)}<span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
         <td>${c.owner?(actSet.has(c.owner)?pill(c.owner,"#0ea5e9"):pill(c.owner,"#94a3b8")):pill("公共","#0ea5e9")}</td>
         <td>${c.star?`<span style="color:#f59e0b">${esc(c.star)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
         <td>${c.operation?pill(c.operation,"#0d9488"):'<span style="color:var(--muted)">—</span>'}</td>
