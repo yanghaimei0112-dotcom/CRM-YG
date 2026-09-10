@@ -648,7 +648,7 @@
 <!-- ===== Detail Modal ===== -->
 <div class="modal-bg" id="detailModal">
   <div class="modal">
-    <div class="modal-head"><h3 id="detailTitle">客户详情</h3><select id="detailJump" title="跳转同类目客户" style="margin-left:auto;max-width:230px"></select><button class="x" onclick="closeModal('detailModal')">×</button></div>
+    <div class="modal-head"><h3 id="detailTitle">客户详情</h3><span id="detailNav" style="margin-left:auto;display:flex;gap:6px;align-items:center;white-space:nowrap"></span><button class="x" onclick="closeModal('detailModal')">×</button></div>
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-foot">
       <button class="btn ghost" onclick="closeModal('detailModal')">关闭</button>
@@ -1626,6 +1626,7 @@ function renderCustTable(rows){
     if(sortKey==="lastFollow"){ const x=lastFollowDate(a.id)||"",y=lastFollowDate(b.id)||""; return (x>y?1:x<y?-1:0)*sortDir; }
     let x=a[sortKey]||"",y=b[sortKey]||""; return (x>y?1:x<y?-1:0)*sortDir;
   });
+  DCTX.customers=rows.map(c=>c.id);   // 记录当前列表顺序供详情「上一家/下一家」
   if(!rows.length){$("#custList").innerHTML=`<div class="empty">暂无客户，点击右上角「＋ 新增客户」或到「数据管理」导入 / 载入示例</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"customers");
   const pageIds=pageRows.map(c=>c.id);
@@ -1657,6 +1658,7 @@ function renderCustTable(rows){
   });
 }
 function renderKanban(rows){
+  DCTX.customers=rows.map(c=>c.id);   // 看板视图同样记录顺序
   $("#custKanban").innerHTML=STAGES.map(s=>{
     const items=rows.filter(c=>c.stage===s).sort((a,b)=>{ if(!!b.isKey!==!!a.isKey) return b.isKey?1:-1; const x=recency(a),y=recency(b); return x>y?-1:x<y?1:0; });   // 重点客户置顶
     return `<div class="kcol" data-stage="${s}">
@@ -1880,15 +1882,18 @@ function checkDupHint(){
 function claimFromHint(poolId){ closeModal("custModal"); claimPool(poolId); }
 
 /* ===================== Detail ===================== */
-function showDetail(id){
+const DCTX={};   // 各列表当前的排序结果（详情弹窗「上一家/下一家」按此顺序跳转）
+let _navCtx=[];
+function showDetail(id,ctx){
   const c=DB.customers.find(x=>x.id===id);if(!c)return;
   $("#detailTitle").textContent=c.name;
-  // 同类目客户下拉跳转：重点客户置顶，其余按名称排序（YG老客户/成交客户为公共归属，全员可见）
-  const inScope=(c.stage==="YG老客户"||c.stage==="已成交")?DB.customers:visibleCustomers();
-  const peers=inScope.filter(x=>x.stage===c.stage).sort((a,b)=>{ if(!!b.isKey!==!!a.isKey)return b.isKey?1:-1; return (a.name||"").localeCompare(b.name||"","zh"); });
-  const dj=$("#detailJump");
-  dj.innerHTML=(peers.length?peers:[c]).map(x=>`<option value="${x.id}"${x.id===c.id?" selected":""}>${x.isKey?"📌 ":""}${esc(x.name)}${x.owner?"（"+esc(x.owner)+"）":""}</option>`).join("");
-  dj.onchange=()=>{ if(dj.value&&dj.value!==c.id) showDetail(dj.value); };
+  // 按当前所在列表的顺序跳转：‹ 上一家 / 下一家 ›
+  if(!ctx){ const av=document.querySelector("nav button.active"); ctx=(av&&DCTX[av.dataset.view])||[]; }
+  const nav=$("#detailNav"), nidx=ctx.indexOf(id);
+  if(nidx>=0&&ctx.length>1){
+    nav.innerHTML=`${c.isKey?'<span class="pin-tag" title="重点客户">📌</span>':""}<button class="btn ghost sm" ${nidx===0?"disabled":""} onclick="showDetail('${ctx[nidx-1]}',_navCtx)">‹ 上一家</button><span style="font-size:12px;color:var(--muted)">${nidx+1} / ${ctx.length}</span><button class="btn ghost sm" ${nidx===ctx.length-1?"disabled":""} onclick="showDetail('${ctx[nidx+1]}',_navCtx)">下一家 ›</button>`;
+    _navCtx=ctx;
+  }else{ nav.innerHTML=c.isKey?'<span class="pin-tag" title="重点客户">📌</span>':""; _navCtx=[]; }
   const vs=DB.visits.filter(v=>v.customerId===id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const kv=(k,v)=>v?`<div class="k">${k}</div><div>${esc(v)}</div>`:"";
   $("#detailBody").innerHTML=`
@@ -2547,6 +2552,7 @@ function renderVisited(){
     else if(fq==="month"){ const ms=t.slice(0,8)+"01"; items=items.filter(i=>i.lastFollow&&i.lastFollow>=ms); }
   }
   items.sort((a,b)=>{ if(!!b.isKey!==!!a.isKey) return b.isKey?1:-1; const x=a.lastFollow||"",y=b.lastFollow||"";return x>y?-1:x<y?1:0;});   // 重点客户置顶，其余按最近拜访时间倒序
+  DCTX.visited=items.filter(i=>!i.pool).map(i=>i.id);   // 记录当前列表顺序供详情翻页
   if(!items.length){$("#visitedList").innerHTML=`<div class="empty">暂无已拜访客户。在客户详情里「新增拜访」即可，放入公海的已拜访客户也会在此显示。</div>`;return;}
   const total=items.length, pageRows=pageSlice(items,"visited"), pageIds=pageRows.filter(i=>!i.pool).map(i=>i.id);
   const cols=["公司名字","负责人","阶段","属性","区域","联系人","电话"];
@@ -2594,6 +2600,7 @@ function renderWon(){
   if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
+  DCTX.won=rows.map(c=>c.id);
   if(!rows.length){$("#wonList").innerHTML=`<div class="empty">暂无成交客户。把客户「阶段」改为「已成交」即会归到这里。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"won"), pageIds=pageRows.map(c=>c.id);
   const cols=["公司名字","负责人","属性","区域","联系人","电话","最新跟进"];
@@ -2641,6 +2648,7 @@ function renderYgold(){
   if(fKey==="key")rows=rows.filter(c=>c.isKey);   // 📌 重点关注
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.coopVersion,c.operation].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{ if(!!b.isKey!==!!a.isKey) return b.isKey?1:-1; const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});   // 重点客户置顶，其余按最近活动
+  DCTX.ygold=rows.map(c=>c.id);
   if(!rows.length){$("#ygoldList").innerHTML=`<div class="empty">暂无 YG老客户。勾选客户后「🔀 转移到… → YG老客户」，或编辑客户把阶段改为「YG老客户」。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"ygold"), pageIds=pageRows.map(c=>c.id);
   const money=c=>(c.coopAmount!==""&&c.coopAmount!=null)?("¥"+Number(c.coopAmount).toLocaleString("zh-CN")):"";
@@ -2684,6 +2692,7 @@ function renderMobai(){
   if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
+  DCTX.mobai=rows.map(c=>c.id);
   if(!rows.length){$("#mobaiList").innerHTML=`<div class="empty">暂无陌拜客户。点右上角「＋ 新增陌拜客户」，或把客户「阶段」改为「陌拜客户」即会归到这里。</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"mobai"), pageIds=pageRows.map(c=>c.id);
   const cols=["公司名字","负责人","属性","区域","联系人","电话","最新跟进"];
@@ -3184,6 +3193,7 @@ function renderResigned(){
     if(sortKey==="lastFollow"){ const x=lastFollowDate(a.id)||"",y=lastFollowDate(b.id)||""; return (x>y?1:x<y?-1:0)*sortDir; }
     let x=a[sortKey]||"",y=b[sortKey]||""; return (x>y?1:x<y?-1:0)*sortDir;
   });
+  DCTX.resigned=rows.map(c=>c.id);
   if(!rows.length){el.innerHTML=`<div class="empty" style="padding:30px 0">🎉 公共潜在暂无客户（管理员从潜在客户转入 / 离职人员遗留的客户会出现在这里）</div>`;return;}
   const total=rows.length, pageRows=pageSlice(rows,"resigned");
   const pageIds=pageRows.map(c=>c.id);
