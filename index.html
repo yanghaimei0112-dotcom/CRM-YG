@@ -3237,6 +3237,7 @@ function renderResigned(){
         <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
         <td>${lf?esc(lf):'<span style="color:var(--muted)">—</span>'}</td>
         <td><div class="row-act">
+          <button class="btn ghost sm" style="color:var(--brand);border-color:var(--brand)" onclick="claimPublic('${c.id}')">🎣 捞取</button>
           <button class="btn ghost sm" onclick="openCustomer('${c.id}')">编辑</button>
           <button class="btn ghost sm" onclick="openVisit(null,'${c.id}')">+拜访</button>
         </div></td></tr>`;
