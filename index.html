@@ -191,6 +191,10 @@
   .report-board{margin-top:0}
   .home-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start}
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  #reportKpis{grid-template-columns:repeat(4,1fr)}   /* 业绩报表中心四卡一排 */
+  #reportKpis .kpi{padding:12px 14px}
+  #reportKpis .kpi .v{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  @media(max-width:900px){#reportKpis{grid-template-columns:repeat(2,1fr)}}
   .kpi{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fbfefc;position:relative;overflow:hidden}
   .kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:#2f9455}
   .kpi.gold::before{background:#d97706}
