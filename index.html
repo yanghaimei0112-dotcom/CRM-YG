@@ -482,7 +482,7 @@
       <select id="visitedOwner"><option value="">全部负责人</option></select>
       <select id="visitedQuick"><option value="">全部时间</option><option value="key">📌 重点关注</option><option value="today">当天拜访</option><option value="week">本周拜访</option><option value="month">本月拜访</option></select>
       <div class="spacer"></div>
-      <div class="hint">已拜访客户＝潜在客户中标记「已拜访」的客户（含从 YG 拜访记录同步的）。</div>
+      <div class="hint">已拜访客户＝潜在客户中标记「已拜访」的客户（含从 YG 拜访记录同步的；陌拜客户独立在「陌拜客户」类目，不在此显示）。</div>
     </div>
     <div id="visitedList" class="tbl-wrap"></div>
   </section>
@@ -524,7 +524,7 @@
       <select id="mobaiOwner"><option value="">全部负责人</option></select>
       <div class="spacer"></div>
       <button class="btn" onclick="openCustomer(null,'陌拜客户')">＋ 新增陌拜客户</button>
-      <div class="hint">陌拜客户＝阶段标记为「陌拜客户」的客户，自动归到此处。</div>
+      <div class="hint">陌拜客户＝客户阶段标记为「陌拜客户」的客户，自动归到此处；即使登记了拜访，也只保留在本类目，不会进入「已拜访客户」。</div>
     </div>
     <div id="mobaiList" class="tbl-wrap"></div>
   </section>
@@ -648,7 +648,7 @@
 <!-- ===== Detail Modal ===== -->
 <div class="modal-bg" id="detailModal">
   <div class="modal">
-    <div class="modal-head"><h3 id="detailTitle">客户详情</h3><button class="x" onclick="closeModal('detailModal')">×</button></div>
+    <div class="modal-head"><h3 id="detailTitle">客户详情</h3><select id="detailJump" title="跳转同类目客户" style="margin-left:auto;max-width:230px"></select><button class="x" onclick="closeModal('detailModal')">×</button></div>
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-foot">
       <button class="btn ghost" onclick="closeModal('detailModal')">关闭</button>
@@ -1883,6 +1883,12 @@ function claimFromHint(poolId){ closeModal("custModal"); claimPool(poolId); }
 function showDetail(id){
   const c=DB.customers.find(x=>x.id===id);if(!c)return;
   $("#detailTitle").textContent=c.name;
+  // 同类目客户下拉跳转：重点客户置顶，其余按名称排序（YG老客户/成交客户为公共归属，全员可见）
+  const inScope=(c.stage==="YG老客户"||c.stage==="已成交")?DB.customers:visibleCustomers();
+  const peers=inScope.filter(x=>x.stage===c.stage).sort((a,b)=>{ if(!!b.isKey!==!!a.isKey)return b.isKey?1:-1; return (a.name||"").localeCompare(b.name||"","zh"); });
+  const dj=$("#detailJump");
+  dj.innerHTML=(peers.length?peers:[c]).map(x=>`<option value="${x.id}"${x.id===c.id?" selected":""}>${x.isKey?"📌 ":""}${esc(x.name)}${x.owner?"（"+esc(x.owner)+"）":""}</option>`).join("");
+  dj.onchange=()=>{ if(dj.value&&dj.value!==c.id) showDetail(dj.value); };
   const vs=DB.visits.filter(v=>v.customerId===id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const kv=(k,v)=>v?`<div class="k">${k}</div><div>${esc(v)}</div>`:"";
   $("#detailBody").innerHTML=`
@@ -2521,8 +2527,8 @@ function renderVisited(){
   if(!CURRENT)return;
   const q=($("#visitedSearch").value||"").toLowerCase(), fo=$("#visitedOwner").value, fq=($("#visitedQuick")?$("#visitedQuick").value:"");
   const lastVisit=c=>DB.visits.filter(v=>v.customerId===c.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
-  // 1) 已拜访的客户（离职人员名下的已拜访客户在此留存显示；仅排除无负责人的公共潜在，避免重复）
-  let items=followableCustomers().filter(c=>c.visited==="已拜访"&&c.owner).map(c=>{const lv=lastVisit(c)||{};const vs=DB.visits.filter(v=>v.customerId===c.id);
+  // 1) 已拜访的客户（离职人员名下的已拜访客户在此留存显示；仅排除无负责人的公共潜在，避免重复；陌拜客户独立类目，不在此重复）
+  let items=followableCustomers().filter(c=>c.visited==="已拜访"&&c.owner&&c.stage!=="陌拜客户").map(c=>{const lv=lastVisit(c)||{};const vs=DB.visits.filter(v=>v.customerId===c.id);
     return {id:c.id,pool:false,name:c.name,owner:c.owner||"",stage:c.stage,attr:c.attr,region:c.region,contact:c.contact,phone:c.phone,product:c.product,isKey:!!c.isKey,lastFollow:lv.date||"",visits:vs.length,recency:recency(c),visitor:lv.visitor||""};});
   // 2) 公海里有「拜访」记录的（丢入公海的已拜访客户，仍在此体现）
   (DB.pool||[]).forEach(p=>{ if(!/【[^】]*拜访/.test(p.note||""))return;
