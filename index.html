@@ -1807,11 +1807,19 @@ function saveCustomer(){
       let msg="⚠️ 系统中已存在「"+name+"」：\n";
       dupCust.forEach(c=>{ msg+="· 已在【"+catOf(c)+"】，负责人："+(c.owner||"（未分配）")+"\n"; });
       if(dupPool)msg+="· 该客户在【公海客户】中\n";
-      if(dupPool && !dupCust.length){
-        if(confirm(msg+"\n是否直接从公海「捡入」到你的潜在客户？\n（确定＝捡入领取；取消＝返回，不新建）")){ closeModal("custModal"); claimPool(dupPool.id); return; }
+      const ownedDups=dupCust.filter(c=>(c.owner&&actN.has(c.owner))||c.stage==="已成交"||c.stage==="YG老客户");   // 有主 或 成交/YG老客户公共档案（不可捞取）
+      const pubDups=dupCust.filter(c=>(!c.owner||!actN.has(c.owner))&&c.stage!=="已成交"&&c.stage!=="YG老客户");   // 公共潜在（未分配 / 负责人已注销）
+      if(!ownedDups.length){
+        // 只在公共潜在 / 公海 → 可直接捞取到自己的潜在客户
+        if(confirm(msg+"\n以上均为无主客户，是否直接「捞取」到你的潜在客户？\n（确定＝捞取；取消＝返回，不新建）")){
+          closeModal("custModal");
+          if(pubDups.length) claimPublic(pubDups[0].id);
+          else claimPool(dupPool.id);
+          return;
+        }
         return;
       }
-      // 已存在 → 禁止重复添加
+      // 已在他人名下 → 禁止重复添加
       alert(msg+"\n❌ 该客户已存在，不能重复添加。");
       return;
     }
@@ -1870,7 +1878,8 @@ function checkDupHint(){
       exactCust.forEach(c=>parts.push("已在【"+catOf(c)+"】 · 负责人："+(c.owner||"（未分配）")));
     }
     if(exactPool)parts.push("在【公海客户】中");
-    el.innerHTML=`<span style="color:var(--red)">⚠️ 已存在：${esc(parts.join("；"))}</span>`+(exactPool?` <span class="link" onclick="claimFromHint('${exactPool.id}')">立即捡入</span>`:"");
+    const pubDup=exactCust.find(c=>{const actN2=new Set((DB.users||[]).map(u=>u.name));return (!c.owner||!actN2.has(c.owner))&&c.stage!=="已成交"&&c.stage!=="YG老客户";});
+    el.innerHTML=`<span style="color:var(--red)">⚠️ 已存在：${esc(parts.join("；"))}</span>`+(exactPool?` <span class="link" onclick="claimFromHint('${exactPool.id}')">立即捡入</span>`:"")+(pubDup?` <span class="link" onclick="claimPublicFromHint('${pubDup.id}')">立即捞取</span>`:"");
     return;
   }
   if(name.length>=4){
@@ -1880,6 +1889,7 @@ function checkDupHint(){
   el.innerHTML=`<span style="color:var(--green)">✓ 系统中暂无此客户</span>`;
 }
 function claimFromHint(poolId){ closeModal("custModal"); claimPool(poolId); }
+function claimPublicFromHint(custId){ closeModal("custModal"); claimPublic(custId); }
 
 /* ===================== Detail ===================== */
 const DCTX={};   // 各列表当前的排序结果（详情弹窗「上一家/下一家」按此顺序跳转）
@@ -2897,6 +2907,18 @@ async function claimPool(poolId){
   DB.pool=(DB.pool||[]).filter(x=>x.id!==poolId);   // 从公海移除
   save();refreshDynamic();renderPool();renderCustomers();renderVisits();renderVisited();renderDash();
   toast("已捡入「"+p.name+"」到你的潜在客户（含跟进记录）");
+}
+// 捞取公共潜在：把无主客户（未分配 / 负责人已注销）领到自己的潜在客户
+function claimPublic(id){
+  const c=DB.customers.find(x=>x.id===id); if(!c||!CURRENT)return;
+  const actN=new Set((DB.users||[]).map(u=>u.name));
+  if(c.owner&&actN.has(c.owner)){ toast("⚠️ 该客户已在「"+c.owner+"」名下，无法捞取"); return; }
+  if(c.stage==="已成交"||c.stage==="YG老客户"){ toast("⚠️ 成交 / YG老客户为公共档案，不能捞取"); return; }
+  c.owner=CURRENT.name; c.stage="潜在客户"; c.isPublic=false; c.updatedAt=new Date().toISOString();
+  logCustEvents([{id:c.id,name:c.name,action:"捞入",detail:"来自公共潜在"}]);
+  save();refreshDynamic();renderCustomers();renderResigned();renderVisited();renderDash();
+  const b=document.querySelector('nav button[data-view=customers]'); if(b)b.click();   // 跳回潜在客户查看
+  toast("✅ 已将「"+c.name+"」捞取到你的潜在客户");
 }
 // 放入公海：把潜在客户移入公海资料库（去重），并从潜在客户中移除（不再保留）
 function releaseToPool(id){
