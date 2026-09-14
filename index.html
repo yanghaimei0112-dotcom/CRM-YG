@@ -717,6 +717,8 @@
   <div class="modal">
     <div class="modal-head"><h3 id="poolModalTitle">编辑公海客户</h3><button class="x" onclick="closeModal('poolModal')">×</button></div>
     <div class="modal-body">
+      <div id="poolDetail" style="display:none"></div>
+      <div id="poolFormWrap">
       <div class="form-grid">
         <div class="field"><label>公司名字 *</label><input id="p_name"></div>
         <div class="field"><label>客户属性</label><select id="p_attr"></select></div>
@@ -738,8 +740,9 @@
         <div class="field"><label>客户来源</label><select id="p_source"></select></div>
         <div class="field"><label>建立日期</label><input id="p_createDate" type="date"></div>
       </div>
+      </div>
       <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
-        <label style="font-weight:600;font-size:13px;color:var(--muted)">跟进记录</label>
+        <label id="p_followLabel" style="font-weight:600;font-size:13px;color:var(--muted)">跟进记录</label>
         <div style="display:flex;gap:6px;margin:8px 0;flex-wrap:wrap">
           <input id="p_followTarget" list="p_followTargetList" placeholder="跟进对象（可下拉可手输）" style="width:180px;padding:8px;border:1px solid var(--line);border-radius:6px">
           <datalist id="p_followTargetList"></datalist>
@@ -751,9 +754,10 @@
     </div>
     <div class="modal-foot">
       <button class="btn danger sm" id="poolDeleteBtn" style="margin-right:auto;display:none" onclick="deletePool()">删除</button>
-      <button class="btn ghost" onclick="closeModal('poolModal')">取消</button>
+      <button class="btn ghost" id="poolCancelBtn" onclick="closeModal('poolModal')">取消</button>
       <button class="btn ghost" id="poolClaimBtn" style="display:none">🌊 捡入到我的潜在客户</button>
-      <button class="btn" onclick="savePool()">保存</button>
+      <button class="btn ghost" id="poolEditBtn" style="display:none">✏️ 编辑资料</button>
+      <button class="btn" id="poolSaveBtn" onclick="savePool()">保存</button>
     </div>
   </div>
 </div>
@@ -2861,7 +2865,7 @@ function renderPool(){
       <td>${esc(c.phone||"")}</td>
       <td><div class="clip" title="${esc(c.product||"")}">${esc(c.product||"")}</div></td>
       <td>${poolLastFollow(c)?esc(poolLastFollow(c)):'<span style="color:var(--muted)">—</span>'}</td>
-      <td><div style="display:flex;gap:6px;align-items:center">${mine.has(c.name)?'<span style="color:var(--muted);font-size:12px">已捡入</span>':`<button class="btn sm" onclick="claimPool('${c.id}')">捡入</button>`}<button class="btn ghost sm" onclick="openPool('${c.id}')">编辑</button></div></td>
+      <td><div style="display:flex;gap:6px;align-items:center">${mine.has(c.name)?'<span style="color:var(--muted);font-size:12px">已捡入</span>':`<button class="btn sm" onclick="claimPool('${c.id}')">捡入</button>`}<button class="btn ghost sm" onclick="openPool('${c.id}',true)">编辑</button></div></td>
     </tr>`).join("")
   }</tbody></table>`+pageBar(total,"pool");
 }
@@ -2952,6 +2956,7 @@ let editPoolId=null, poolNote="";
 function renderPoolFollow(){
   const box=$("#p_followLog"); if(!box)return;
   const lines=(poolNote||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  const lab=$("#p_followLabel"); if(lab)lab.textContent="📍 跟进 / 拜访记录（"+lines.length+"）";
   if(!lines.length){box.innerHTML=`<div style="color:var(--muted)">暂无跟进记录</div>`;return;}
   box.innerHTML=lines.map(l=>{
     const m=l.match(/^【(.+?)】([\s\S]*)$/);
@@ -2970,7 +2975,28 @@ function addPoolFollow(){
   // 编辑已存在的公海客户时立即持久化，无需等「保存」
   if(editPoolId){ const p=(DB.pool||[]).find(x=>x.id===editPoolId); if(p){p.note=poolNote;p.updatedAt=new Date().toISOString();save();renderPool();} }
 }
-function openPool(id){
+// 公海客户详情视图：与潜在客户详情同款（字段区 + 跟进记录），点「编辑资料」才进表单
+function renderPoolDetail(p){
+  const kv=(k,v)=>v?`<div class="k">${k}</div><div>${esc(v)}</div>`:"";
+  $("#poolDetail").innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      ${pill("公海客户","#0891b2")}${p.attr?pill(p.attr,ATTR_COLOR[p.attr]):""}${p.source?pill(p.source,"#64748b"):""}${p.origin?`<span style="color:var(--muted);font-size:12px;align-self:center">来源表：${esc(p.origin)}</span>`:""}
+    </div>
+    <div class="kv">
+      ${kv("区域",p.region)}${kv("客户来源",p.source)}
+      ${kv("联系人(A)",p.contact)}${kv("电话",p.phone)}
+      ${kv("外贸部联系人",p.tradeContact)}${kv("外贸部电话",p.tradePhone)}
+      ${kv("股东联系人",p.shareholder)}${kv("股东电话",p.shareholderPhone)}
+      ${kv("其他联系人",p.otherContact)}${kv("其他电话",p.otherPhone)}
+      ${kv("主营产品",p.product)}${kv("客户地址",p.address)}
+      ${p.platformUrl?`<div class="k">阿里巴巴</div><div style="word-break:break-all;line-height:1.7">${urlLinks(p.platformUrl)}</div>`:""}
+      ${p.siteUrl?`<div class="k">独立站</div><div style="word-break:break-all;line-height:1.7">${urlLinks(p.siteUrl)}</div>`:""}
+      ${p.micUrl?`<div class="k">中国制造</div><div style="word-break:break-all;line-height:1.7">${urlLinks(p.micUrl)}</div>`:""}
+      ${kv("同行案例",p.peerCase)}${kv("建立日期",p.createDate)}
+      ${kv("最新更新",fmtDT(p.updatedAt))}
+    </div>`;
+}
+function openPool(id,edit){
   editPoolId=id||null;
   const p=id?(DB.pool||[]).find(x=>x.id===id):{};
   poolNote=(p&&p.note)||""; if($("#p_followInput"))$("#p_followInput").value=""; if($("#p_followTarget"))$("#p_followTarget").value="";
@@ -2978,9 +3004,16 @@ function openPool(id){
   const tnames=[...new Set([p&&p.contact,p&&p.tradeContact,p&&p.shareholder,p&&p.otherContact].filter(Boolean))];
   if($("#p_followTargetList"))$("#p_followTargetList").innerHTML=tnames.map(n=>`<option value="${esc(n)}"></option>`).join("");
   renderPoolFollow();
-  $("#poolModalTitle").textContent=id?"编辑公海客户":"新增公海客户";
+  const detailMode=!!(id&&!edit);   // 已存在的公海客户默认看详情；新增 / 点编辑进表单
+  $("#poolDetail").style.display=detailMode?"":"none";
+  $("#poolFormWrap").style.display=detailMode?"none":"";
+  $("#poolModalTitle").textContent=detailMode?(p.name||"公海客户"):(id?"编辑公海客户":"新增公海客户");
   $("#poolDeleteBtn").style.display=(id&&isAdmin())?"":"none";
-  $("#poolClaimBtn").style.display=id?"":"none";
+  $("#poolClaimBtn").style.display=(id&&detailMode)?"":"none";
+  $("#poolEditBtn").style.display=(id&&detailMode)?"":"none";
+  $("#poolSaveBtn").style.display=detailMode?"none":"";
+  $("#poolCancelBtn").textContent=detailMode?"关闭":"取消";
+  if(detailMode)renderPoolDetail(p);
   $("#p_name").value=p.name||""; $("#p_attr").value=p.attr||""; $("#p_region").value=p.region||""; $("#p_origin").value=p.origin||"";
   $("#p_contact").value=p.contact||""; $("#p_phone").value=p.phone||""; $("#p_tradeContact").value=p.tradeContact||""; $("#p_tradePhone").value=p.tradePhone||"";
   $("#p_shareholder").value=p.shareholder||""; $("#p_shareholderPhone").value=p.shareholderPhone||"";
@@ -2988,6 +3021,7 @@ function openPool(id){
   $("#p_product").value=p.product||""; $("#p_address").value=p.address||""; $("#p_platformUrl").value=p.platformUrl||""; $("#p_siteUrl").value=p.siteUrl||""; $("#p_micUrl").value=p.micUrl||"";
   setSourceSelect("#p_source",p.source||""); $("#p_createDate").value=p.createDate||"";
   $("#poolClaimBtn").onclick=()=>{ if(editPoolId){closeModal("poolModal");claimPool(editPoolId);} };
+  $("#poolEditBtn").onclick=()=>{ if(editPoolId)openPool(editPoolId,true); };
   openModal("poolModal");
 }
 function savePool(){
