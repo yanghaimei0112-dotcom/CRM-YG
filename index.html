@@ -486,7 +486,8 @@
       <select id="visitedOwner"><option value="">全部负责人</option></select>
       <select id="visitedQuick"><option value="">全部时间</option><option value="key">📌 重点关注</option><option value="today">当天拜访</option><option value="week">本周拜访</option><option value="month">本月拜访</option></select>
       <div class="spacer"></div>
-      <div class="hint">已拜访客户＝潜在客户中标记「已拜访」的客户（含从 YG 拜访记录同步的；陌拜客户独立在「陌拜客户」类目，不在此显示）。</div>
+      <button class="btn" onclick="openVisit()">＋ 新建拜访</button>
+      <div class="hint">已拜访客户＝潜在客户中标记「已拜访」的客户（含从 YG 拜访记录同步的；陌拜客户独立在「陌拜客户」类目；成员仅显示自己名下的，管理员可看全部）。</div>
     </div>
     <div id="visitedList" class="tbl-wrap"></div>
   </section>
@@ -2045,7 +2046,16 @@ function openVisit(id,presetCust){
   const cid=v.customerId||presetCust||"";
   const cc=cid?DB.customers.find(x=>x.id===cid):null;
   $("#v_customer").value=cc?cc.name:"";
-  $("#v_title").value=v.title||""; $("#v_date").value=v.date||today(); $("#v_visitor").value=v.visitor||"";
+  // 选中系统客户后自动带出该客户资料（电话 / 地址 / 决策人 / 主题），已填写的不覆盖
+  $("#v_customer").onchange=()=>{
+    const m=followableCustomers().find(x=>x.name===$("#v_customer").value.trim());
+    if(!m)return;
+    if(!$("#v_phone").value)$("#v_phone").value=m.phone||"";
+    if(!$("#v_address").value)$("#v_address").value=m.address||"";
+    if(!$("#v_decider").value)$("#v_decider").value=m.contact||"";
+    if(!$("#v_title").value)$("#v_title").value="拜访"+m.name;
+  };
+  $("#v_title").value=v.title||""; $("#v_date").value=v.date||today(); $("#v_visitor").value=v.visitor||(id?"":(CURRENT?CURRENT.name:""));
   $("#v_decider").value=v.decider||""; $("#v_position").value=v.position||""; $("#v_phone").value=v.phone||"";
   $("#v_address").value=v.address||""; $("#v_situation").value=v.situation||""; $("#v_result").value=v.result||"";
   $("#v_nextFollow").value=v.nextFollow||"";
@@ -2557,6 +2567,8 @@ function renderVisited(){
   (DB.pool||[]).forEach(p=>{ if(!/【[^】]*拜访/.test(p.note||""))return;
     const cnt=(p.note||"").split("\n").filter(l=>/【[^】]*拜访/.test(l)).length; const lf=poolLastFollow(p);
     items.push({id:p.id,pool:true,name:p.name,owner:"",stage:"",attr:p.attr,region:p.region,contact:p.contact,phone:p.phone,product:p.product,lastFollow:lf,visits:cnt,recency:lf,visitor:""}); });
+  // 权限：普通成员只看自己名下的已拜访客户；二级管理员看自己+管辖成员；超管看全部；公海行全员可见
+  if(!isAdmin()) items=items.filter(i=> i.pool || i.owner===CURRENT.name || (isManager()&&managesName(i.owner)));
   const owners=[...new Set(items.filter(i=>i.owner).map(i=>i.owner))].sort();
   const cur=$("#visitedOwner").value;
   $("#visitedOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
