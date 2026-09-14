@@ -629,17 +629,19 @@
     <div class="modal-head"><h3 id="visitModalTitle">新增拜访</h3><button class="x" onclick="closeModal('visitModal')">×</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="field full"><label>拜访主题 *</label><input id="v_title"></div>
-        <div class="field"><label>关联客户（输入公司名搜索，可留空）</label><input id="v_customer" list="vCustList" placeholder="输入公司名搜索…" autocomplete="off"><datalist id="vCustList"></datalist></div>
-        <div class="field"><label>拜访日期</label><input id="v_date" type="date"></div>
-        <div class="field"><label>拜访人</label><input id="v_visitor"></div>
-        <div class="field"><label>决策人 (A)</label><input id="v_decider"></div>
-        <div class="field"><label>职位</label><select id="v_position"></select></div>
-        <div class="field"><label>电话</label><input id="v_phone"></div>
+        <div class="field full"><label>关联客户（输入公司名搜索，可留空）</label><input id="v_customer" list="vCustList" placeholder="输入公司名搜索…" autocomplete="off"><datalist id="vCustList"></datalist></div>
+        <div class="field"><label>类型</label><select id="v_type"><option>拜访</option><option>跟进</option></select></div>
+        <div class="field"><label>日期</label><input id="v_date" type="date"></div>
+        <div class="field"><label>拜访人 / 跟进人</label><select id="v_visitor"></select></div>
+        <div class="field"><label>跟进对象（客户方对接人）</label><input id="v_decider" list="v_deciderList" placeholder="可下拉选择，也可直接输入"><datalist id="v_deciderList"></datalist></div>
         <div class="field"><label>跟进结果</label><select id="v_result"></select></div>
+        <div class="field full"><label>内容（拜访情况 / 跟进内容）</label><textarea id="v_situation" placeholder="例如：电话沟通了独立站建站意向，客户要求下周报价…"></textarea></div>
+        <div class="field full" style="border-top:1px dashed #c7d2fe;padding-top:8px"><label style="color:#4f46e5;font-weight:700">客户评估（ANMT）— 新增拜访时必填</label></div>
+        <div class="field full"><label>A · 决策权 *（是否决策人 / 股权 / 能否拍板）</label><input id="v_A" placeholder="如：非独立决策人，需与合伙人商量"></div>
+        <div class="field full"><label>M · 资金实力 *（工厂 / 规模 / 营收 / 预算）</label><input id="v_M" placeholder="如：有自己工厂，业务员3人，年营收约2.5亿"></div>
+        <div class="field full"><label>N · 需求 *（痛点 / 关注点 / 现状）</label><input id="v_N" placeholder="如：在意效果与ROI，关注AI赛道是否适合"></div>
+        <div class="field full"><label>T · 采购时机 *（预计成交 / 决策时间）</label><input id="v_T" placeholder="如：本月内 / 18号前回复"></div>
         <div class="field"><label>下次跟进</label><input id="v_nextFollow" type="date"></div>
-        <div class="field full"><label>公司地址</label><input id="v_address"></div>
-        <div class="field full"><label>拜访情况</label><textarea id="v_situation"></textarea></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -2045,38 +2047,40 @@ function openVisit(id,presetCust){
   $("#vCustList").innerHTML=followableCustomers().map(c=>`<option value="${esc(c.name)}">`).join("");
   const cid=v.customerId||presetCust||"";
   const cc=cid?DB.customers.find(x=>x.id===cid):null;
-  $("#v_customer").value=cc?cc.name:"";
-  // 选中系统客户后自动带出该客户资料（电话 / 地址 / 决策人 / 主题），已填写的不覆盖
+  $("#v_customer").value=cc?cc.name:(v.company||"");
+  // 跟进对象候选：随关联客户联动（联系人 / 外贸部 / 股东 / 其他联系人）
+  const fillTargets=c=>{ const names=c?[...new Set([c.contact,c.tradeContact,c.shareholder,c.otherContact].filter(Boolean))]:[];
+    $("#v_deciderList").innerHTML=names.map(n=>`<option value="${esc(n)}"></option>`).join(""); };
+  fillTargets(cc);
   $("#v_customer").onchange=()=>{
     const m=followableCustomers().find(x=>x.name===$("#v_customer").value.trim());
-    if(!m)return;
-    if(!$("#v_phone").value)$("#v_phone").value=m.phone||"";
-    if(!$("#v_address").value)$("#v_address").value=m.address||"";
-    if(!$("#v_decider").value)$("#v_decider").value=m.contact||"";
-    if(!$("#v_title").value)$("#v_title").value="拜访"+m.name;
+    fillTargets(m);
+    if(m&&!$("#v_decider").value)$("#v_decider").value=m.contact||"";   // 自动带出联系人
   };
-  $("#v_title").value=v.title||""; $("#v_date").value=v.date||today(); $("#v_visitor").value=v.visitor||(id?"":(CURRENT?CURRENT.name:""));
-  $("#v_decider").value=v.decider||""; $("#v_position").value=v.position||""; $("#v_phone").value=v.phone||"";
-  $("#v_address").value=v.address||""; $("#v_situation").value=v.situation||""; $("#v_result").value=v.result||"";
+  $("#v_type").value=v.type||"拜访";
+  $("#v_date").value=v.date||today();
+  fillOwnerSelect("#v_visitor", v.visitor||(CURRENT?CURRENT.name:""), "（选择跟进人）");
+  $("#v_decider").value=v.decider||(cc?cc.contact||"":"");   // 新增时默认带出客户联系人
+  $("#v_situation").value=v.situation||""; $("#v_result").value=v.result||"";
+  $("#v_A").value=v.A||""; $("#v_M").value=v.M||""; $("#v_N").value=v.N||""; $("#v_T").value=v.T||"";
   $("#v_nextFollow").value=v.nextFollow||"";
-  // auto-fill from customer if new
-  if(!id&&cid){const c=DB.customers.find(x=>x.id===cid);if(c){if(!$("#v_phone").value)$("#v_phone").value=c.phone||"";if(!$("#v_address").value)$("#v_address").value=c.address||"";if(!$("#v_decider").value)$("#v_decider").value=c.contact||"";if(!$("#v_title").value)$("#v_title").value="拜访"+c.name;}}
   openModal("visitModal");
 }
 function saveVisit(){
-  const title=$("#v_title").value.trim();
-  if(!title){toast("请填写拜访主题");return;}
+  const type=$("#v_type").value;
   const cName=$("#v_customer").value.trim();
   const matched=cName?followableCustomers().find(c=>c.name===cName):null;
-  const data={title,customerId:matched?matched.id:null,company:matched?"":cName,date:$("#v_date").value,visitor:$("#v_visitor").value,
-    decider:$("#v_decider").value,position:$("#v_position").value,phone:$("#v_phone").value,
-    address:$("#v_address").value,situation:$("#v_situation").value,result:$("#v_result").value,
-    nextFollow:$("#v_nextFollow").value};
+  const A=$("#v_A").value.trim(), M=$("#v_M").value.trim(), N=$("#v_N").value.trim(), T=$("#v_T").value.trim();
+  if(type==="拜访"&&(!A||!M||!N||!T)){toast("新增拜访需填写 A / M / N / T 四项评估");return;}
+  const title=(type==="跟进"?"跟进":"拜访")+"｜"+(matched?matched.name:cName)+" "+$("#v_date").value;
+  const data={type,title,date:$("#v_date").value,visitor:$("#v_visitor").value,decider:$("#v_decider").value,
+    result:$("#v_result").value,situation:$("#v_situation").value,A,M,N,T,nextFollow:$("#v_nextFollow").value,
+    customerId:matched?matched.id:null,company:matched?"":cName};
   if(editVisitId){Object.assign(DB.visits.find(x=>x.id===editVisitId),data);}
-  else{DB.visits.push(Object.assign({id:uid()},data));}
+  else{Object.assign(data,{id:uid(),phone:matched?matched.phone:"",address:matched?matched.address:"",position:matched?matched.position:""});DB.visits.push(data);}
   // mark customer visited
-  if(data.customerId){const c=DB.customers.find(x=>x.id===data.customerId);if(c){c.visited="已拜访";c.updatedAt=new Date().toISOString();}}
-  save();closeModal("visitModal");renderVisits();renderVisited();renderCustomers();renderDash();toast("已保存");
+  if(data.customerId){const c=DB.customers.find(x=>x.id===data.customerId);if(c){if(type==="拜访")c.visited="已拜访";c.updatedAt=new Date().toISOString();}}
+  save();closeModal("visitModal");renderVisits();renderVisited();renderCustomers();renderDash();toast("已保存"+type+"记录");
 }
 function deleteVisit(){
   if(!editVisitId)return;
@@ -3337,7 +3341,7 @@ function initSelects(){
   fillSelect($("#c_stage"),STAGES);fillSelect($("#c_attr"),ATTRS,"未设置");fillSelect($("#c_region"),REGIONS,"未设置");
   fillSelect($("#c_position"),POSITIONS,"未设置");
   fillSelect($("#p_attr"),ATTRS,"未设置");fillSelect($("#p_region"),REGIONS,"未设置");
-  fillSelect($("#v_position"),POSITIONS,"未设置");fillSelect($("#v_result"),RESULTS,"未设置");
+  fillSelect($("#v_result"),RESULTS,"未设置");
   fillSelect($("#filterStage"),STAGES,"全部阶段");fillSelect($("#filterRegion"),REGIONS,"全部区域");
   fillSelect($("#filterAttr"),ATTRS,"全部属性");fillSelect($("#filterResult"),RESULTS,"全部结果");
   fillSelect($("#poolRegion"),REGIONS,"全部区域");fillSelect($("#poolAttr"),ATTRS,"全部属性");
