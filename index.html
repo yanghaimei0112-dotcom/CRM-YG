@@ -3266,7 +3266,7 @@ function renderResigned(){
         ${adm?selCell("resigned",c.id):""}
         <td style="color:var(--muted)">${esc(c.code)}</td>
         <td class="namecol"><span class="link" onclick="showDetail('${c.id}')" title="${esc(c.name)}">${esc(c.name)}</span></td>
-        <td>${c.owner?pill(c.owner,"#94a3b8"):pill("公共","#0ea5e9")}</td>
+        <td>${(c.owner&&(DB.users||[]).some(u=>u.name===c.owner))?pill(c.owner,"#94a3b8"):pill("公共","#0ea5e9")}</td>
         <td>${pill(c.stage,STAGE_COLOR[c.stage])}</td>
         <td>${pill(c.attr,ATTR_COLOR[c.attr])}</td>
         <td>${esc(c.region||"")}</td>
