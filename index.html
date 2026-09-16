@@ -579,7 +579,7 @@
         <div class="field"><label>公司名字 *</label><input id="c_name" oninput="checkDupHint()"><div id="c_dupHint" style="font-size:12px;min-height:16px;margin-top:2px"></div></div>
         <div class="field"><label>负责人（业务员）</label><select id="c_owner"></select></div>
         <div class="field full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="c_public" style="width:auto"> 设为公共客户（团队所有人可见）</label></div>
-        <div class="field"><label>客户阶段</label><select id="c_stage"></select></div>
+        <div class="field"><label>客户阶段</label><select id="c_stage" onchange="checkDupHint()"></select></div>
         <div class="field"><label>客户属性 (A=等级 / M=意向)</label><select id="c_attr"></select></div>
         <div class="field"><label>区域</label><select id="c_region"></select></div>
         <div class="field"><label>是否拜访</label><select id="c_visited"><option>未拜访</option><option>已拜访</option></select></div>
@@ -1835,6 +1835,14 @@ function saveCustomer(){
         }
         return;
       }
+      // 新建YG老客户且系统已有该客户 → 可直接调用系统资料转为YG老客户
+      const ygConv=dupCust.find(c=>c.stage!=="YG老客户");
+      if($("#c_stage").value==="YG老客户"&&ygConv){
+        if(confirm(msg+"\n📥 是否直接调用系统资料，把该客户转为【YG老客户】？\n（确定＝调入资料编辑原档案；取消＝返回，不新建）")){
+          ygoldCallFrom(ygConv.id);
+        }
+        return;
+      }
       // 已在他人名下 → 禁止重复添加
       alert(msg+"\n❌ 该客户已存在，不能重复添加。");
       return;
@@ -1895,7 +1903,8 @@ function checkDupHint(){
     }
     if(exactPool)parts.push("在【公海客户】中");
     const pubDup=exactCust.find(c=>{const actN2=new Set((DB.users||[]).map(u=>u.name));return (!c.owner||!actN2.has(c.owner))&&c.stage!=="已成交"&&c.stage!=="YG老客户";});
-    el.innerHTML=`<span style="color:var(--red)">⚠️ 已存在：${esc(parts.join("；"))}</span>`+(exactPool?` <span class="link" onclick="claimFromHint('${exactPool.id}')">立即捡入</span>`:"")+(pubDup?` <span class="link" onclick="claimPublicFromHint('${pubDup.id}')">立即捞取</span>`:"");
+    const ygConv=($("#c_stage")&&$("#c_stage").value==="YG老客户")?exactCust.find(c=>c.stage!=="YG老客户"):null;
+    el.innerHTML=`<span style="color:var(--red)">⚠️ 已存在：${esc(parts.join("；"))}</span>`+(ygConv?` <span class="link" onclick="ygoldCallFrom('${ygConv.id}')">📥 直接调用系统资料</span>`:"")+(exactPool?` <span class="link" onclick="claimFromHint('${exactPool.id}')">立即捡入</span>`:"")+(pubDup?` <span class="link" onclick="claimPublicFromHint('${pubDup.id}')">立即捞取</span>`:"");
     return;
   }
   if(name.length>=4){
@@ -1906,6 +1915,15 @@ function checkDupHint(){
 }
 function claimFromHint(poolId){ closeModal("custModal"); claimPool(poolId); }
 function claimPublicFromHint(custId){ closeModal("custModal"); claimPublic(custId); }
+// 新建YG老客户时：直接调用系统已有客户的完整资料（转为编辑原档案，不产生重复）
+function ygoldCallFrom(custId){
+  const c=DB.customers.find(x=>x.id===custId); if(!c)return;
+  closeModal("custModal");
+  openCustomer(custId);
+  $("#c_stage").value="YG老客户";
+  $("#custModalTitle").textContent="调用系统资料 → YG老客户";
+  toast("已调入「"+c.name+"」的系统资料，补充合作信息后保存即可");
+}
 
 /* ===================== Detail ===================== */
 const DCTX={};   // 各列表当前的排序结果（详情弹窗「上一家/下一家」按此顺序跳转）
