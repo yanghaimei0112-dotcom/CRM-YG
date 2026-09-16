@@ -191,10 +191,8 @@
   .report-board{margin-top:0}
   .home-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;align-items:start}
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
-  #reportKpis{grid-template-columns:repeat(4,1fr)}   /* 业绩报表中心四卡一排 */
-  #reportKpis .kpi{padding:12px 14px}
-  #reportKpis .kpi .v{font-size:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  @media(max-width:900px){#reportKpis{grid-template-columns:repeat(2,1fr)}}
+  #reportKpis{grid-template-columns:1fr}   /* 业绩报表中心竖排 */
+  #reportKpis .kpi{padding:14px 16px}
   .kpi{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fbfefc;position:relative;overflow:hidden}
   .kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:#2f9455}
   .kpi.gold::before{background:#d97706}
@@ -1495,7 +1493,13 @@ function renderHomeReport(stats){
   const dealers=stats.filter(s=>(+s.amount||0)>0||(s.new_deals||0)>0).length;   // 有业绩或有新开单即算「出单」
   const avg=dealers?total/dealers:0;
   const top=stats.filter(s=>(+s.amount||0)>0).sort((a,b)=>(+b.amount||0)-(+a.amount||0))[0];
+  const tg=(DB.settings&&DB.settings.team_goal&&+DB.settings.team_goal.goal)||0;   // 团队月度业绩目标
+  const pct=tg>0?Math.round(total/tg*100):0;
+  const gap=tg-total;
   el.innerHTML=`
+    <div class="kpi" style="grid-column:1/-1"><div class="l">月度业绩目标 <span class="tag">实时</span></div><div class="v">${tg?fmt(tg):'<span style="font-size:15px;color:var(--muted)">未设置</span>'}</div>
+      ${tg?`<div class="bar-track" style="margin:9px 0 6px;height:14px"><div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${pct>=100?"#1b5e33":"#d97706"};font-size:11px">${pct}%</div></div>
+      <div class="s">已完成 ${fmt(total)} · ${gap>0?("差额 "+fmt(gap)):("已超额 "+fmt(-gap))}</div>`:`<div class="s" style="margin-top:6px">请管理员在「计划目标 → 团队目标」中设置本月业绩目标</div>`}</div>
     <div class="kpi gold"><div class="l">本月总业绩 <span class="tag gold">实时</span></div><div class="v gold">${fmt(total)}</div><div class="s">团队填报汇总 · 每月自动归零重计</div></div>
     <div class="kpi"><div class="l">在职人员 <span class="tag">在职</span></div><div class="v">${stats.length}</div><div class="s">含主管与业务员</div></div>
     <div class="kpi"><div class="l">出单人数 <span class="tag">累计</span></div><div class="v">${dealers}</div><div class="s">人均 ${dealers?fmt(avg):"—"}</div></div>
