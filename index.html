@@ -909,6 +909,13 @@
         <div style="font-weight:600;color:var(--ink)">第 3 周</div><input id="g_w3g" type="number" min="0" placeholder="默认"><input id="g_w3a" type="number" min="0" placeholder="0">
         <div style="font-weight:600;color:var(--ink)">第 4 周</div><input id="g_w4g" type="number" min="0" placeholder="默认"><input id="g_w4a" type="number" min="0" placeholder="0">
       </div>
+      <div style="border-top:1px dashed var(--line);margin:14px 0 10px;padding-top:10px"><b>📞 每周邀约完成（个）</b> <span style="font-size:12px;color:var(--muted)">拜访完成无需填写，系统按拜访记录自动统计</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div class="field"><label>第 1 周</label><input id="g_w1i" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="field"><label>第 2 周</label><input id="g_w2i" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="field"><label>第 3 周</label><input id="g_w3i" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="field"><label>第 4 周</label><input id="g_w4i" type="number" min="0" step="1" placeholder="0"></div>
+      </div>
       <p class="hint" style="margin-top:10px">填写每周完成后，「本月已达成」自动 = 四周完成之和；金额支持简写（填 2 即 2 万）。</p>
     </div>
     <div class="modal-foot">
@@ -1517,21 +1524,35 @@ async function renderGoals(){
   const num=(v,suf)=>+v>0?(v+suf):'<span style="color:var(--muted)">—</span>';
   const wsum=p=>(+p.w1_amt||0)+(+p.w2_amt||0)+(+p.w3_amt||0)+(+p.w4_amt||0);
   const amtOf=p=>wsum(p)>0?wsum(p):(+p.amount||0);
+  // 每周拜访实际：按拜访记录（类型=拜访）自动统计，1-7/8-14/15-21/22+ 分四周
+  const visitWeek={};
+  (DB.visits||[]).forEach(v=>{
+    if((v.type||"拜访")!=="拜访")return;
+    if(!v.date||v.date.slice(0,7)!==month.slice(0,7))return;
+    const uid=v.createdBy||nameToId[v.visitor]||""; if(!uid)return;
+    const day=+v.date.slice(8,10)||1, w=day<=7?1:day<=14?2:day<=21?3:4;
+    (visitWeek[uid]=visitWeek[uid]||[0,0,0,0,0])[w]++;
+  });
   listBox.innerHTML=DB.users.map(u=>{
     const p=perf.find(x=>x.user_id===u.id)||{};
     const canEdit=isAdmin()||(CURRENT&&CURRENT.id===u.id);
     const goal=+p.goal||0, done=amtOf(p);
     const pct=goal>0?Math.round(done/goal*100):null;
     const gap=goal-done;
-    const defWg=+p.week_goal||0;
+    const defWg=+p.week_goal||0, invT=+p.invite_target||0, visT=+p.visit_target||0;
     const weeks=[1,2,3,4].map(i=>{
       const wg=+p["w"+i+"_goal"]||defWg||0;
       const wa=+p["w"+i+"_amt"]||0;
       const wp=wg>0?Math.round(wa/wg*100):null;
+      const wInv=+p["w"+i+"_inv"]||0;
+      const wVis=(visitWeek[u.id]&&visitWeek[u.id][i])||0;
+      const pair=(label,t,a,unit)=>`<div style="font-size:12px;display:flex;justify-content:space-between;margin-top:3px"><span>${label}</span><span>${t>0?("目标 "+t+unit):"目标 —"} · <b style="color:${t>0&&a>=t?"#16a34a":"#166534"}">${a}${unit}</b></span></div>`;
       return `<div style="background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">第 ${i} 周 ${wp!=null?`<span style="float:right;font-weight:700;color:${wp>=100?"#16a34a":"#b45309"}">${wp}%</span>`:""}</div>
-        <div style="font-size:12px;display:flex;justify-content:space-between"><span>目标</span><b>${money(wg)}</b></div>
-        <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:3px"><span>完成</span><b style="color:#b45309">${money(wa)}</b></div>
+        <div style="font-size:12px;display:flex;justify-content:space-between"><span>业绩目标</span><b>${money(wg)}</b></div>
+        <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:3px"><span>业绩完成</span><b style="color:#b45309">${money(wa)}</b></div>
+        ${pair("📞 邀约",invT,wInv," 个")}
+        ${pair("🚶 拜访",visT,wVis," 次")}
         ${wg>0?`<div class="bar-track" style="margin-top:6px;height:8px"><div class="bar-fill" style="width:${Math.min(wp,100)}%;background:${wp>=100?"#16a34a":"#d97706"}"></div></div>`:""}
       </div>`;
     }).join("");
@@ -1558,7 +1579,7 @@ function openGoal(uid){
   const p=(window._goalPerf||[]).find(x=>x.user_id===uid)||{};
   $("#goalModalTitle").textContent="填写计划目标："+(u?u.name:"")+"（本月）";
   $("#g_goal").value=+p.goal||""; $("#g_weekGoal").value=+p.week_goal||""; $("#g_invite").value=+p.invite_target||""; $("#g_visit").value=+p.visit_target||"";
-  [1,2,3,4].forEach(i=>{ $("#g_w"+i+"g").value=+p["w"+i+"_goal"]||""; $("#g_w"+i+"a").value=+p["w"+i+"_amt"]||""; });
+  [1,2,3,4].forEach(i=>{ $("#g_w"+i+"g").value=+p["w"+i+"_goal"]||""; $("#g_w"+i+"a").value=+p["w"+i+"_amt"]||""; $("#g_w"+i+"i").value=+p["w"+i+"_inv"]||""; });
   openModal("goalModal");
 }
 async function saveGoal(){
@@ -1571,7 +1592,7 @@ async function saveGoal(){
   [1,2,3,4].forEach(i=>{
     let g=parseFloat($("#g_w"+i+"g").value)||0, a=parseFloat($("#g_w"+i+"a").value)||0;
     if(g>0&&g<1000)g*=10000; if(a>0&&a<1000)a*=10000;
-    row["w"+i+"_goal"]=g; row["w"+i+"_amt"]=a; wsum+=a;
+    row["w"+i+"_goal"]=g; row["w"+i+"_amt"]=a; row["w"+i+"_inv"]=parseInt($("#g_w"+i+"i").value)||0; wsum+=a;
   });
   if(wsum>0)row.amount=wsum;   // 填了每周完成 → 本月已达成自动取四周之和，与首页进度榜保持一致
   const {error}=await SB.from("monthly_performance").upsert(row,{onConflict:"user_id,month"});
