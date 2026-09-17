@@ -1518,8 +1518,6 @@ async function renderGoals(){
   if(SB){ try{ const r=await SB.from("monthly_performance").select("*").eq("month",month); if(!r.error&&r.data)perf=r.data; }catch(e){} }
   window._goalPerf=perf;
   const tg=(DB.settings&&DB.settings.team_goal)||{};
-  const tcard=(label,val)=>`<div style="flex:1;min-width:160px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:12px 14px"><div style="font-size:12px;color:var(--muted)">${label}</div><div style="font-size:20px;font-weight:700;margin-top:4px;color:#166534">${val||'<span style="color:var(--muted);font-size:13px;font-weight:400">未设置</span>'}</div></div>`;
-  teamBox.innerHTML=`<div class="panel"><h3>🚩 本月团队目标 ${isAdmin()?`<button class="btn ghost sm" style="float:right" onclick="openTeamGoal()">✏️ 设置团队目标</button>`:""}</h3><div style="display:flex;gap:12px;flex-wrap:wrap">${tcard("🎯 团队业绩目标",+tg.goal>0?fmtWan(tg.goal):"")}${tcard("📅 每周节点业绩目标",+tg.week_goal>0?fmtWan(tg.week_goal):"")}${tcard("📞 每周邀约目标",+tg.invite>0?tg.invite+" 个":"")}${tcard("🚶 每周拜访目标",+tg.visit>0?tg.visit+" 次":"")}</div></div>`;
   const money=v=>+v>0?("¥"+fmtMoney(v)):'<span style="color:var(--muted)">—</span>';
   const num=(v,suf)=>+v>0?(v+suf):'<span style="color:var(--muted)">—</span>';
   const wsum=p=>(+p.w1_amt||0)+(+p.w2_amt||0)+(+p.w3_amt||0)+(+p.w4_amt||0);
@@ -1533,6 +1531,38 @@ async function renderGoals(){
     const day=+v.date.slice(8,10)||1, w=day<=7?1:day<=14?2:day<=21?3:4;
     (visitWeek[uid]=visitWeek[uid]||[0,0,0,0,0])[w]++;
   });
+  // ===== 团队目标：与个人同款细化模式（月度目标/已达成/进度/差额 + 四周） =====
+  {
+    const tGoal=+tg.goal||0;
+    const tDone=DB.users.reduce((x,u)=>x+amtOf(perf.find(p=>p.user_id===u.id)||{}),0);
+    const tPct=tGoal>0?Math.round(tDone/tGoal*100):null;
+    const tGap=tGoal-tDone;
+    const tWg=+tg.week_goal||0, tInv=+tg.invite||0, tVis=+tg.visit||0;
+    const tPair=(label,t,a,unit)=>`<div style="font-size:12px;display:flex;justify-content:space-between;margin-top:3px"><span>${label}</span><span>${t>0?("目标 "+t+unit):"目标 —"} · <b style="color:${t>0&&a>=t?"#16a34a":"#166534"}">${a}${unit}</b></span></div>`;
+    const tWeeks=[1,2,3,4].map(i=>{
+      const wa=DB.users.reduce((x,u)=>{const p=perf.find(pp=>pp.user_id===u.id)||{};return x+(+p["w"+i+"_amt"]||0);},0);
+      const wp=tWg>0?Math.round(wa/tWg*100):null;
+      const ia=DB.users.reduce((x,u)=>{const p=perf.find(pp=>pp.user_id===u.id)||{};return x+(+p["w"+i+"_inv"]||0);},0);
+      const va=DB.users.reduce((x,u)=>x+((visitWeek[u.id]&&visitWeek[u.id][i])||0),0);
+      return `<div style="background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">第 ${i} 周 ${wp!=null?`<span style="float:right;font-weight:700;color:${wp>=100?"#16a34a":"#b45309"}">${wp}%</span>`:""}</div>
+        <div style="font-size:12px;display:flex;justify-content:space-between"><span>业绩目标</span><b>${money(tWg)}</b></div>
+        <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:3px"><span>业绩完成</span><b style="color:#b45309">${money(wa)}</b></div>
+        ${tPair("📞 邀约",tInv,ia," 个")}
+        ${tPair("🚶 拜访",tVis,va," 次")}
+        ${tWg>0?`<div class="bar-track" style="margin-top:6px;height:8px"><div class="bar-fill" style="width:${Math.min(wp,100)}%;background:${wp>=100?"#16a34a":"#d97706"}"></div></div>`:""}
+      </div>`;
+    }).join("");
+    const stat=(label,val,extra)=>`<div style="flex:1;min-width:130px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--muted)">${label}</div><div style="font-size:18px;font-weight:700;margin-top:2px">${val}</div>${extra||""}</div>`;
+    teamBox.innerHTML=`<div class="panel"><h3>🚩 本月团队目标 ${isAdmin()?`<button class="btn ghost sm" style="float:right" onclick="openTeamGoal()">✏️ 设置团队目标</button>`:""}</h3>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        ${stat("🎯 月度目标",tGoal>0?fmtWan(tGoal):'<span style="color:var(--muted);font-size:13px;font-weight:400">未设置</span>')}
+        ${stat("✅ 已达成",tDone>0?("¥"+fmtMoney(tDone)):'<span style="color:var(--muted)">—</span>')}
+        ${stat("📈 进度",tPct!=null?`<span style="color:${tPct>=100?"#16a34a":"#166534"}">${tPct}%</span>`:'<span style="color:var(--muted)">—</span>',tGoal>0?`<div class="bar-track" style="margin-top:6px;height:8px"><div class="bar-fill" style="width:${Math.min(tPct,100)}%;background:${tPct>=100?"#16a34a":"#2f9455"}"></div></div>`:"")}
+        ${stat("🧮 差额",tGoal>0?`<span style="color:${tGap>0?"#dc2626":"#16a34a"}">${tGap>0?("¥"+fmtMoney(tGap)):("超额 ¥"+fmtMoney(-tGap))}</span>`:'<span style="color:var(--muted)">—</span>')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">${tWeeks}</div></div>`;
+  }
   listBox.innerHTML=DB.users.map(u=>{
     const p=perf.find(x=>x.user_id===u.id)||{};
     const canEdit=isAdmin()||(CURRENT&&CURRENT.id===u.id);
