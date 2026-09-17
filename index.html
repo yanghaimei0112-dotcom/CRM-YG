@@ -890,16 +890,26 @@
   </div>
 </div>
 
-<!-- ===== Goal Modal（成员计划目标） ===== -->
+<!-- ===== Goal Modal（成员计划目标 + 四周细化） ===== -->
 <div class="modal-bg" id="goalModal">
-  <div class="modal" style="max-width:440px">
+  <div class="modal" style="max-width:640px;width:94%">
     <div class="modal-head"><h3 id="goalModalTitle">填写本月计划目标</h3><button class="x" onclick="closeModal('goalModal')">×</button></div>
     <div class="modal-body">
-      <div class="field" style="margin-bottom:12px"><label>🎯 本月业绩目标（元；填 8 即 8 万）</label><input id="g_goal" type="number" min="0" placeholder="如 80000"></div>
-      <div class="field" style="margin-bottom:12px"><label>📅 每周节点业绩目标（元）</label><input id="g_weekGoal" type="number" min="0" placeholder="如 20000"></div>
-      <div class="field" style="margin-bottom:12px"><label>📞 每周邀约目标（个）</label><input id="g_invite" type="number" min="0" step="1" placeholder="如 15"></div>
-      <div class="field"><label>🚶 每周拜访目标（次）</label><input id="g_visit" type="number" min="0" step="1" placeholder="如 5"></div>
-      <p class="hint" style="margin-top:10px">只填目标，不影响已填报的业绩数据；填 0 表示不设置该项。</p>
+      <div class="form-grid">
+        <div class="field"><label>🎯 本月业绩目标（元；填 8 即 8 万）</label><input id="g_goal" type="number" min="0" placeholder="如 80000"></div>
+        <div class="field"><label>📅 每周节点业绩目标（元，每周默认）</label><input id="g_weekGoal" type="number" min="0" placeholder="如 20000"></div>
+        <div class="field"><label>📞 每周邀约目标（个）</label><input id="g_invite" type="number" min="0" step="1" placeholder="如 15"></div>
+        <div class="field"><label>🚶 每周拜访目标（次）</label><input id="g_visit" type="number" min="0" step="1" placeholder="如 5"></div>
+      </div>
+      <div style="border-top:1px dashed var(--line);margin:14px 0 10px;padding-top:10px"><b>📆 每周目标与完成</b> <span style="font-size:12px;color:var(--muted)">目标留空则取「每周节点业绩目标」；完成填实际业绩（元）</span></div>
+      <div style="display:grid;grid-template-columns:64px 1fr 1fr;gap:8px 10px;align-items:center;font-size:12px;color:var(--muted)">
+        <div></div><div>周目标（元）</div><div>周完成（元）</div>
+        <div style="font-weight:600;color:var(--ink)">第 1 周</div><input id="g_w1g" type="number" min="0" placeholder="默认"><input id="g_w1a" type="number" min="0" placeholder="0">
+        <div style="font-weight:600;color:var(--ink)">第 2 周</div><input id="g_w2g" type="number" min="0" placeholder="默认"><input id="g_w2a" type="number" min="0" placeholder="0">
+        <div style="font-weight:600;color:var(--ink)">第 3 周</div><input id="g_w3g" type="number" min="0" placeholder="默认"><input id="g_w3a" type="number" min="0" placeholder="0">
+        <div style="font-weight:600;color:var(--ink)">第 4 周</div><input id="g_w4g" type="number" min="0" placeholder="默认"><input id="g_w4a" type="number" min="0" placeholder="0">
+      </div>
+      <p class="hint" style="margin-top:10px">填写每周完成后，「本月已达成」自动 = 四周完成之和；金额支持简写（填 2 即 2 万）。</p>
     </div>
     <div class="modal-foot">
       <button class="btn ghost" onclick="closeModal('goalModal')">取消</button>
@@ -1505,21 +1515,41 @@ async function renderGoals(){
   teamBox.innerHTML=`<div class="panel"><h3>🚩 本月团队目标 ${isAdmin()?`<button class="btn ghost sm" style="float:right" onclick="openTeamGoal()">✏️ 设置团队目标</button>`:""}</h3><div style="display:flex;gap:12px;flex-wrap:wrap">${tcard("🎯 团队业绩目标",+tg.goal>0?fmtWan(tg.goal):"")}${tcard("📅 每周节点业绩目标",+tg.week_goal>0?fmtWan(tg.week_goal):"")}${tcard("📞 每周邀约目标",+tg.invite>0?tg.invite+" 个":"")}${tcard("🚶 每周拜访目标",+tg.visit>0?tg.visit+" 次":"")}</div></div>`;
   const money=v=>+v>0?("¥"+fmtMoney(v)):'<span style="color:var(--muted)">—</span>';
   const num=(v,suf)=>+v>0?(v+suf):'<span style="color:var(--muted)">—</span>';
-  listBox.innerHTML=`<div class="tbl-wrap" style="border:none;box-shadow:none"><table><thead><tr><th>成员</th><th>🎯 本月业绩目标</th><th>📅 每周节点业绩目标</th><th>📞 每周邀约目标</th><th>🚶 每周拜访目标</th><th>本月已达成</th><th></th></tr></thead><tbody>${
-    DB.users.map(u=>{
-      const p=perf.find(x=>x.user_id===u.id)||{};
-      const canEdit=isAdmin()||(CURRENT&&CURRENT.id===u.id);
-      return `<tr>
-        <td style="font-weight:600">${esc(u.name)}${u.role==="manager"?" "+pill("分组主管","#0d9488"):""}</td>
-        <td>${money(p.goal)}</td>
-        <td>${money(p.week_goal)}</td>
-        <td>${num(p.invite_target," 个")}</td>
-        <td>${num(p.visit_target," 次")}</td>
-        <td style="color:#b45309;font-weight:600">${+p.amount>0?("¥"+fmtMoney(p.amount)):'<span style="color:var(--muted)">—</span>'}</td>
-        <td>${canEdit?`<button class="btn ghost sm" onclick="openGoal('${u.id}')">✏️ 填写目标</button>`:""}</td>
-      </tr>`;
-    }).join("")
-  }</tbody></table></div>`;
+  const wsum=p=>(+p.w1_amt||0)+(+p.w2_amt||0)+(+p.w3_amt||0)+(+p.w4_amt||0);
+  const amtOf=p=>wsum(p)>0?wsum(p):(+p.amount||0);
+  listBox.innerHTML=DB.users.map(u=>{
+    const p=perf.find(x=>x.user_id===u.id)||{};
+    const canEdit=isAdmin()||(CURRENT&&CURRENT.id===u.id);
+    const goal=+p.goal||0, done=amtOf(p);
+    const pct=goal>0?Math.round(done/goal*100):null;
+    const gap=goal-done;
+    const defWg=+p.week_goal||0;
+    const weeks=[1,2,3,4].map(i=>{
+      const wg=+p["w"+i+"_goal"]||defWg||0;
+      const wa=+p["w"+i+"_amt"]||0;
+      const wp=wg>0?Math.round(wa/wg*100):null;
+      return `<div style="background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">第 ${i} 周 ${wp!=null?`<span style="float:right;font-weight:700;color:${wp>=100?"#16a34a":"#b45309"}">${wp}%</span>`:""}</div>
+        <div style="font-size:12px;display:flex;justify-content:space-between"><span>目标</span><b>${money(wg)}</b></div>
+        <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:3px"><span>完成</span><b style="color:#b45309">${money(wa)}</b></div>
+        ${wg>0?`<div class="bar-track" style="margin-top:6px;height:8px"><div class="bar-fill" style="width:${Math.min(wp,100)}%;background:${wp>=100?"#16a34a":"#d97706"}"></div></div>`:""}
+      </div>`;
+    }).join("");
+    return `<div class="panel" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <b style="font-size:15px">${esc(u.name)}</b>${u.role==="manager"?pill("分组主管","#0d9488"):""}
+        <span style="color:var(--muted);font-size:12px">邀约 ${num(p.invite_target," 个/周")} · 拜访 ${num(p.visit_target," 次/周")}</span>
+        ${canEdit?`<button class="btn ghost sm" style="margin-left:auto" onclick="openGoal('${u.id}')">✏️ 填写目标</button>`:""}
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="flex:1;min-width:130px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--muted)">🎯 月度目标</div><div style="font-size:18px;font-weight:700;margin-top:2px">${money(goal)}</div></div>
+        <div style="flex:1;min-width:130px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--muted)">✅ 已达成</div><div style="font-size:18px;font-weight:700;margin-top:2px;color:#b45309">${money(done)}</div></div>
+        <div style="flex:1;min-width:130px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--muted)">📈 进度</div><div style="font-size:18px;font-weight:700;margin-top:2px;color:${pct!=null&&pct>=100?"#16a34a":"#166534"}">${pct!=null?pct+"%":'<span style="color:var(--muted)">—</span>'}</div>${goal>0?`<div class="bar-track" style="margin-top:6px;height:8px"><div class="bar-fill" style="width:${Math.min(pct,100)}%;background:${pct>=100?"#16a34a":"#2f9455"}"></div></div>`:""}</div>
+        <div style="flex:1;min-width:130px;background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--muted)">🧮 差额</div><div style="font-size:18px;font-weight:700;margin-top:2px;color:${gap>0?"#dc2626":"#16a34a"}">${goal>0?(gap>0?("¥"+fmtMoney(gap)):("超额 ¥"+fmtMoney(-gap))):'<span style="color:var(--muted)">—</span>'}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">${weeks}</div>
+    </div>`;
+  }).join("");
 }
 function openGoal(uid){
   if(!isAdmin()&&(!CURRENT||CURRENT.id!==uid)){toast("只能填写自己的目标");return;}
@@ -1528,6 +1558,7 @@ function openGoal(uid){
   const p=(window._goalPerf||[]).find(x=>x.user_id===uid)||{};
   $("#goalModalTitle").textContent="填写计划目标："+(u?u.name:"")+"（本月）";
   $("#g_goal").value=+p.goal||""; $("#g_weekGoal").value=+p.week_goal||""; $("#g_invite").value=+p.invite_target||""; $("#g_visit").value=+p.visit_target||"";
+  [1,2,3,4].forEach(i=>{ $("#g_w"+i+"g").value=+p["w"+i+"_goal"]||""; $("#g_w"+i+"a").value=+p["w"+i+"_amt"]||""; });
   openModal("goalModal");
 }
 async function saveGoal(){
@@ -1535,7 +1566,15 @@ async function saveGoal(){
   let goal=parseFloat($("#g_goal").value)||0, wg=parseFloat($("#g_weekGoal").value)||0;
   const inv=parseInt($("#g_invite").value)||0, vis=parseInt($("#g_visit").value)||0;
   if(goal>0&&goal<1000)goal*=10000; if(wg>0&&wg<1000)wg*=10000;   // 小数值按「万元」理解
-  const {error}=await SB.from("monthly_performance").upsert({user_id:_goalUserId,month:curMonth(),goal,week_goal:wg,invite_target:inv,visit_target:vis,updated_by:CURRENT.id,updated_at:new Date().toISOString()},{onConflict:"user_id,month"});
+  const row={user_id:_goalUserId,month:curMonth(),goal,week_goal:wg,invite_target:inv,visit_target:vis,updated_by:CURRENT.id,updated_at:new Date().toISOString()};
+  let wsum=0;
+  [1,2,3,4].forEach(i=>{
+    let g=parseFloat($("#g_w"+i+"g").value)||0, a=parseFloat($("#g_w"+i+"a").value)||0;
+    if(g>0&&g<1000)g*=10000; if(a>0&&a<1000)a*=10000;
+    row["w"+i+"_goal"]=g; row["w"+i+"_amt"]=a; wsum+=a;
+  });
+  if(wsum>0)row.amount=wsum;   // 填了每周完成 → 本月已达成自动取四周之和，与首页进度榜保持一致
+  const {error}=await SB.from("monthly_performance").upsert(row,{onConflict:"user_id,month"});
   if(error){toast("保存失败："+error.message);return;}
   closeModal("goalModal"); toast("计划目标已保存"); renderGoals(); renderHeroGoal();
 }
