@@ -247,9 +247,14 @@
     </div>
     <button data-view="visits">📍 客户跟进记录</button>
     <button data-view="expense">🧾 路费报销</button>
-    <button data-view="won">💰 成交客户</button>
-    <button data-view="ygold">🏆 YG老客户</button>
-    <button data-view="cases">📚 客户案例库</button>
+    <div class="nav-drop">
+      <button type="button" class="nav-drop-btn" id="wonGroupBtn">💼 成交档案 ▾</button>
+      <div class="nav-drop-menu">
+        <button data-view="won">💰 成交客户</button>
+        <button data-view="ygold">🏆 YG老客户</button>
+        <button data-view="cases">📚 客户案例库</button>
+      </div>
+    </div>
     <button data-view="users" data-admin="1">👤 用户管理</button>
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
   </nav>
@@ -1282,9 +1287,11 @@ window.addEventListener("resize",syncThTop);
 document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
-  // 「客户数据」父级高亮
+  // 「客户数据 / 成交档案」父级高亮
   const cg=document.getElementById('custGroupBtn');
   if(cg) cg.classList.toggle('parent-active', ["customers","mobai","visited","pool","resigned"].includes(b.dataset.view));
+  const wg=document.getElementById('wonGroupBtn');
+  if(wg) wg.classList.toggle('parent-active', ["won","ygold","cases"].includes(b.dataset.view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="home"){renderHome();renderDash();}
@@ -1303,17 +1310,19 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   syncThTop();
 });
 
-// 「客户数据」下拉：菜单用 fixed 定位（避开 nav 的 overflow-x 裁剪），悬停或点击均可展开
+// 导航下拉：菜单用 fixed 定位（避开 nav 的 overflow-x 裁剪），悬停或点击均可展开；支持多个下拉组
 (function(){
-  const drop=document.querySelector(".nav-drop"), btn=document.getElementById("custGroupBtn");
-  if(!drop||!btn)return;
-  const menu=drop.querySelector(".nav-drop-menu");
-  function place(){ const r=btn.getBoundingClientRect(); menu.style.left=r.left+"px"; menu.style.top=(r.bottom+2)+"px"; }
-  drop.addEventListener("mouseenter",place);
-  btn.addEventListener("click",e=>{ e.stopPropagation(); place(); drop.classList.toggle("open"); });
-  menu.addEventListener("click",()=>drop.classList.remove("open"));
-  document.addEventListener("click",e=>{ if(!drop.contains(e.target))drop.classList.remove("open"); });
-  window.addEventListener("scroll",()=>{ if(drop.classList.contains("open"))place(); },true);
+  function closeAll(except){ document.querySelectorAll(".nav-drop").forEach(d=>{ if(d!==except)d.classList.remove("open"); }); }
+  document.querySelectorAll(".nav-drop").forEach(drop=>{
+    const btn=drop.querySelector(".nav-drop-btn"), menu=drop.querySelector(".nav-drop-menu");
+    if(!btn||!menu)return;
+    function place(){ const r=btn.getBoundingClientRect(); menu.style.left=r.left+"px"; menu.style.top=(r.bottom+2)+"px"; }
+    drop.addEventListener("mouseenter",place);
+    btn.addEventListener("click",e=>{ e.stopPropagation(); place(); const open=drop.classList.contains("open"); closeAll(); if(!open)drop.classList.add("open"); });
+    menu.addEventListener("click",()=>drop.classList.remove("open"));
+    window.addEventListener("scroll",()=>{ if(drop.classList.contains("open"))place(); },true);
+  });
+  document.addEventListener("click",e=>{ if(!e.target.closest(".nav-drop"))closeAll(); });
 })();
 
 /* ===================== Auth（Supabase） ===================== */
