@@ -246,6 +246,7 @@
       </div>
     </div>
     <button data-view="visits">📍 客户跟进记录</button>
+    <button data-view="expense">🧾 路费报销</button>
     <button data-view="won">💰 成交客户</button>
     <button data-view="ygold">🏆 YG老客户</button>
     <button data-view="cases">📚 客户案例库</button>
@@ -438,6 +439,21 @@
     <div id="visitList" class="tbl-wrap"></div>
   </section>
 
+  <!-- ============ 路费报销 ============ -->
+  <section id="view-expense" class="view">
+    <div class="toolbar">
+      <input type="month" id="expMonth" onchange="renderExpense()">
+      <select id="expStatus" onchange="renderExpense()"><option value="">全部状态</option><option>待审核</option><option>已通过</option><option>已驳回</option></select>
+      <select id="expOwner" onchange="renderExpense()" style="display:none"><option value="">全部报销人</option></select>
+      <input type="text" id="expSearch" placeholder="🔍 搜索客户 / 事由 / 地点" oninput="renderExpense()">
+      <div class="spacer"></div>
+      <button class="btn" onclick="openExpense()">＋ 新建报销</button>
+      <div class="hint">提交后由管理员审核；「待审核」状态可修改 / 撤回</div>
+    </div>
+    <div class="kpi-grid" id="expStats" style="margin:0 0 14px"></div>
+    <div id="expenseList" class="tbl-wrap"></div>
+  </section>
+
   <!-- ============ DATA ============ -->
   <section id="view-data" class="view">
     <div class="panel" style="border-color:#c7d2fe;background:#f5f7ff">
@@ -569,6 +585,31 @@
     <div id="resignedList" class="tbl-wrap"></div>
   </section>
 </main>
+
+<!-- ===== Expense Modal ===== -->
+<div class="modal-bg" id="expModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="expModalTitle">新建报销单</h3><button class="x" onclick="closeModal('expModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>费用日期 *</label><input id="e_date" type="date"></div>
+        <div class="field"><label>报销人</label><input id="e_ownerName" readonly style="background:#f6f8f6"></div>
+        <div class="field full"><label>关联客户（可直接调用系统客户）</label><input id="e_custName" list="expCustList" placeholder="输入公司名自动匹配"><datalist id="expCustList"></datalist></div>
+        <div class="field"><label>出发地</label><input id="e_from" placeholder="如 慈溪"></div>
+        <div class="field"><label>目的地</label><input id="e_to" placeholder="如 宁波市区"></div>
+        <div class="field"><label>交通方式</label><select id="e_transport"><option>打车</option><option>自驾</option><option>公交/地铁</option><option>高铁/火车</option><option>其他</option></select></div>
+        <div class="field"><label>金额（元）*</label><input id="e_amount" type="number" min="0" step="0.01" placeholder="如 35.5"></div>
+        <div class="field full"><label>事由</label><input id="e_reason" placeholder="如 拜访客户 / 送样品"></div>
+        <div class="field full"><label>备注</label><textarea id="e_note" rows="2" placeholder="票据张数、同行人等"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="expDeleteBtn" style="margin-right:auto;display:none" onclick="delExpense(editExpId)">撤回删除</button>
+      <button class="btn ghost" onclick="closeModal('expModal')">取消</button>
+      <button class="btn" onclick="saveExpense()">提交报销</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== Customer Modal ===== -->
 <div class="modal-bg" id="custModal">
@@ -891,7 +932,7 @@ const RESULTS = ["有意向","继续跟进","暂无意向","已成交","已流�
 const RESULT_COLOR = {"有意向":"#16a34a","继续跟进":"#2563eb","暂无意向":"#6b7280","已成交":"#7c3aed","已流失":"#dc2626"};
 
 /* ===================== State / storage ===================== */
-let DB = {customers:[], visits:[], users:[], pool:[], seq:0, settings:{}};
+let DB = {customers:[], visits:[], users:[], pool:[], expenses:[], seq:0, settings:{}};
 let CURRENT = null;                       // 当前登录用户
 const LS_KEY = "crm_local_db_v1";
 const SESS_KEY = "crm_session_user";
@@ -917,8 +958,10 @@ function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.
 function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function caseToRow(c){const r={id:c.id,name:c.name||"",region:c.region||"",product:c.product||""}; if(!_casesNoIndustry)r.industry=c.industry||""; return r;}
 function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",industry:r.industry||"",product:r.product||""};}
+function expToRow(e){return{id:e.id,user_id:e.userId||null,user_name:e.userName||"",expense_date:D(e.date),customer_id:e.customerId||null,customer_name:e.custName||"",from_place:e.from||"",to_place:e.to||"",transport:e.transport||"",amount:+e.amount||0,reason:e.reason||"",note:e.note||"",status:e.status||"待审核",reviewed_by:e.reviewedBy||"",reviewed_at:e.reviewedAt||null};}
+function rowToExp(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",date:r.expense_date||"",customerId:r.customer_id||"",custName:r.customer_name||"",from:r.from_place||"",to:r.to_place||"",transport:r.transport||"",amount:+r.amount||0,reason:r.reason||"",note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
 
-const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map()};
+const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map(),expenses:new Map()};
 // 分页拉取整表：PostgREST 单次最多返回 1000 行，需用 range 循环取完（否则超 1000 的数据丢失/导入撞唯一约束）
 async function fetchAllRows(table){
   const all=[], PAGE=1000;
@@ -933,12 +976,13 @@ async function fetchAllRows(table){
 }
 async function loadFromCloud(){
   if(!SB)return;
-  const [pf,cu,vi,po,ca,st]=await Promise.all([
+  const [pf,cu,vi,po,ca,ex,st]=await Promise.all([
     SB.from("profiles").select("*"),
     fetchAllRows("customers"),
     fetchAllRows("visits"),
     fetchAllRows("pool"),
     fetchAllRows("cases"),
+    fetchAllRows("expenses"),
     SB.from("app_settings").select("*")
   ]);
   if(pf.error) throw new Error("profiles 拉取失败："+pf.error.message);
@@ -949,10 +993,12 @@ async function loadFromCloud(){
   DB.visits=(vi||[]).map(rowToVisit);
   DB.pool=(po||[]).map(rowToPool);
   DB.cases=(ca||[]).map(rowToCase);
+  DB.expenses=(ex||[]).map(rowToExp);
   _snap.customers=new Map(DB.customers.map(c=>[c.id,JSON.stringify(custToRow(c))]));
   _snap.visits=new Map(DB.visits.map(v=>[v.id,JSON.stringify(visitToRow(v))]));
   _snap.pool=new Map(DB.pool.map(p=>[p.id,JSON.stringify(poolToRow(p))]));
   _snap.cases=new Map(DB.cases.map(c=>[c.id,JSON.stringify(caseToRow(c))]));
+  _snap.expenses=new Map(DB.expenses.map(e=>[e.id,JSON.stringify(expToRow(e))]));
   try{ localStorage.setItem(lsKey(),JSON.stringify(DB)); }catch(e){}
 }
 let _syncing=false,_syncPending=false,_casesTableMissing=false,_casesNoIndustry=false;
@@ -964,7 +1010,7 @@ async function cloudSync(){
   // 公海按公司名去重（去掉空名/重名，防唯一约束冲突）
   const seen=new Set(); DB.pool=(DB.pool||[]).filter(p=>{const k=(p.name||"").trim(); if(!k||seen.has(k))return false; seen.add(k); return true;});
   let errMsg=null;
-  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow]]){
+  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow],["expenses",DB.expenses||[],expToRow]]){
     if(tbl==="cases" && _casesTableMissing) continue;
     try{ await syncTable(tbl,arr,fn); }catch(e){ const m=e.message||String(e);
       if(tbl==="cases" && /industry/i.test(m) && /does not exist|Could not find|schema cache/i.test(m)){ _casesNoIndustry=true; _snap.cases=new Map(); _syncPending=true; toast("⚠️ 案例库「行业」列未上云（暂仅存本机），请联系管理员"); /* 缺 industry 列：改为不带该列重新同步，案例照常保存(行业暂本地) */ }
@@ -1062,8 +1108,8 @@ function custName(id){const c=DB.customers.find(x=>x.id===id);return c?c.name:""
 
 /* ===================== 分页（每页20条） ===================== */
 let PAGE_SIZE=20;
-const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1, resigned:1, ygold:1};
-const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases(), resigned:()=>renderResigned(), ygold:()=>renderYgold()};
+const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1, resigned:1, ygold:1, expense:1};
+const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases(), resigned:()=>renderResigned(), ygold:()=>renderYgold(), expense:()=>renderExpense()};
 function gotoPage(key,n){ PAGE[key]=n; PAGE_RENDER[key](); }
 function setPageSize(key,val){ PAGE_SIZE=parseInt(val)||20; Object.keys(PAGE).forEach(k=>PAGE[k]=1); PAGE_RENDER[key](); }
 
@@ -1234,6 +1280,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   if(b.dataset.view==="won")renderWon();
   if(b.dataset.view==="ygold")renderYgold();
   if(b.dataset.view==="cases")renderCases();
+  if(b.dataset.view==="expense")renderExpense();
   if(b.dataset.view==="users")renderUsers();
   if(b.dataset.view==="resigned")renderResigned();
   syncThTop();
@@ -1266,13 +1313,13 @@ async function afterAuth(user){
   const {data:prof}=await SB.from("profiles").select("*").eq("id",user.id).single();
   CURRENT={id:user.id,name:(prof&&prof.name)||user.email,role:(prof&&prof.role)||"sales",manages:(prof&&prof.manages)||[]};
   // 切换账号防串号：先清空上一个用户残留的本地数据
-  DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[];
-  _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear();
+  DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[]; DB.expenses=[];
+  _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear(); _snap.expenses.clear();
   _casesTableMissing=false; _casesNoIndustry=false;   // 重置同步标志，避免上次会话的"缺表/缺列"状态卡住案例同步
   _delFail={};
   // 离线兜底：先恢复本机该账号的缓存；云端拉取成功后会整体覆盖
   try{ const r=localStorage.getItem(lsKey())||localStorage.getItem(LS_KEY);
-    if(r){ const d=JSON.parse(r); DB=Object.assign({customers:[],visits:[],pool:[],cases:[],users:[]},d); buildNameMaps(); } }catch(e){}
+    if(r){ const d=JSON.parse(r); DB=Object.assign({customers:[],visits:[],pool:[],cases:[],expenses:[],users:[]},d); buildNameMaps(); } }catch(e){}
   try{ await loadFromCloud(); }
   catch(e){ console.warn("loadFromCloud",e); toast("⚠️ 云端加载失败，当前显示本机缓存（离线模式）；联网后重新登录即可同步"); }
   $("#login_pass").value=""; $("#loginErr").textContent="";
@@ -1288,7 +1335,7 @@ function enterApp(){
   // 若当前停留在无权限页，则回到仪表盘
   const active=document.querySelector('nav button.active');
   if(active && active.dataset.admin && !isAdmin()){ active.classList.remove('active'); document.querySelector('nav button[data-view=home]').classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); $("#view-home").classList.add('active'); }
-  refreshDynamic(); renderHome(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers();
+  refreshDynamic(); renderHome(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers(); renderExpense();
   syncThTop();
 }
 
@@ -2854,6 +2901,113 @@ function deleteCase(){
   save();closeModal("caseModal");renderCases();toast("已删除");
 }
 
+/* ===================== 路费报销 ===================== */
+let editExpId=null;
+function visibleExpenses(){
+  const all=DB.expenses||[];
+  if(isAdmin())return all;
+  return all.filter(e=>e.userId===(CURRENT&&CURRENT.id)||managesName(e.userName));
+}
+function renderExpense(){
+  if(!CURRENT||!$("#expenseList"))return;
+  const em=$("#expMonth");
+  if(em&&!em.dataset.init){ em.value=today().slice(0,7); em.dataset.init="1"; }   // 默认当月
+  const m=em?em.value:"", st=$("#expStatus").value, q=($("#expSearch").value||"").toLowerCase();
+  const canSeeOthers=isAdmin()||isManager();
+  const eo=$("#expOwner");
+  eo.style.display=canSeeOthers?"":"none";
+  const names=[...new Set(visibleExpenses().map(e=>e.userName).filter(Boolean))].sort();
+  const curOw=eo.value;
+  eo.innerHTML=`<option value="">全部报销人</option>`+names.map(n=>`<option${n===curOw?" selected":""}>${esc(n)}</option>`).join("");
+  const ow=eo.value;
+  const inMonth=e=>!m||(e.date||"").slice(0,7)===m;
+  const base=visibleExpenses().filter(inMonth);
+  // 统计卡（按当前月份的可见范围）
+  const sum=a=>a.reduce((x,e)=>x+(+e.amount||0),0);
+  const pend=base.filter(e=>e.status==="待审核"), pass=base.filter(e=>e.status==="已通过"), rej=base.filter(e=>e.status==="已驳回");
+  $("#expStats").innerHTML=`
+    <div class="kpi"><div class="l">${m?m.replace("-"," 年 ")+" 月":""}报销合计 <span class="tag">${base.length} 单</span></div><div class="v">¥${fmtMoney(sum(base))}</div><div class="s">${canSeeOthers?"可见范围汇总":"我的报销汇总"}</div></div>
+    <div class="kpi gold"><div class="l">待审核 <span class="tag gold">${pend.length} 单</span></div><div class="v gold">¥${fmtMoney(sum(pend))}</div><div class="s">等待管理员审核</div></div>
+    <div class="kpi"><div class="l">已通过 <span class="tag">${pass.length} 单</span></div><div class="v" style="color:var(--green)">¥${fmtMoney(sum(pass))}</div><div class="s">可安排打款</div></div>
+    <div class="kpi"><div class="l">已驳回 <span class="tag">${rej.length} 单</span></div><div class="v" style="color:var(--red)">¥${fmtMoney(sum(rej))}</div><div class="s">如有疑问请联系管理员</div></div>`;
+  // 列表
+  let rows=base.slice();
+  if(st)rows=rows.filter(e=>e.status===st);
+  if(ow)rows=rows.filter(e=>e.userName===ow);
+  if(q)rows=rows.filter(e=>[e.custName,e.reason,e.from,e.to,e.userName,e.note].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.createdAt||"").localeCompare(a.createdAt||""));
+  if(!rows.length){$("#expenseList").innerHTML=`<div class="empty">暂无报销记录，点右上角「＋ 新建报销」提交。</div>`;return;}
+  const stColor={"待审核":"#d97706","已通过":"#16a34a","已驳回":"#dc2626"};
+  const total=rows.length, pageRows=pageSlice(rows,"expense");
+  $("#expenseList").innerHTML=`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 单 · 合计 ¥${fmtMoney(sum(rows))}</div><table><thead><tr><th>日期</th><th>报销人</th><th>关联客户</th><th>路线</th><th>交通</th><th style="text-align:right">金额</th><th>事由</th><th>状态</th><th></th></tr></thead><tbody>${
+    pageRows.map(e=>{
+      const mine=e.userId===(CURRENT&&CURRENT.id);
+      const canEdit=(mine&&e.status==="待审核")||isAdmin();
+      const route=(e.from||e.to)?esc(e.from||"—")+" → "+esc(e.to||"—"):"";
+      return `<tr>
+      <td style="white-space:nowrap">${esc(e.date||"")}</td>
+      <td>${esc(e.userName||"")}</td>
+      <td class="namecol">${e.customerId?`<span class="link" onclick="showDetail('${e.customerId}')" title="${esc(e.custName)}">${esc(e.custName)}</span>`:esc(e.custName||"—")}</td>
+      <td style="white-space:nowrap">${route}</td>
+      <td>${esc(e.transport||"")}</td>
+      <td style="text-align:right;font-weight:600;white-space:nowrap">¥${fmtMoney(e.amount)}</td>
+      <td><div class="clip" title="${esc(e.reason||"")}">${esc(e.reason||"")}</div></td>
+      <td>${pill(e.status,stColor[e.status]||"#6b7280")}${e.status!=="待审核"&&e.reviewedBy?`<div style="font-size:11px;color:var(--muted)">${esc(e.reviewedBy)}</div>`:""}</td>
+      <td><div class="row-act">
+        ${isAdmin()&&e.status==="待审核"?`<button class="btn sm" style="background:#16a34a" onclick="reviewExpense('${e.id}','已通过')">通过</button><button class="btn ghost sm" style="color:#dc2626" onclick="reviewExpense('${e.id}','已驳回')">驳回</button>`:""}
+        ${canEdit?`<button class="btn ghost sm" onclick="openExpense('${e.id}')">编辑</button>`:""}
+      </div></td>
+    </tr>`;}).join("")
+  }</tbody></table>`+pageBar(total,"expense");
+}
+function openExpense(id){
+  editExpId=id||null;
+  const e=id?(DB.expenses||[]).find(x=>x.id===id):null;
+  if(id&&!e){toast("报销单不存在");return;}
+  if(id&&e.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能修改自己的报销单");return;}
+  if(id&&e.status!=="待审核"&&!isAdmin()){toast("已审核的报销单不能修改");return;}
+  $("#expModalTitle").textContent=id?"编辑报销单":"新建报销单";
+  $("#expDeleteBtn").style.display=id?"":"none";
+  $("#e_date").value=e?e.date||today():today();
+  $("#e_ownerName").value=e?e.userName:(CURRENT?CURRENT.name:"");
+  $("#expCustList").innerHTML=(DB.customers||[]).map(c=>`<option value="${esc(c.name)}"></option>`).join("");
+  $("#e_custName").value=e?e.custName||"":"";
+  $("#e_from").value=e?e.from||"":""; $("#e_to").value=e?e.to||"":"";
+  $("#e_transport").value=e&&e.transport?e.transport:"打车";
+  $("#e_amount").value=e&&e.amount?e.amount:"";
+  $("#e_reason").value=e?e.reason||"":""; $("#e_note").value=e?e.note||"":"";
+  openModal("expModal");
+}
+function saveExpense(){
+  const date=$("#e_date").value, amount=parseFloat($("#e_amount").value);
+  if(!date){toast("请选择费用日期");return;}
+  if(!(amount>0)){toast("请填写正确的金额");return;}
+  const custName=$("#e_custName").value.trim();
+  const cust=custName?(DB.customers||[]).find(c=>c.name===custName):null;
+  const data={date,userName:$("#e_ownerName").value,customerId:cust?cust.id:"",custName,
+    from:$("#e_from").value.trim(),to:$("#e_to").value.trim(),transport:$("#e_transport").value,
+    amount,reason:$("#e_reason").value.trim(),note:$("#e_note").value.trim()};
+  data.updatedAt=new Date().toISOString();
+  if(editExpId){Object.assign(DB.expenses.find(x=>x.id===editExpId),data);}
+  else{ DB.expenses=DB.expenses||[]; DB.expenses.push(Object.assign({id:uid(),userId:CURRENT.id,status:"待审核",reviewedBy:"",reviewedAt:"",createdAt:new Date().toISOString()},data)); }
+  save();closeModal("expModal");renderExpense();toast(editExpId?"已保存":"已提交，等待管理员审核");
+}
+function delExpense(id){
+  const e=(DB.expenses||[]).find(x=>x.id===id); if(!e)return;
+  if(e.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能撤回自己的报销单");return;}
+  if(e.status!=="待审核"&&!isAdmin()){toast("已审核的报销单不能删除");return;}
+  if(!confirm("确定撤回并删除该报销单？"))return;
+  DB.expenses=DB.expenses.filter(x=>x.id!==id);
+  save();closeModal("expModal");renderExpense();toast("已删除");
+}
+function reviewExpense(id,st){
+  if(!isAdmin()){toast("仅管理员可审核");return;}
+  const e=(DB.expenses||[]).find(x=>x.id===id); if(!e)return;
+  if(!confirm("确定将该报销单标记为「"+st+"」？"))return;
+  e.status=st; e.reviewedBy=CURRENT.name; e.reviewedAt=new Date().toISOString(); e.updatedAt=e.reviewedAt;
+  save();renderExpense();toast("已"+(st==="已通过"?"通过":"驳回"));
+}
+
 /* 刷新「负责人 / 来源」动态下拉与筛选 */
 function refreshDynamic(){
   const base=CURRENT?visibleCustomers():DB.customers;
@@ -3352,9 +3506,9 @@ async function savePassword(){
 function clearAll(){
   if(!isAdmin()){toast("仅管理员可执行");return;}
   if(prompt("此操作只清空【本机浏览器】的缓存数据，云端团队数据不受影响（重新登录后会重新拉取）。\n\n如确认，请输入：清空")!=="清空")return;
-  DB={customers:[],visits:[],pool:[],cases:[],users:DB.users,seq:0};
+  DB={customers:[],visits:[],pool:[],cases:[],expenses:[],users:DB.users,seq:0};
   localStorage.removeItem(LS_KEY);
-  _snap.customers=new Map();_snap.visits=new Map();_snap.pool=new Map();_snap.cases=new Map();
+  _snap.customers=new Map();_snap.visits=new Map();_snap.pool=new Map();_snap.cases=new Map();_snap.expenses=new Map();
   refreshDynamic();renderDash();renderCustomers();renderVisits();
   toast("已清空本机缓存（云端数据未受影响）");
 }
