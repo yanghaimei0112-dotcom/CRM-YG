@@ -586,28 +586,40 @@
   </section>
 </main>
 
-<!-- ===== Expense Modal ===== -->
+<!-- ===== Expense Modal（按月申请单 + 多明细） ===== -->
 <div class="modal-bg" id="expModal">
-  <div class="modal">
-    <div class="modal-head"><h3 id="expModalTitle">新建报销单</h3><button class="x" onclick="closeModal('expModal')">×</button></div>
+  <div class="modal" style="max-width:1020px;width:96%">
+    <div class="modal-head"><h3 id="expModalTitle">新建报销申请</h3><button class="x" onclick="closeModal('expModal')">×</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="field"><label>费用日期 *</label><input id="e_date" type="date"></div>
+        <div class="field"><label>报销月份 *</label><input id="e_month" type="month"></div>
         <div class="field"><label>报销人</label><input id="e_ownerName" readonly style="background:#f6f8f6"></div>
-        <div class="field full"><label>关联客户（可直接调用系统客户）</label><input id="e_custName" list="expCustList" placeholder="输入公司名自动匹配"><datalist id="expCustList"></datalist></div>
-        <div class="field"><label>出发地</label><input id="e_from" placeholder="如 慈溪"></div>
-        <div class="field"><label>目的地</label><input id="e_to" placeholder="如 宁波市区"></div>
-        <div class="field"><label>交通方式</label><select id="e_transport"><option>打车</option><option>自驾</option><option>公交/地铁</option><option>高铁/火车</option><option>其他</option></select></div>
-        <div class="field"><label>金额（元）*</label><input id="e_amount" type="number" min="0" step="0.01" placeholder="如 35.5"></div>
-        <div class="field full"><label>事由</label><input id="e_reason" placeholder="如 拜访客户 / 送样品"></div>
-        <div class="field full"><label>备注</label><textarea id="e_note" rows="2" placeholder="票据张数、同行人等"></textarea></div>
+        <div class="field full"><label>整单备注</label><input id="e_note" placeholder="选填，如 票据共 8 张"></div>
+      </div>
+      <datalist id="expCustList"></datalist>
+      <div style="margin-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <b>报销明细（每条可填不同时间段与客户）</b>
+          <button class="btn ghost sm" onclick="expAddItem()">＋ 添加明细</button>
+        </div>
+        <div id="e_items"></div>
+        <div style="text-align:right;font-weight:700;font-size:15px;margin-top:6px">合计：<span id="e_total" style="color:var(--brand)">¥0</span></div>
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn danger sm" id="expDeleteBtn" style="margin-right:auto;display:none" onclick="delExpense(editExpId)">撤回删除</button>
+      <button class="btn danger sm" id="expDeleteBtn" style="margin-right:auto;display:none" onclick="delExpense()">撤回删除</button>
       <button class="btn ghost" onclick="closeModal('expModal')">取消</button>
-      <button class="btn" onclick="saveExpense()">提交报销</button>
+      <button class="btn" onclick="saveExpense()">提交申请</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== Expense 明细查看 ===== -->
+<div class="modal-bg" id="expViewModal">
+  <div class="modal" style="max-width:900px;width:94%">
+    <div class="modal-head"><h3 id="expViewTitle">报销明细</h3><button class="x" onclick="closeModal('expViewModal')">×</button></div>
+    <div class="modal-body" id="expViewBody"></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('expViewModal')">关闭</button></div>
   </div>
 </div>
 
@@ -932,7 +944,7 @@ const RESULTS = ["有意向","继续跟进","暂无意向","已成交","已流�
 const RESULT_COLOR = {"有意向":"#16a34a","继续跟进":"#2563eb","暂无意向":"#6b7280","已成交":"#7c3aed","已流失":"#dc2626"};
 
 /* ===================== State / storage ===================== */
-let DB = {customers:[], visits:[], users:[], pool:[], expenses:[], seq:0, settings:{}};
+let DB = {customers:[], visits:[], users:[], pool:[], expenses:[], expApps:[], seq:0, settings:{}};
 let CURRENT = null;                       // 当前登录用户
 const LS_KEY = "crm_local_db_v1";
 const SESS_KEY = "crm_session_user";
@@ -958,10 +970,12 @@ function poolToRow(p){return{id:p.id,name:p.name||"",region:p.region||"",attr:p.
 function rowToPool(r){return{id:r.id,name:r.name||"",region:r.region||"",attr:r.attr||"",contact:r.contact||"",phone:r.phone||"",product:r.product||"",address:r.address||"",source:r.source||"",platformUrl:r.platform_url||"",siteUrl:r.site_url||"",micUrl:r.mic_url||"",tradeContact:r.trade_contact||"",tradePhone:r.trade_phone||"",shareholder:r.shareholder||"",shareholderPhone:r.shareholder_phone||"",otherContact:r.other_contact||"",otherPhone:r.other_phone||"",peerCase:r.peer_case||"",createDate:r.create_date||"",origin:r.origin||"",note:r.note||"",updatedAt:(r.updated_at||r.created_at||"")};}
 function caseToRow(c){const r={id:c.id,name:c.name||"",region:c.region||"",product:c.product||""}; if(!_casesNoIndustry)r.industry=c.industry||""; return r;}
 function rowToCase(r){return{id:r.id,name:r.name||"",region:r.region||"",industry:r.industry||"",product:r.product||""};}
-function expToRow(e){return{id:e.id,user_id:e.userId||null,user_name:e.userName||"",expense_date:D(e.date),customer_id:e.customerId||null,customer_name:e.custName||"",from_place:e.from||"",to_place:e.to||"",transport:e.transport||"",amount:+e.amount||0,reason:e.reason||"",note:e.note||"",status:e.status||"待审核",reviewed_by:e.reviewedBy||"",reviewed_at:e.reviewedAt||null};}
-function rowToExp(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",date:r.expense_date||"",customerId:r.customer_id||"",custName:r.customer_name||"",from:r.from_place||"",to:r.to_place||"",transport:r.transport||"",amount:+r.amount||0,reason:r.reason||"",note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
+function expToRow(e){return{id:e.id,app_id:e.appId||null,user_id:e.userId||null,user_name:e.userName||"",expense_date:D(e.date),customer_id:e.customerId||null,customer_name:e.custName||"",from_place:e.from||"",to_place:e.to||"",transport:e.transport||"",amount:+e.amount||0,reason:e.reason||"",note:e.note||"",status:e.status||"待审核",reviewed_by:e.reviewedBy||"",reviewed_at:e.reviewedAt||null};}
+function rowToExp(r){return{id:r.id,appId:r.app_id||"",userId:r.user_id||"",userName:r.user_name||"",date:r.expense_date||"",customerId:r.customer_id||"",custName:r.customer_name||"",from:r.from_place||"",to:r.to_place||"",transport:r.transport||"",amount:+r.amount||0,reason:r.reason||"",note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
+function appToRow(a){return{id:a.id,user_id:a.userId||null,user_name:a.userName||"",month:a.month||"",total:+a.total||0,note:a.note||"",status:a.status||"待审核",reviewed_by:a.reviewedBy||"",reviewed_at:a.reviewedAt||null};}
+function rowToApp(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",month:r.month||"",total:+r.total||0,note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
 
-const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map(),expenses:new Map()};
+const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map(),expenses:new Map(),expense_apps:new Map()};
 // 分页拉取整表：PostgREST 单次最多返回 1000 行，需用 range 循环取完（否则超 1000 的数据丢失/导入撞唯一约束）
 async function fetchAllRows(table){
   const all=[], PAGE=1000;
@@ -976,13 +990,14 @@ async function fetchAllRows(table){
 }
 async function loadFromCloud(){
   if(!SB)return;
-  const [pf,cu,vi,po,ca,ex,st]=await Promise.all([
+  const [pf,cu,vi,po,ca,ex,ea,st]=await Promise.all([
     SB.from("profiles").select("*"),
     fetchAllRows("customers"),
     fetchAllRows("visits"),
     fetchAllRows("pool"),
     fetchAllRows("cases"),
     fetchAllRows("expenses"),
+    fetchAllRows("expense_apps"),
     SB.from("app_settings").select("*")
   ]);
   if(pf.error) throw new Error("profiles 拉取失败："+pf.error.message);
@@ -994,11 +1009,13 @@ async function loadFromCloud(){
   DB.pool=(po||[]).map(rowToPool);
   DB.cases=(ca||[]).map(rowToCase);
   DB.expenses=(ex||[]).map(rowToExp);
+  DB.expApps=(ea||[]).map(rowToApp);
   _snap.customers=new Map(DB.customers.map(c=>[c.id,JSON.stringify(custToRow(c))]));
   _snap.visits=new Map(DB.visits.map(v=>[v.id,JSON.stringify(visitToRow(v))]));
   _snap.pool=new Map(DB.pool.map(p=>[p.id,JSON.stringify(poolToRow(p))]));
   _snap.cases=new Map(DB.cases.map(c=>[c.id,JSON.stringify(caseToRow(c))]));
   _snap.expenses=new Map(DB.expenses.map(e=>[e.id,JSON.stringify(expToRow(e))]));
+  _snap.expense_apps=new Map(DB.expApps.map(a=>[a.id,JSON.stringify(appToRow(a))]));
   try{ localStorage.setItem(lsKey(),JSON.stringify(DB)); }catch(e){}
 }
 let _syncing=false,_syncPending=false,_casesTableMissing=false,_casesNoIndustry=false;
@@ -1010,7 +1027,7 @@ async function cloudSync(){
   // 公海按公司名去重（去掉空名/重名，防唯一约束冲突）
   const seen=new Set(); DB.pool=(DB.pool||[]).filter(p=>{const k=(p.name||"").trim(); if(!k||seen.has(k))return false; seen.add(k); return true;});
   let errMsg=null;
-  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow],["expenses",DB.expenses||[],expToRow]]){
+  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow],["expenses",DB.expenses||[],expToRow],["expense_apps",DB.expApps||[],appToRow]]){
     if(tbl==="cases" && _casesTableMissing) continue;
     try{ await syncTable(tbl,arr,fn); }catch(e){ const m=e.message||String(e);
       if(tbl==="cases" && /industry/i.test(m) && /does not exist|Could not find|schema cache/i.test(m)){ _casesNoIndustry=true; _snap.cases=new Map(); _syncPending=true; toast("⚠️ 案例库「行业」列未上云（暂仅存本机），请联系管理员"); /* 缺 industry 列：改为不带该列重新同步，案例照常保存(行业暂本地) */ }
@@ -1313,13 +1330,13 @@ async function afterAuth(user){
   const {data:prof}=await SB.from("profiles").select("*").eq("id",user.id).single();
   CURRENT={id:user.id,name:(prof&&prof.name)||user.email,role:(prof&&prof.role)||"sales",manages:(prof&&prof.manages)||[]};
   // 切换账号防串号：先清空上一个用户残留的本地数据
-  DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[]; DB.expenses=[];
-  _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear(); _snap.expenses.clear();
+  DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[]; DB.expenses=[]; DB.expApps=[];
+  _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear(); _snap.expenses.clear(); _snap.expense_apps.clear();
   _casesTableMissing=false; _casesNoIndustry=false;   // 重置同步标志，避免上次会话的"缺表/缺列"状态卡住案例同步
   _delFail={};
   // 离线兜底：先恢复本机该账号的缓存；云端拉取成功后会整体覆盖
   try{ const r=localStorage.getItem(lsKey())||localStorage.getItem(LS_KEY);
-    if(r){ const d=JSON.parse(r); DB=Object.assign({customers:[],visits:[],pool:[],cases:[],expenses:[],users:[]},d); buildNameMaps(); } }catch(e){}
+    if(r){ const d=JSON.parse(r); DB=Object.assign({customers:[],visits:[],pool:[],cases:[],expenses:[],expApps:[],users:[]},d); buildNameMaps(); } }catch(e){}
   try{ await loadFromCloud(); }
   catch(e){ console.warn("loadFromCloud",e); toast("⚠️ 云端加载失败，当前显示本机缓存（离线模式）；联网后重新登录即可同步"); }
   $("#login_pass").value=""; $("#loginErr").textContent="";
@@ -2901,12 +2918,29 @@ function deleteCase(){
   save();closeModal("caseModal");renderCases();toast("已删除");
 }
 
-/* ===================== 路费报销 ===================== */
-let editExpId=null;
+/* ===================== 路费报销（按月申请单 + 多明细） ===================== */
+const EXP_TRANS=["打车","自驾","公交/地铁","高铁/火车","其他"];
+let editExpId=null;   // {type:'app',id} | {type:'lg',id} | null
+function visibleExpApps(){
+  const all=DB.expApps||[];
+  if(isAdmin())return all;
+  return all.filter(a=>a.userId===(CURRENT&&CURRENT.id)||managesName(a.userName));
+}
 function visibleExpenses(){
   const all=DB.expenses||[];
   if(isAdmin())return all;
   return all.filter(e=>e.userId===(CURRENT&&CURRENT.id)||managesName(e.userName));
+}
+// 申请单 + 明细 组装；历史单笔（无 appId）按各自成单处理
+function buildExpenseApps(){
+  const map=new Map(visibleExpApps().map(a=>[a.id,Object.assign({},a,{items:[],legacy:false})]));
+  visibleExpenses().forEach(e=>{
+    if(e.appId&&map.has(e.appId)){ map.get(e.appId).items.push(e); }
+    else{ map.set("lg:"+e.id,{id:"lg:"+e.id,itemId:e.id,legacy:true,userId:e.userId,userName:e.userName,month:(e.date||"").slice(0,7),status:e.status,reviewedBy:e.reviewedBy,note:e.note||"",items:[e],createdAt:e.createdAt}); }
+  });
+  const apps=[...map.values()].filter(a=>a.items.length||!a.legacy);
+  apps.forEach(a=>{ a.total=a.items.reduce((x,i)=>x+(+i.amount||0),0); a.items.sort((x,y)=>(x.date||"").localeCompare(y.date||"")); });
+  return apps;
 }
 function renderExpense(){
   if(!CURRENT||!$("#expenseList"))return;
@@ -2916,96 +2950,197 @@ function renderExpense(){
   const canSeeOthers=isAdmin()||isManager();
   const eo=$("#expOwner");
   eo.style.display=canSeeOthers?"":"none";
-  const names=[...new Set(visibleExpenses().map(e=>e.userName).filter(Boolean))].sort();
+  const names=[...new Set(visibleExpApps().map(a=>a.userName).concat(visibleExpenses().map(e=>e.userName)).filter(Boolean))].sort();
   const curOw=eo.value;
   eo.innerHTML=`<option value="">全部报销人</option>`+names.map(n=>`<option${n===curOw?" selected":""}>${esc(n)}</option>`).join("");
   const ow=eo.value;
   const inMonth=e=>!m||(e.date||"").slice(0,7)===m;
-  const base=visibleExpenses().filter(inMonth);
+  const items=visibleExpenses().filter(inMonth);
   // 统计卡（按当前月份的可见范围）
   const sum=a=>a.reduce((x,e)=>x+(+e.amount||0),0);
-  const pend=base.filter(e=>e.status==="待审核"), pass=base.filter(e=>e.status==="已通过"), rej=base.filter(e=>e.status==="已驳回");
+  const pend=items.filter(e=>e.status==="待审核"), pass=items.filter(e=>e.status==="已通过"), rej=items.filter(e=>e.status==="已驳回");
   $("#expStats").innerHTML=`
-    <div class="kpi"><div class="l">${m?m.replace("-"," 年 ")+" 月":""}报销合计 <span class="tag">${base.length} 单</span></div><div class="v">¥${fmtMoney(sum(base))}</div><div class="s">${canSeeOthers?"可见范围汇总":"我的报销汇总"}</div></div>
-    <div class="kpi gold"><div class="l">待审核 <span class="tag gold">${pend.length} 单</span></div><div class="v gold">¥${fmtMoney(sum(pend))}</div><div class="s">等待管理员审核</div></div>
-    <div class="kpi"><div class="l">已通过 <span class="tag">${pass.length} 单</span></div><div class="v" style="color:var(--green)">¥${fmtMoney(sum(pass))}</div><div class="s">可安排打款</div></div>
-    <div class="kpi"><div class="l">已驳回 <span class="tag">${rej.length} 单</span></div><div class="v" style="color:var(--red)">¥${fmtMoney(sum(rej))}</div><div class="s">如有疑问请联系管理员</div></div>`;
-  // 列表
-  let rows=base.slice();
-  if(st)rows=rows.filter(e=>e.status===st);
-  if(ow)rows=rows.filter(e=>e.userName===ow);
-  if(q)rows=rows.filter(e=>[e.custName,e.reason,e.from,e.to,e.userName,e.note].join(" ").toLowerCase().includes(q));
-  rows.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.createdAt||"").localeCompare(a.createdAt||""));
-  if(!rows.length){$("#expenseList").innerHTML=`<div class="empty">暂无报销记录，点右上角「＋ 新建报销」提交。</div>`;return;}
+    <div class="kpi"><div class="l">${m?m.replace("-"," 年 ")+" 月":""}报销合计 <span class="tag">${items.length} 笔</span></div><div class="v">¥${fmtMoney(sum(items))}</div><div class="s">${canSeeOthers?"可见范围汇总":"我的报销汇总"}</div></div>
+    <div class="kpi gold"><div class="l">待审核 <span class="tag gold">${pend.length} 笔</span></div><div class="v gold">¥${fmtMoney(sum(pend))}</div><div class="s">等待管理员审核</div></div>
+    <div class="kpi"><div class="l">已通过 <span class="tag">${pass.length} 笔</span></div><div class="v" style="color:var(--green)">¥${fmtMoney(sum(pass))}</div><div class="s">可安排打款</div></div>
+    <div class="kpi"><div class="l">已驳回 <span class="tag">${rej.length} 笔</span></div><div class="v" style="color:var(--red)">¥${fmtMoney(sum(rej))}</div><div class="s">如有疑问请联系管理员</div></div>`;
+  // 申请单列表
+  let rows=buildExpenseApps();
+  if(m)rows=rows.filter(a=>a.month===m||a.items.some(inMonth));
+  if(st)rows=rows.filter(a=>a.status===st);
+  if(ow)rows=rows.filter(a=>a.userName===ow);
+  if(q)rows=rows.filter(a=>[a.userName,a.note,a.month,...a.items.flatMap(i=>[i.custName,i.reason,i.from,i.to])].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>(b.month||"").localeCompare(a.month||"")||(b.createdAt||"").localeCompare(a.createdAt||""));
+  if(!rows.length){$("#expenseList").innerHTML=`<div class="empty">暂无报销申请，点右上角「＋ 新建报销」按月提交。</div>`;return;}
   const stColor={"待审核":"#d97706","已通过":"#16a34a","已驳回":"#dc2626"};
   const total=rows.length, pageRows=pageSlice(rows,"expense");
-  $("#expenseList").innerHTML=`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 单 · 合计 ¥${fmtMoney(sum(rows))}</div><table><thead><tr><th>日期</th><th>报销人</th><th>关联客户</th><th>路线</th><th>交通</th><th style="text-align:right">金额</th><th>事由</th><th>状态</th><th></th></tr></thead><tbody>${
-    pageRows.map(e=>{
-      const mine=e.userId===(CURRENT&&CURRENT.id);
-      const canEdit=(mine&&e.status==="待审核")||isAdmin();
-      const route=(e.from||e.to)?esc(e.from||"—")+" → "+esc(e.to||"—"):"";
+  $("#expenseList").innerHTML=`<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 张申请单 · 合计 ¥${fmtMoney(sum(rows))}</div><table><thead><tr><th>报销月份</th><th>报销人</th><th>明细</th><th style="text-align:right">金额合计</th><th>状态</th><th>提交时间</th><th></th></tr></thead><tbody>${
+    pageRows.map(a=>{
+      const mine=a.userId===(CURRENT&&CURRENT.id);
+      const canEdit=(mine&&a.status==="待审核")||isAdmin();
+      const custs=[...new Set(a.items.map(i=>i.custName).filter(Boolean))];
+      const sub=a.items.length+" 笔"+(custs.length?" · "+esc(custs.slice(0,2).join("、"))+(custs.length>2?" 等":""):"");
       return `<tr>
-      <td style="white-space:nowrap">${esc(e.date||"")}</td>
-      <td>${esc(e.userName||"")}</td>
-      <td class="namecol">${e.customerId?`<span class="link" onclick="showDetail('${e.customerId}')" title="${esc(e.custName)}">${esc(e.custName)}</span>`:esc(e.custName||"—")}</td>
-      <td style="white-space:nowrap">${route}</td>
-      <td>${esc(e.transport||"")}</td>
-      <td style="text-align:right;font-weight:600;white-space:nowrap">¥${fmtMoney(e.amount)}</td>
-      <td><div class="clip" title="${esc(e.reason||"")}">${esc(e.reason||"")}</div></td>
-      <td>${pill(e.status,stColor[e.status]||"#6b7280")}${e.status!=="待审核"&&e.reviewedBy?`<div style="font-size:11px;color:var(--muted)">${esc(e.reviewedBy)}</div>`:""}</td>
+      <td style="white-space:nowrap;font-weight:600">${esc(a.month||"—")}</td>
+      <td>${esc(a.userName||"")}</td>
+      <td><span class="link" onclick="expViewApp('${a.id}')">${sub}</span></td>
+      <td style="text-align:right;font-weight:600;white-space:nowrap">¥${fmtMoney(a.total)}</td>
+      <td>${pill(a.status,stColor[a.status]||"#6b7280")}${a.status!=="待审核"&&a.reviewedBy?`<div style="font-size:11px;color:var(--muted)">${esc(a.reviewedBy)}</div>`:""}</td>
+      <td style="white-space:nowrap;color:var(--muted);font-size:12px">${(a.createdAt||"").slice(0,10)}</td>
       <td><div class="row-act">
-        ${isAdmin()&&e.status==="待审核"?`<button class="btn sm" style="background:#16a34a" onclick="reviewExpense('${e.id}','已通过')">通过</button><button class="btn ghost sm" style="color:#dc2626" onclick="reviewExpense('${e.id}','已驳回')">驳回</button>`:""}
-        ${canEdit?`<button class="btn ghost sm" onclick="openExpense('${e.id}')">编辑</button>`:""}
+        ${isAdmin()&&a.status==="待审核"?`<button class="btn sm" style="background:#16a34a" onclick="reviewExpense('${a.id}','已通过')">通过</button><button class="btn ghost sm" style="color:#dc2626" onclick="reviewExpense('${a.id}','已驳回')">驳回</button>`:""}
+        ${canEdit?`<button class="btn ghost sm" onclick="openExpense('${a.id}')">编辑</button>`:""}
+        ${isAdmin()?`<button class="btn ghost sm" style="color:#dc2626" onclick="expAdminDelete('${a.id}')">删除</button>`:""}
       </div></td>
     </tr>`;}).join("")
   }</tbody></table>`+pageBar(total,"expense");
 }
-function openExpense(id){
-  editExpId=id||null;
-  const e=id?(DB.expenses||[]).find(x=>x.id===id):null;
-  if(id&&!e){toast("报销单不存在");return;}
-  if(id&&e.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能修改自己的报销单");return;}
-  if(id&&e.status!=="待审核"&&!isAdmin()){toast("已审核的报销单不能修改");return;}
-  $("#expModalTitle").textContent=id?"编辑报销单":"新建报销单";
-  $("#expDeleteBtn").style.display=id?"":"none";
-  $("#e_date").value=e?e.date||today():today();
-  $("#e_ownerName").value=e?e.userName:(CURRENT?CURRENT.name:"");
+/* 编辑器明细行 */
+function expItemRow(it){
+  it=it||{};
+  return `<div class="exp-item" style="display:grid;grid-template-columns:132px 1.5fr 1fr 1fr 108px 96px 1.2fr 32px;gap:7px;margin-bottom:8px;align-items:center">
+    <input type="date" class="ei-date" value="${esc(it.date||"")}">
+    <input class="ei-cust" list="expCustList" placeholder="客户（可调用系统客户）" value="${esc(it.custName||"")}">
+    <input class="ei-from" placeholder="出发地" value="${esc(it.from||"")}">
+    <input class="ei-to" placeholder="目的地" value="${esc(it.to||"")}">
+    <select class="ei-trans">${EXP_TRANS.map(t=>`<option${t===it.transport?" selected":""}>${t}</option>`).join("")}</select>
+    <input class="ei-amt" type="number" min="0" step="0.01" placeholder="金额" value="${it.amount||""}" oninput="expSumItems()">
+    <input class="ei-reason" placeholder="事由" value="${esc(it.reason||"")}">
+    <button type="button" class="btn ghost sm" title="删除本行" onclick="this.parentElement.remove();expSumItems()">×</button>
+  </div>`;
+}
+function expAddItem(it){ $("#e_items").insertAdjacentHTML("beforeend",expItemRow(it)); expSumItems(); }
+function expSumItems(){
+  let t=0; document.querySelectorAll("#e_items .ei-amt").forEach(i=>t+=parseFloat(i.value)||0);
+  $("#e_total").textContent="¥"+fmtMoney(t);
+}
+function openExpense(appKey){
+  editExpId=null;
+  let app=null, items=[], legacyItem=null;
+  if(appKey&&appKey.indexOf("lg:")===0){
+    legacyItem=(DB.expenses||[]).find(x=>x.id===appKey.slice(3));
+    if(!legacyItem){toast("报销记录不存在");return;}
+    editExpId={type:"lg",id:legacyItem.id}; items=[legacyItem];
+    app={month:(legacyItem.date||"").slice(0,7),userName:legacyItem.userName,userId:legacyItem.userId,status:legacyItem.status,note:legacyItem.note||""};
+  }else if(appKey){
+    app=(DB.expApps||[]).find(x=>x.id===appKey);
+    if(!app){toast("报销申请不存在");return;}
+    editExpId={type:"app",id:app.id};
+    items=(DB.expenses||[]).filter(e=>e.appId===app.id);
+  }
+  if(editExpId&&app.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能修改自己的报销申请");return;}
+  if(editExpId&&app.status!=="待审核"&&!isAdmin()){toast("已审核的申请单不能修改");return;}
+  $("#expModalTitle").textContent=editExpId?"编辑报销申请":"新建报销申请";
+  $("#expDeleteBtn").style.display=editExpId?"":"none";
+  $("#e_month").value=app?app.month||today().slice(0,7):today().slice(0,7);
+  $("#e_ownerName").value=app?app.userName:(CURRENT?CURRENT.name:"");
+  $("#e_note").value=app?app.note||"":"";
   $("#expCustList").innerHTML=(DB.customers||[]).map(c=>`<option value="${esc(c.name)}"></option>`).join("");
-  $("#e_custName").value=e?e.custName||"":"";
-  $("#e_from").value=e?e.from||"":""; $("#e_to").value=e?e.to||"":"";
-  $("#e_transport").value=e&&e.transport?e.transport:"打车";
-  $("#e_amount").value=e&&e.amount?e.amount:"";
-  $("#e_reason").value=e?e.reason||"":""; $("#e_note").value=e?e.note||"":"";
+  $("#e_items").innerHTML="";
+  if(items.length)items.forEach(i=>expAddItem(i)); else expAddItem({});
   openModal("expModal");
 }
 function saveExpense(){
-  const date=$("#e_date").value, amount=parseFloat($("#e_amount").value);
-  if(!date){toast("请选择费用日期");return;}
-  if(!(amount>0)){toast("请填写正确的金额");return;}
-  const custName=$("#e_custName").value.trim();
-  const cust=custName?(DB.customers||[]).find(c=>c.name===custName):null;
-  const data={date,userName:$("#e_ownerName").value,customerId:cust?cust.id:"",custName,
-    from:$("#e_from").value.trim(),to:$("#e_to").value.trim(),transport:$("#e_transport").value,
-    amount,reason:$("#e_reason").value.trim(),note:$("#e_note").value.trim()};
-  data.updatedAt=new Date().toISOString();
-  if(editExpId){Object.assign(DB.expenses.find(x=>x.id===editExpId),data);}
-  else{ DB.expenses=DB.expenses||[]; DB.expenses.push(Object.assign({id:uid(),userId:CURRENT.id,status:"待审核",reviewedBy:"",reviewedAt:"",createdAt:new Date().toISOString()},data)); }
-  save();closeModal("expModal");renderExpense();toast(editExpId?"已保存":"已提交，等待管理员审核");
+  const month=$("#e_month").value;
+  if(!month){toast("请选择报销月份");return;}
+  const items=[];
+  let bad=false;
+  document.querySelectorAll("#e_items .exp-item").forEach(row=>{
+    const date=row.querySelector(".ei-date").value, amount=parseFloat(row.querySelector(".ei-amt").value);
+    if(!date&&!(amount>0)&&!row.querySelector(".ei-cust").value.trim())return;   // 跳过整行空白
+    if(!date||!(amount>0)){bad=true;return;}
+    const custName=row.querySelector(".ei-cust").value.trim();
+    const cust=custName?(DB.customers||[]).find(c=>c.name===custName):null;
+    items.push({date,amount,custName,customerId:cust?cust.id:"",from:row.querySelector(".ei-from").value.trim(),to:row.querySelector(".ei-to").value.trim(),transport:row.querySelector(".ei-trans").value,reason:row.querySelector(".ei-reason").value.trim()});
+  });
+  if(bad){toast("每条明细都需要填写日期和金额");return;}
+  if(!items.length){toast("请至少添加一条有效明细");return;}
+  const note=$("#e_note").value.trim(), now=new Date().toISOString();
+  const total=items.reduce((x,i)=>x+i.amount,0);
+  DB.expenses=DB.expenses||[]; DB.expApps=DB.expApps||[];
+  if(editExpId&&editExpId.type==="app"){
+    const app=DB.expApps.find(x=>x.id===editExpId.id);
+    Object.assign(app,{month,total,note,updatedAt:now});
+    DB.expenses=DB.expenses.filter(e=>e.appId!==app.id);
+    items.forEach(i=>DB.expenses.push(Object.assign({id:uid(),appId:app.id,userId:app.userId,userName:app.userName,status:app.status,reviewedBy:app.reviewedBy||"",reviewedAt:app.reviewedAt||"",note:"",createdAt:now,updatedAt:now},i)));
+    toast("申请单已更新");
+  }else{
+    let app;
+    if(editExpId&&editExpId.type==="lg"){
+      const old=DB.expenses.find(x=>x.id===editExpId.id);
+      app={id:uid(),userId:old.userId,userName:old.userName,month,total,note,status:old.status,reviewedBy:old.reviewedBy||"",reviewedAt:old.reviewedAt||"",createdAt:old.createdAt||now,updatedAt:now};
+      DB.expenses=DB.expenses.filter(e=>e.id!==old.id);
+    }else{
+      app={id:uid(),userId:CURRENT.id,userName:CURRENT.name,month,total,note,status:"待审核",reviewedBy:"",reviewedAt:"",createdAt:now,updatedAt:now};
+    }
+    DB.expApps.push(app);
+    items.forEach(i=>DB.expenses.push(Object.assign({id:uid(),appId:app.id,userId:app.userId,userName:app.userName,status:app.status,reviewedBy:"",reviewedAt:"",note:"",createdAt:now,updatedAt:now},i)));
+    toast(editExpId?"已转为按月申请单":"已提交，等待管理员审核");
+  }
+  save();closeModal("expModal");renderExpense();
 }
-function delExpense(id){
-  const e=(DB.expenses||[]).find(x=>x.id===id); if(!e)return;
-  if(e.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能撤回自己的报销单");return;}
-  if(e.status!=="待审核"&&!isAdmin()){toast("已审核的报销单不能删除");return;}
-  if(!confirm("确定撤回并删除该报销单？"))return;
-  DB.expenses=DB.expenses.filter(x=>x.id!==id);
+function delExpense(){
+  if(!editExpId)return;
+  let app;
+  if(editExpId.type==="lg"){
+    const e=(DB.expenses||[]).find(x=>x.id===editExpId.id); if(!e)return;
+    if(e.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能撤回自己的报销");return;}
+    if(e.status!=="待审核"&&!isAdmin()){toast("已审核的不能删除");return;}
+    if(!confirm("确定撤回并删除该报销记录？"))return;
+    DB.expenses=DB.expenses.filter(x=>x.id!==e.id);
+  }else{
+    app=(DB.expApps||[]).find(x=>x.id===editExpId.id); if(!app)return;
+    if(app.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能撤回自己的报销申请");return;}
+    if(app.status!=="待审核"&&!isAdmin()){toast("已审核的申请单不能删除");return;}
+    if(!confirm("确定撤回整张申请单？其中全部明细将一并删除。"))return;
+    DB.expApps=DB.expApps.filter(x=>x.id!==app.id);
+    DB.expenses=DB.expenses.filter(e=>e.appId!==app.id);
+  }
   save();closeModal("expModal");renderExpense();toast("已删除");
 }
-function reviewExpense(id,st){
+// 超级管理员：删除任何状态的报销申请（含全部明细），用于清理提交错误的单据
+function expAdminDelete(appKey){
+  if(!isAdmin()){toast("仅超级管理员可删除");return;}
+  if(appKey.indexOf("lg:")===0){
+    const e=(DB.expenses||[]).find(x=>x.id===appKey.slice(3)); if(!e)return;
+    if(!confirm("确定删除「"+(e.userName||"")+"」的这笔报销记录（¥"+fmtMoney(e.amount)+"）？此操作不可恢复。"))return;
+    DB.expenses=DB.expenses.filter(x=>x.id!==e.id);
+  }else{
+    const app=(DB.expApps||[]).find(x=>x.id===appKey); if(!app)return;
+    const n=(DB.expenses||[]).filter(e=>e.appId===app.id).length;
+    if(!confirm("确定删除「"+(app.userName||"")+"」"+(app.month||"")+" 的整张报销申请（"+n+" 笔明细，合计 ¥"+fmtMoney(app.total||0)+"）？此操作不可恢复。"))return;
+    DB.expApps=DB.expApps.filter(x=>x.id!==app.id);
+    DB.expenses=DB.expenses.filter(e=>e.appId!==app.id);
+  }
+  save();renderExpense();toast("已删除该报销记录");
+}
+function reviewExpense(appKey,st){
   if(!isAdmin()){toast("仅管理员可审核");return;}
-  const e=(DB.expenses||[]).find(x=>x.id===id); if(!e)return;
-  if(!confirm("确定将该报销单标记为「"+st+"」？"))return;
-  e.status=st; e.reviewedBy=CURRENT.name; e.reviewedAt=new Date().toISOString(); e.updatedAt=e.reviewedAt;
+  if(!confirm("确定将该申请单标记为「"+st+"」？"))return;
+  const now=new Date().toISOString();
+  if(appKey.indexOf("lg:")===0){
+    const e=(DB.expenses||[]).find(x=>x.id===appKey.slice(3)); if(!e)return;
+    e.status=st; e.reviewedBy=CURRENT.name; e.reviewedAt=now; e.updatedAt=now;
+  }else{
+    const app=(DB.expApps||[]).find(x=>x.id===appKey); if(!app)return;
+    app.status=st; app.reviewedBy=CURRENT.name; app.reviewedAt=now; app.updatedAt=now; app.total=(DB.expenses||[]).filter(e=>e.appId===app.id).reduce((x,i)=>x+(+i.amount||0),0);
+    (DB.expenses||[]).forEach(e=>{ if(e.appId===app.id){ e.status=st; e.reviewedBy=CURRENT.name; e.reviewedAt=now; e.updatedAt=now; } });
+  }
   save();renderExpense();toast("已"+(st==="已通过"?"通过":"驳回"));
+}
+function expViewApp(appKey){
+  const a=buildExpenseApps().find(x=>x.id===appKey); if(!a)return;
+  $("#expViewTitle").textContent="报销明细 · "+(a.userName||"")+" · "+(a.month||"");
+  $("#expViewBody").innerHTML=(a.note?`<div style="margin-bottom:10px;color:var(--muted)">备注：${esc(a.note)}</div>`:"")+
+  `<table><thead><tr><th>日期</th><th>客户</th><th>路线</th><th>交通</th><th style="text-align:right">金额</th><th>事由</th></tr></thead><tbody>${
+    a.items.map(i=>`<tr><td style="white-space:nowrap">${esc(i.date||"")}</td>
+      <td class="namecol">${i.customerId?`<span class="link" onclick="closeModal('expViewModal');showDetail('${i.customerId}')">${esc(i.custName)}</span>`:esc(i.custName||"—")}</td>
+      <td style="white-space:nowrap">${(i.from||i.to)?esc(i.from||"—")+" → "+esc(i.to||"—"):""}</td>
+      <td>${esc(i.transport||"")}</td>
+      <td style="text-align:right;font-weight:600">¥${fmtMoney(i.amount)}</td>
+      <td><div class="clip" title="${esc(i.reason||"")}">${esc(i.reason||"")}</div></td></tr>`).join("")
+  }</tbody></table><div style="text-align:right;font-weight:700;margin-top:10px">合计：¥${fmtMoney(a.total)}</div>`;
+  openModal("expViewModal");
 }
 
 /* 刷新「负责人 / 来源」动态下拉与筛选 */
@@ -3506,9 +3641,9 @@ async function savePassword(){
 function clearAll(){
   if(!isAdmin()){toast("仅管理员可执行");return;}
   if(prompt("此操作只清空【本机浏览器】的缓存数据，云端团队数据不受影响（重新登录后会重新拉取）。\n\n如确认，请输入：清空")!=="清空")return;
-  DB={customers:[],visits:[],pool:[],cases:[],expenses:[],users:DB.users,seq:0};
+  DB={customers:[],visits:[],pool:[],cases:[],expenses:[],expApps:[],users:DB.users,seq:0};
   localStorage.removeItem(LS_KEY);
-  _snap.customers=new Map();_snap.visits=new Map();_snap.pool=new Map();_snap.cases=new Map();_snap.expenses=new Map();
+  _snap.customers=new Map();_snap.visits=new Map();_snap.pool=new Map();_snap.cases=new Map();_snap.expenses=new Map();_snap.expense_apps=new Map();
   refreshDynamic();renderDash();renderCustomers();renderVisits();
   toast("已清空本机缓存（云端数据未受影响）");
 }
