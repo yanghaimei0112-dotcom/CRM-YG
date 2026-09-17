@@ -1563,7 +1563,14 @@ async function renderGoals(){
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">${tWeeks}</div></div>`;
   }
-  listBox.innerHTML=DB.users.map(u=>{
+  // 排序：管理人员（超管/主管）靠前，其余按本月已达成业绩降序（有业绩的靠前）
+  const sortedUsers=DB.users.slice().sort((a,b)=>{
+    const ra=(a.role==="admin"||a.role==="manager")?0:1, rb=(b.role==="admin"||b.role==="manager")?0:1;
+    if(ra!==rb)return ra-rb;
+    const aa=amtOf(perf.find(p=>p.user_id===a.id)||{}), ab=amtOf(perf.find(p=>p.user_id===b.id)||{});
+    return ab-aa;
+  });
+  listBox.innerHTML=sortedUsers.map(u=>{
     const p=perf.find(x=>x.user_id===u.id)||{};
     const canEdit=isAdmin()||(CURRENT&&CURRENT.id===u.id);
     const goal=+p.goal||0, done=amtOf(p);
