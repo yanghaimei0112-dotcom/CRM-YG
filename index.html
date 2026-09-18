@@ -775,7 +775,7 @@
 <!-- ===== Pool Modal ===== -->
 <div class="modal-bg" id="poolModal">
   <div class="modal">
-    <div class="modal-head"><h3 id="poolModalTitle">编辑公海客户</h3><button class="x" onclick="closeModal('poolModal')">×</button></div>
+    <div class="modal-head"><h3 id="poolModalTitle">编辑公海客户</h3><span id="poolNav" style="margin-left:auto;display:flex;gap:6px;align-items:center;white-space:nowrap"></span><button class="x" onclick="closeModal('poolModal')">×</button></div>
     <div class="modal-body">
       <div id="poolDetail" style="display:none"></div>
       <div id="poolFormWrap">
@@ -3285,6 +3285,7 @@ function renderPool(){
   }
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region,c.origin].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{const x=poolRecency(a),y=poolRecency(b);return x>y?-1:x<y?1:0;});
+  DCTX.pool=rows.map(c=>c.id);   // 详情弹窗「上一家/下一家」按当前列表顺序跳转
   if(!rows.length){$("#poolList").innerHTML=`<div class="empty">公海暂无客户。可在客户详情里点「放入公海」，或由管理员到「数据管理」导入名单。</div>`;return;}
   const mine=new Set(DB.customers.filter(c=>c.owner===CURRENT.name).map(c=>c.name));
   const total=rows.length, pageRows=pageSlice(rows,"pool");
@@ -3448,6 +3449,12 @@ function openPool(id,edit){
   $("#poolSaveBtn").style.display=detailMode?"none":"";
   $("#poolCancelBtn").textContent=detailMode?"关闭":"取消";
   if(detailMode)renderPoolDetail(p);
+  // 「‹ 上一家 / 下一家 ›」：按公海列表当前排序跳转（同公共潜在）
+  const pnav=$("#poolNav");
+  if(detailMode){
+    const ctx=DCTX.pool||[], nidx=ctx.indexOf(id);
+    pnav.innerHTML=(nidx>=0&&ctx.length>1)?`<button class="btn ghost sm" ${nidx===0?"disabled":""} onclick="openPool('${ctx[nidx-1]}')">‹ 上一家</button><span style="font-size:12px;color:var(--muted)">${nidx+1} / ${ctx.length}</span><button class="btn ghost sm" ${nidx===ctx.length-1?"disabled":""} onclick="openPool('${ctx[nidx+1]}')">下一家 ›</button>`:"";
+  }else pnav.innerHTML="";
   $("#p_name").value=p.name||""; $("#p_attr").value=p.attr||""; $("#p_region").value=p.region||""; $("#p_origin").value=p.origin||"";
   $("#p_contact").value=p.contact||""; $("#p_phone").value=p.phone||""; $("#p_tradeContact").value=p.tradeContact||""; $("#p_tradePhone").value=p.tradePhone||"";
   $("#p_shareholder").value=p.shareholder||""; $("#p_shareholderPhone").value=p.shareholderPhone||"";
