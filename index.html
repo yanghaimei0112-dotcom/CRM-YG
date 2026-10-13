@@ -397,14 +397,13 @@
   <section id="view-worklog" class="view">
     <div class="toolbar">
       <input type="month" id="wlMonth" onchange="renderWorklog()">
-      <select id="wlOwner" onchange="renderWorklog()" style="display:none"><option value="">全部成员</option></select>
-      <input type="text" id="wlSearch" placeholder="🔍 搜索成员 / 备注" oninput="renderWorklog()">
+      <select id="wlOwner" onchange="renderWorklog()"></select>
       <div class="spacer"></div>
-      <button class="btn" onclick="openWorklog()">＋ 今日记录</button>
-      <div class="hint">每人每天一条：电话量 / 邀约量 / 拜访量；同天重复填写自动覆盖更新</div>
+      <button class="btn" id="wlAddBtn" onclick="openWorklog()">＋ 记一笔</button>
+      <div class="hint">选择成员 → 点击日历任意一天，即可填写 / 修改当天数据（每人每天一条）</div>
     </div>
     <div class="kpi-grid" id="wlStats" style="margin:0 0 14px"></div>
-    <div id="worklogList" class="tbl-wrap"></div>
+    <div id="wlCal" style="overflow-x:auto"></div>
   </section>
 
   <!-- ============ CUSTOMERS ============ -->
@@ -664,7 +663,8 @@
     <div class="modal-head"><h3 id="wlModalTitle">新建工作记录</h3><button class="x" onclick="closeModal('worklogModal')">×</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="field"><label>日期 *</label><input id="w_date" type="date" onchange="wlDateFill()"></div>
+        <div class="field"><label>成员 *</label><select id="w_user" onchange="wlPrefill()"></select></div>
+        <div class="field"><label>日期 *</label><input id="w_date" type="date" onchange="wlPrefill()"></div>
         <div class="field"><label>📞 电话量（通）</label><input id="w_calls" type="number" min="0" step="1" placeholder="0"></div>
         <div class="field"><label>🤝 邀约量（个）</label><input id="w_invites" type="number" min="0" step="1" placeholder="0"></div>
         <div class="field"><label>🚶 拜访量（次）</label><input id="w_visits" type="number" min="0" step="1" placeholder="0"></div>
@@ -674,7 +674,7 @@
     <div class="modal-foot">
       <button class="btn danger sm" id="wlDeleteBtn" style="margin-right:auto;display:none" onclick="delWorklog(editWlId)">删除</button>
       <button class="btn ghost" onclick="closeModal('worklogModal')">取消</button>
-      <button class="btn" onclick="saveWorklog()">保存</button>
+      <button class="btn" id="wlSaveBtn" onclick="saveWorklog()">保存</button>
     </div>
   </div>
 </div>
@@ -3344,90 +3344,113 @@ function _expViewRender(a){
   }</tbody></table><div style="text-align:right;font-weight:700;margin-top:10px">合计：¥${fmtMoney(a.total)}</div>`;
 }
 
-/* ===================== 基础工作记录（电话 / 邀约 / 拜访，每人每天一条） ===================== */
+/* ===================== 基础工作记录（日历模式：管理人员按人按天记录 电话/邀约/拜访） ===================== */
 let editWlId=null;
 function visibleWorklogs(){
   const all=DB.workLogs||[];
   if(isAdmin())return all;
   return all.filter(w=>w.userId===(CURRENT&&CURRENT.id)||managesName(w.userName));
 }
+// 是否可为某成员录入：超管=所有人；分组主管=自己+管辖成员；业务员=不可录入（只读）
+function wlCanRecord(userId){
+  if(isAdmin())return true;
+  if(isManager())return userId===(CURRENT&&CURRENT.id)||managedIds().has(userId);
+  return false;
+}
+// 成员名单（来自系统用户）：超管=全员；主管=自己+管辖；业务员=仅自己
+function wlMembers(){
+  const users=(DB.users||[]).filter(u=>u.name);
+  if(isAdmin())return users;
+  if(isManager()){const ids=managedIds();return users.filter(u=>u.id===(CURRENT&&CURRENT.id)||ids.has(u.id));}
+  return users.filter(u=>u.id===(CURRENT&&CURRENT.id));
+}
 function renderWorklog(){
-  if(!CURRENT||!$("#worklogList"))return;
+  if(!CURRENT||!$("#wlCal"))return;
   const wm=$("#wlMonth");
   if(wm&&!wm.dataset.init){ wm.value=today().slice(0,7); wm.dataset.init="1"; }   // 默认当月
-  const m=wm?wm.value:"", q=($("#wlSearch").value||"").toLowerCase();
-  const canSeeOthers=isAdmin()||isManager();
-  const wo=$("#wlOwner");
-  wo.style.display=canSeeOthers?"":"none";
-  const names=[...new Set(visibleWorklogs().map(w=>w.userName).filter(Boolean))].sort();
-  const curOw=wo.value;
-  wo.innerHTML=`<option value="">全部成员</option>`+names.map(n=>`<option${n===curOw?" selected":""}>${esc(n)}</option>`).join("");
-  const ow=wo.value;
-  let rows=visibleWorklogs();
-  if(m)rows=rows.filter(w=>(w.date||"").slice(0,7)===m);
-  if(ow)rows=rows.filter(w=>w.userName===ow);
-  if(q)rows=rows.filter(w=>[w.userName,w.note].join(" ").toLowerCase().includes(q));
-  rows.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(a.userName||"").localeCompare(b.userName||""));
-  const sum=k=>rows.reduce((x,w)=>x+(+w[k]||0),0);
-  const days=new Set(rows.map(w=>w.date)).size;
+  const m=wm?wm.value:today().slice(0,7);
+  const mems=wlMembers(), wo=$("#wlOwner");
+  const cur=wo.value;
+  wo.style.display=mems.length>1?"":"none";
+  wo.innerHTML=mems.map(u=>`<option value="${u.id}"${u.id===cur?" selected":""}>${esc(u.name)}（${roleLabel(u.role)}）</option>`).join("");
+  if(!mems.some(u=>u.id===wo.value))wo.value=(CURRENT&&CURRENT.id)||"";
+  const sel=wo.value, selName=((mems.find(u=>u.id===sel)||{}).name)||"";
+  const canRec=wlCanRecord(sel);
+  $("#wlAddBtn").style.display=canRec?"":"none";
+  // 当月该成员记录
+  const recs=(DB.workLogs||[]).filter(w=>w.userId===sel&&(w.date||"").slice(0,7)===m);
+  const byDate={}; recs.forEach(w=>byDate[w.date]=w);
+  const sum=k=>recs.reduce((x,w)=>x+(+w[k]||0),0);
+  const days=recs.length;
   $("#wlStats").innerHTML=`
-    <div class="kpi"><div class="l">📞 电话量 <span class="tag">${m?m.replace("-"," 年 ")+" 月":""}</span></div><div class="v">${sum("calls")} 通</div><div class="s">${canSeeOthers?"可见范围汇总":"我的汇总"} · ${days} 天有记录</div></div>
+    <div class="kpi"><div class="l">📞 电话量 <span class="tag">${esc(selName)} · ${m.replace("-"," 年 ")} 月</span></div><div class="v">${sum("calls")} 通</div><div class="s">${days} 天有记录</div></div>
     <div class="kpi gold"><div class="l">🤝 邀约量</div><div class="v gold">${sum("invites")} 个</div><div class="s">日均 ${days?Math.round(sum("invites")/days*10)/10:0} 个 / 天</div></div>
     <div class="kpi"><div class="l">🚶 拜访量</div><div class="v" style="color:var(--green)">${sum("visits")} 次</div><div class="s">日均 ${days?Math.round(sum("visits")/days*10)/10:0} 次 / 天</div></div>`;
-  const total=rows.length, pageRows=pageSlice(rows,"worklog");
-  $("#worklogList").innerHTML= total? `<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 条记录</div><table><thead><tr><th>日期</th><th>成员</th><th style="text-align:right">📞 电话量</th><th style="text-align:right">🤝 邀约量</th><th style="text-align:right">🚶 拜访量</th><th>备注</th><th></th></tr></thead><tbody>${
-    pageRows.map(w=>{
-      const canEdit=w.userId===(CURRENT&&CURRENT.id)||isAdmin();
-      return `<tr>
-      <td style="white-space:nowrap;font-weight:600">${esc(w.date||"")}</td>
-      <td>${esc(w.userName||"")}</td>
-      <td style="text-align:right">${+w.calls||0}</td>
-      <td style="text-align:right">${+w.invites||0}</td>
-      <td style="text-align:right">${+w.visits||0}</td>
-      <td><div class="clip" title="${esc(w.note||"")}">${esc(w.note||"—")}</div></td>
-      <td><div class="row-act">${canEdit?`<button class="btn ghost sm" onclick="openWorklog('${w.id}')">编辑</button><button class="btn ghost sm" style="color:#dc2626" onclick="delWorklog('${w.id}')">删除</button>`:""}</div></td>
-    </tr>`;}).join("")
-  }</tbody></table>`+pageBar(total,"worklog") : `<div class="empty">暂无工作记录，点右上角「＋ 今日记录」填写每天的电话 / 邀约 / 拜访量。</div>`;
+  // 月历（周一起）
+  const yy=+m.slice(0,4), mm=+m.slice(5,7);
+  const off=(new Date(yy,mm-1,1).getDay()+6)%7, daysIn=new Date(yy,mm,0).getDate();
+  let cells="";
+  for(let i=0;i<off;i++)cells+=`<div style="min-height:88px;border:1px dashed var(--line);border-radius:8px;background:#fafbfa"></div>`;
+  for(let d=1;d<=daysIn;d++){
+    const dstr=m+"-"+String(d).padStart(2,"0"), w=byDate[dstr], isT=dstr===today();
+    cells+=`<div onclick="openWorklog('${dstr}','${sel}')" style="min-height:88px;border:1px solid ${isT?"var(--brand)":"var(--line)"};border-radius:8px;padding:6px 8px;cursor:pointer;background:${w?"#fff":"#fcfcfc"};font-size:12px;line-height:1.7">
+      <div style="font-weight:700;${isT?"color:var(--brand)":""}">${d}${isT?" · 今天":""}</div>
+      ${w?`<div>📞 ${+w.calls||0} 通</div><div>🤝 ${+w.invites||0} 个</div><div>🚶 ${+w.visits||0} 次</div>${w.note?`<div class="clip" style="color:var(--muted)" title="${esc(w.note)}">${esc(w.note)}</div>`:""}`:`<div style="color:var(--muted)">—</div>`}
+    </div>`;
+  }
+  $("#wlCal").innerHTML=`<div style="min-width:720px"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">${["一","二","三","四","五","六","日"].map(w=>`<div style="text-align:center;font-weight:600;color:var(--muted);font-size:12px">周${w}</div>`).join("")}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${cells}</div></div>`;
 }
-function openWorklog(id){
-  editWlId=id||null;
-  const w=id?(DB.workLogs||[]).find(x=>x.id===id):null;
-  if(id&&!w){toast("记录不存在");return;}
-  if(w&&w.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能修改自己的记录");return;}
-  $("#wlModalTitle").textContent=w?"编辑工作记录":"新建工作记录";
-  $("#wlDeleteBtn").style.display=w?"":"none";
-  $("#w_date").value=w?w.date:today();
+function openWorklog(dateStr,userId){
+  editWlId=null;
+  const uid0=userId||($("#wlOwner")&&$("#wlOwner").value)||(CURRENT&&CURRENT.id);
+  const d0=dateStr||today();
+  const canRec=wlCanRecord(uid0);
+  const w=(DB.workLogs||[]).find(x=>x.userId===uid0&&x.date===d0);
+  if(w)editWlId=w.id;
+  if(!canRec&&!w){toast("工作记录由管理人员统一填写");return;}
+  const mems=wlMembers();
+  $("#w_user").innerHTML=mems.map(u=>`<option value="${u.id}">${esc(u.name)}（${roleLabel(u.role)}）</option>`).join("");
+  $("#w_user").value=uid0;
+  $("#w_user").disabled=!!w||!canRec;   // 编辑已有记录 / 无录入权限时锁定成员
+  $("#wlModalTitle").textContent=(w?"编辑":"新建")+"工作记录"+(canRec?"":"（查看）");
+  $("#wlDeleteBtn").style.display=(w&&canRec)?"":"none";
+  $("#wlSaveBtn").style.display=canRec?"":"none";
+  ["w_date","w_calls","w_invites","w_visits","w_note"].forEach(id=>$("#"+id).disabled=!canRec);
+  if(canRec)$("#w_date").disabled=!!w;  // 编辑时锁定日期（每人每天一条）
+  $("#w_date").value=w?w.date:d0;
   $("#w_calls").value=w?w.calls:"";
   $("#w_invites").value=w?w.invites:"";
   $("#w_visits").value=w?w.visits:"";
   $("#w_note").value=w?w.note||"":"";
   openModal("worklogModal");
 }
-// 改日期时：若自己当天已有记录则带出（每人每天一条，重复填写即修改）
-function wlDateFill(){
-  const d=$("#w_date").value; if(!d)return;
-  const ex=(DB.workLogs||[]).find(x=>x.date===d&&x.userId===(CURRENT&&CURRENT.id));
-  if(ex&&ex.id!==editWlId){ editWlId=ex.id; $("#wlModalTitle").textContent="编辑工作记录"; $("#wlDeleteBtn").style.display=""; $("#w_calls").value=ex.calls||""; $("#w_invites").value=ex.invites||""; $("#w_visits").value=ex.visits||""; $("#w_note").value=ex.note||""; toast("该日期已有记录，已带出修改"); }
+// 新建模式下换人 / 换日期：若目标已有记录则自动带出
+function wlPrefill(){
+  if(editWlId)return;
+  const uid0=$("#w_user").value, d0=$("#w_date").value; if(!uid0||!d0)return;
+  if((DB.workLogs||[]).some(x=>x.userId===uid0&&x.date===d0)){ openWorklog(d0,uid0); toast("该成员当天已有记录，已带出修改"); }
 }
 function saveWorklog(){
-  const date=$("#w_date").value;
+  const uid0=$("#w_user").value, date=$("#w_date").value;
+  if(!uid0){toast("请选择成员");return;}
   if(!date){toast("请选择日期");return;}
+  if(!wlCanRecord(uid0)){toast("仅管理人员可记录");return;}
   const calls=parseInt($("#w_calls").value)||0, invites=parseInt($("#w_invites").value)||0, visits=parseInt($("#w_visits").value)||0;
   if(calls<0||invites<0||visits<0){toast("数量不能为负数");return;}
   if(!calls&&!invites&&!visits){toast("请至少填写一项数量");return;}
   const note=$("#w_note").value.trim(), now=new Date().toISOString();
+  const uname=((DB.users||[]).find(u=>u.id===uid0)||{}).name||CURRENT.name;
   DB.workLogs=DB.workLogs||[];
   let w=editWlId?DB.workLogs.find(x=>x.id===editWlId):null;
-  if(w&&w.userId!==CURRENT.id&&!isAdmin()){toast("只能修改自己的记录");return;}
-  if(!w)w=DB.workLogs.find(x=>x.date===date&&x.userId===CURRENT.id);   // 同日同人合并
-  if(w){ Object.assign(w,{date,calls,invites,visits,note,updatedAt:now}); toast("工作记录已更新"); }
-  else{ DB.workLogs.push({id:uid(),userId:CURRENT.id,userName:CURRENT.name,date,calls,invites,visits,note,createdAt:now,updatedAt:now}); toast("已保存工作记录"); }
+  if(!w)w=DB.workLogs.find(x=>x.userId===uid0&&x.date===date);   // 同人同日合并
+  if(w){ Object.assign(w,{calls,invites,visits,note,updatedAt:now}); toast("工作记录已更新"); }
+  else{ DB.workLogs.push({id:uid(),userId:uid0,userName:uname,date,calls,invites,visits,note,createdAt:now,updatedAt:now}); toast("已保存工作记录"); }
   save();closeModal("worklogModal");renderWorklog();
 }
 function delWorklog(id){
   const w=(DB.workLogs||[]).find(x=>x.id===id); if(!w)return;
-  if(w.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能删除自己的记录");return;}
-  if(!confirm("确定删除 "+(w.date||"")+" 的工作记录？"))return;
+  if(!wlCanRecord(w.userId)){toast("仅管理人员可删除");return;}
+  if(!confirm("确定删除 "+(w.userName||"")+" "+(w.date||"")+" 的工作记录？"))return;
   DB.workLogs=DB.workLogs.filter(x=>x.id!==w.id);
   editWlId=null;
   save();closeModal("worklogModal");renderWorklog();toast("已删除");
@@ -3967,7 +3990,7 @@ function initSelects(){
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
 ["ygoldSearch","ygoldOwner","ygoldStar","ygoldOperation","ygoldVersion","ygoldStatus","ygoldRegion","ygoldQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.ygold=1;renderYgold();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
-["wlSearch","wlMonth","wlOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.worklog=1;renderWorklog();}}));
+["wlMonth","wlOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.worklog=1;renderWorklog();}}));
 ["caseSearch","caseRegion","caseIndustry"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
 $("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
 $("#segKanban").onclick=()=>{custView="kanban";$("#segKanban").classList.add("active");$("#segList").classList.remove("active");renderCustomers();};
