@@ -3393,7 +3393,7 @@ function renderWorklog(){
   for(let i=0;i<off;i++)cells+=`<div style="min-height:88px;border:1px dashed var(--line);border-radius:8px;background:#fafbfa"></div>`;
   for(let d=1;d<=daysIn;d++){
     const dstr=m+"-"+String(d).padStart(2,"0"), w=byDate[dstr], isT=dstr===today();
-    const sysN=w?0:wlSysVisits(sel,dstr).length;   // 无手填记录时显示系统当天拜访数
+    const sysN=w?0:wlVisitRows(sel,dstr).length;   // 无手填记录时显示系统当天拜访数（按客户去重）
     cells+=`<div onclick="openWorklog('${dstr}','${sel}')" style="min-height:88px;border:1px solid ${isT?"var(--brand)":"var(--line)"};border-radius:8px;padding:6px 8px;cursor:pointer;background:${w?"#fff":"#fcfcfc"};font-size:12px;line-height:1.7">
       <div style="font-weight:700;${isT?"color:var(--brand)":""}">${d}${isT?" · 今天":""}</div>
       ${w?`<div>📞 ${+w.calls||0} 通</div><div>🤝 ${+w.invites||0} 个</div><div>🚶 ${+w.visits||0} 次</div>${w.note?`<div class="clip" style="color:var(--muted)" title="${esc(w.note)}">${esc(w.note)}</div>`:""}`:(sysN?`<div style="color:var(--muted)">🚶 系统 ${sysN} 次</div>`:`<div style="color:var(--muted)">—</div>`)}
@@ -3407,22 +3407,31 @@ function wlSysVisits(uid0,d0){
   const uname=((DB.users||[]).find(u=>u.id===uid0)||{}).name||"";
   return (DB.visits||[]).filter(v=>v.date===d0&&(v.createdBy===uid0||(uname&&v.visitor===uname)));
 }
+// 按客户去重后的当天拜访（同一客户当天多条跟进只算 1 次拜访）
+function wlVisitRows(uid0,d0){
+  const seen=new Set(), out=[];
+  wlSysVisits(uid0,d0).forEach(v=>{
+    const k=v.customerId||v.company||v.title||v.id;
+    if(seen.has(k))return; seen.add(k); out.push(v);
+  });
+  return out;
+}
 function wlVisitNames(list){
   return [...new Set(list.map(v=>custName(v.customerId)||v.company||v.title).filter(Boolean))];
 }
-// 刷新弹窗内「系统当天拜访」提示；autoFill=true 时（新建且无手动值）直接带入数量
+// 刷新弹窗内「系统当天拜访」提示（完整客户名单）；autoFill=true 时（新建）直接带入数量
 function wlSyncVisits(autoFill){
   const el=$("#w_sysvisits"); if(!el)return;
   const uid0=$("#w_user").value, d0=$("#w_date").value;
-  const sys=wlSysVisits(uid0,d0), names=wlVisitNames(sys);
-  if(!sys.length){ el.innerHTML=`<span style="color:var(--muted)">系统当天无拜访记录</span>`; return; }
-  el.innerHTML=`📌 系统当天拜访 <b style="color:var(--brand)">${sys.length}</b> 次${names.length?"："+esc(names.slice(0,4).join("、"))+(names.length>4?" 等":""):""} <span class="link" onclick="wlPullVisits()">↻ 调取数量</span>`;
-  if(autoFill)$("#w_visits").value=sys.length;
+  const rows=wlVisitRows(uid0,d0), names=wlVisitNames(rows);
+  if(!rows.length){ el.innerHTML=`<span style="color:var(--muted)">系统当天无拜访记录</span>`; return; }
+  el.innerHTML=`📌 系统当天拜访 <b style="color:var(--brand)">${rows.length}</b> 家 <span class="link" onclick="wlPullVisits()">↻ 调取数量</span>${names.length?`<div style="margin-top:4px;line-height:1.8;color:#374151">${names.map(n=>`<span style="display:inline-block;background:#f1f5f1;border:1px solid var(--line);border-radius:10px;padding:0 8px;margin:0 4px 4px 0">${esc(n)}</span>`).join("")}</div>`:""}`;
+  if(autoFill)$("#w_visits").value=rows.length;
 }
 function wlPullVisits(){
-  const sys=wlSysVisits($("#w_user").value,$("#w_date").value);
-  $("#w_visits").value=sys.length;
-  toast("已调取系统当天拜访量："+sys.length+" 次");
+  const rows=wlVisitRows($("#w_user").value,$("#w_date").value);
+  $("#w_visits").value=rows.length;
+  toast("已调取系统当天拜访量："+rows.length+" 家");
 }
 function openWorklog(dateStr,userId){
   editWlId=null;
