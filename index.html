@@ -234,8 +234,13 @@
   <div class="logo">🗂️ CRM 客户管理系统</div>
   <nav>
     <button data-view="home" class="active">🏠 首页</button>
-    <button data-view="goals">🎯 计划目标</button>
-    <button data-view="worklog">📋 工作记录</button>
+    <div class="nav-drop">
+      <button type="button" class="nav-drop-btn" id="goalGroupBtn">📊 目标记录 ▾</button>
+      <div class="nav-drop-menu">
+        <button data-view="goals">🎯 计划目标</button>
+        <button data-view="worklog">📋 工作记录</button>
+      </div>
+    </div>
     <div class="nav-drop">
       <button type="button" class="nav-drop-btn" id="custGroupBtn">📂 客户数据 ▾</button>
       <div class="nav-drop-menu">
@@ -667,7 +672,16 @@
         <div class="field"><label>日期 *</label><input id="w_date" type="date" onchange="wlPrefill()"></div>
         <div class="field"><label>📞 电话量（通）</label><input id="w_calls" type="number" min="0" step="1" placeholder="0"></div>
         <div class="field"><label>🤝 邀约量（个）</label><input id="w_invites" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="field"><label>💬 微信添加量（个）</label><input id="w_wechat" type="number" min="0" step="1" placeholder="0"></div>
         <div class="field"><label>🚶 拜访量（次）</label><input id="w_visits" type="number" min="0" step="1" placeholder="0"><div id="w_sysvisits" style="font-size:12px;color:var(--muted);margin-top:4px;min-height:16px"></div></div>
+        <div class="field full"><label>🏢 拜访客户（手动调取系统客户）</label>
+          <div style="display:flex;gap:6px">
+            <input id="w_custPick" list="wlCustList" placeholder="输入公司名关键字，从系统客户中选择" style="flex:1">
+            <button type="button" class="btn ghost sm" id="w_custAddBtn" onclick="wlAddCust()">＋ 添加</button>
+          </div>
+          <datalist id="wlCustList"></datalist>
+          <div id="w_custTags" style="margin-top:6px"></div>
+        </div>
         <div class="field full"><label>备注</label><input id="w_note" placeholder="选填，如 下午集中邀约 M+ 客户"></div>
       </div>
     </div>
@@ -1048,8 +1062,8 @@ function expToRow(e){return{id:e.id,app_id:e.appId||null,user_id:e.userId||null,
 function rowToExp(r){return{id:r.id,appId:r.app_id||"",userId:r.user_id||"",userName:r.user_name||"",date:r.expense_date||"",customerId:r.customer_id||"",custName:r.customer_name||"",from:r.from_place||"",to:r.to_place||"",transport:r.transport||"",amount:+r.amount||0,reason:r.reason||"",note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewNote:r.review_note||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
 function appToRow(a){return{id:a.id,user_id:a.userId||null,user_name:a.userName||"",month:a.month||"",total:+a.total||0,note:a.note||"",status:a.status||"待审核",reviewed_by:a.reviewedBy||"",review_note:a.reviewNote||"",reviewed_at:a.reviewedAt||null};}
 function rowToApp(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",month:r.month||"",total:+r.total||0,note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewNote:r.review_note||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
-function wlToRow(w){return{id:w.id,user_id:w.userId||null,user_name:w.userName||"",log_date:D(w.date),calls:+w.calls||0,invites:+w.invites||0,visits:+w.visits||0,note:w.note||""};}
-function rowToWl(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",date:r.log_date||"",calls:+r.calls||0,invites:+r.invites||0,visits:+r.visits||0,note:r.note||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
+function wlToRow(w){return{id:w.id,user_id:w.userId||null,user_name:w.userName||"",log_date:D(w.date),calls:+w.calls||0,invites:+w.invites||0,wechat:+w.wechat||0,visits:+w.visits||0,cust_names:w.custNames||"",note:w.note||""};}
+function rowToWl(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",date:r.log_date||"",calls:+r.calls||0,invites:+r.invites||0,wechat:+r.wechat||0,visits:+r.visits||0,custNames:r.cust_names||"",note:r.note||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
 
 const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map(),expenses:new Map(),expense_apps:new Map(),work_logs:new Map()};
 // 分页拉取整表：PostgREST 单次最多返回 1000 行，需用 range 循环取完（否则超 1000 的数据丢失/导入撞唯一约束）
@@ -1366,6 +1380,8 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   if(cg) cg.classList.toggle('parent-active', ["customers","mobai","visited","pool","resigned"].includes(b.dataset.view));
   const wg=document.getElementById('wonGroupBtn');
   if(wg) wg.classList.toggle('parent-active', ["won","ygold","cases"].includes(b.dataset.view));
+  const gg=document.getElementById('goalGroupBtn');
+  if(gg) gg.classList.toggle('parent-active', ["goals","worklog"].includes(b.dataset.view));
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   $("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="home"){renderHome();renderDash();}
@@ -3385,6 +3401,7 @@ function renderWorklog(){
   $("#wlStats").innerHTML=`
     <div class="kpi"><div class="l">📞 电话量 <span class="tag">${esc(selName)} · ${m.replace("-"," 年 ")} 月</span></div><div class="v">${sum("calls")} 通</div><div class="s">${days} 天有记录</div></div>
     <div class="kpi gold"><div class="l">🤝 邀约量</div><div class="v gold">${sum("invites")} 个</div><div class="s">日均 ${days?Math.round(sum("invites")/days*10)/10:0} 个 / 天</div></div>
+    <div class="kpi"><div class="l">💬 微信添加量</div><div class="v" style="color:#7c3aed">${sum("wechat")} 个</div><div class="s">日均 ${days?Math.round(sum("wechat")/days*10)/10:0} 个 / 天</div></div>
     <div class="kpi"><div class="l">🚶 拜访量</div><div class="v" style="color:var(--green)">${sum("visits")} 次</div><div class="s">日均 ${days?Math.round(sum("visits")/days*10)/10:0} 次 / 天</div></div>`;
   // 月历（周一起）
   const yy=+m.slice(0,4), mm=+m.slice(5,7);
@@ -3396,7 +3413,7 @@ function renderWorklog(){
     const sysN=w?0:wlVisitRows(sel,dstr).length;   // 无手填记录时显示系统当天拜访数（按客户去重）
     cells+=`<div onclick="openWorklog('${dstr}','${sel}')" style="min-height:88px;border:1px solid ${isT?"var(--brand)":"var(--line)"};border-radius:8px;padding:6px 8px;cursor:pointer;background:${w?"#fff":"#fcfcfc"};font-size:12px;line-height:1.7">
       <div style="font-weight:700;${isT?"color:var(--brand)":""}">${d}${isT?" · 今天":""}</div>
-      ${w?`<div>📞 ${+w.calls||0} 通</div><div>🤝 ${+w.invites||0} 个</div><div>🚶 ${+w.visits||0} 次</div>${w.note?`<div class="clip" style="color:var(--muted)" title="${esc(w.note)}">${esc(w.note)}</div>`:""}`:(sysN?`<div style="color:var(--muted)">🚶 系统 ${sysN} 次</div>`:`<div style="color:var(--muted)">—</div>`)}
+      ${w?`<div>📞 ${+w.calls||0} 通</div><div>🤝 ${+w.invites||0} 个</div><div>💬 ${+w.wechat||0} 个</div><div>🚶 ${+w.visits||0} 次</div>${w.custNames?`<div class="clip" style="color:var(--brand)" title="${esc(w.custNames)}">🏢 ${esc(w.custNames)}</div>`:""}${w.note?`<div class="clip" style="color:var(--muted)" title="${esc(w.note)}">${esc(w.note)}</div>`:""}`:(sysN?`<div style="color:var(--muted)">🚶 系统 ${sysN} 次</div>`:`<div style="color:var(--muted)">—</div>`)}
     </div>`;
   }
   $("#wlCal").innerHTML=`<div style="min-width:720px"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px">${["一","二","三","四","五","六","日"].map(w=>`<div style="text-align:center;font-weight:600;color:var(--muted);font-size:12px">周${w}</div>`).join("")}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${cells}</div></div>`;
@@ -3433,6 +3450,22 @@ function wlPullVisits(){
   $("#w_visits").value=rows.length;
   toast("已调取系统当天拜访量："+rows.length+" 家");
 }
+/* 手动调取系统客户名单 */
+let wlManualCusts=[];
+function wlAllCustNames(){
+  return [...new Set((DB.customers||[]).map(c=>c.name).concat((DB.pool||[]).map(p=>p.name)).filter(Boolean))].sort();
+}
+function wlRenderCustTags(){
+  $("#w_custTags").innerHTML=wlManualCusts.length?wlManualCusts.map((n,i)=>`<span style="display:inline-block;background:#eef6ee;border:1px solid var(--brand);border-radius:10px;padding:0 4px 0 8px;margin:0 4px 4px 0">${esc(n)}<span class="link" style="padding:0 4px" title="移除" onclick="wlDelCust(${i})">×</span></span>`).join(""):`<span style="color:var(--muted);font-size:12px">未手动添加客户</span>`;
+}
+function wlAddCust(){
+  const inp=$("#w_custPick"), n=inp.value.trim();
+  if(!n)return;
+  if(!wlAllCustNames().includes(n)){ if(!confirm("「"+n+"」不在系统客户库里，仍要添加吗？"))return; }
+  if(wlManualCusts.includes(n)){ toast("该客户已在名单中"); inp.value=""; return; }
+  wlManualCusts.push(n); inp.value=""; wlRenderCustTags();
+}
+function wlDelCust(i){ wlManualCusts.splice(i,1); wlRenderCustTags(); }
 function openWorklog(dateStr,userId){
   editWlId=null;
   const uid0=userId||($("#wlOwner")&&$("#wlOwner").value)||(CURRENT&&CURRENT.id);
@@ -3448,13 +3481,18 @@ function openWorklog(dateStr,userId){
   $("#wlModalTitle").textContent=(w?"编辑":"新建")+"工作记录"+(canRec?"":"（查看）");
   $("#wlDeleteBtn").style.display=(w&&canRec)?"":"none";
   $("#wlSaveBtn").style.display=canRec?"":"none";
-  ["w_date","w_calls","w_invites","w_visits","w_note"].forEach(id=>$("#"+id).disabled=!canRec);
+  ["w_date","w_calls","w_invites","w_wechat","w_visits","w_note","w_custPick"].forEach(id=>$("#"+id).disabled=!canRec);
+  $("#w_custAddBtn").disabled=!canRec;
   if(canRec)$("#w_date").disabled=!!w;  // 编辑时锁定日期（每人每天一条）
   $("#w_date").value=w?w.date:d0;
   $("#w_calls").value=w?w.calls:"";
   $("#w_invites").value=w?w.invites:"";
+  $("#w_wechat").value=w?w.wechat:"";
   $("#w_visits").value=w?w.visits:"";
   $("#w_note").value=w?w.note||"":"";
+  wlManualCusts=w&&w.custNames?w.custNames.split("、").filter(Boolean):[];
+  $("#wlCustList").innerHTML=wlAllCustNames().map(n=>`<option value="${esc(n)}"></option>`).join("");
+  wlRenderCustTags();
   wlSyncVisits(!w);   // 新建时自动带入系统当天拜访量；编辑时仅展示提示
   openModal("worklogModal");
 }
@@ -3470,16 +3508,15 @@ function saveWorklog(){
   if(!uid0){toast("请选择成员");return;}
   if(!date){toast("请选择日期");return;}
   if(!wlCanRecord(uid0)){toast("仅管理人员可记录");return;}
-  const calls=parseInt($("#w_calls").value)||0, invites=parseInt($("#w_invites").value)||0, visits=parseInt($("#w_visits").value)||0;
-  if(calls<0||invites<0||visits<0){toast("数量不能为负数");return;}
-  if(!calls&&!invites&&!visits){toast("请至少填写一项数量");return;}
+  const calls=parseInt($("#w_calls").value)||0, invites=parseInt($("#w_invites").value)||0, wechat=parseInt($("#w_wechat").value)||0, visits=parseInt($("#w_visits").value)||0;
+  if(calls<0||invites<0||wechat<0||visits<0){toast("数量不能为负数");return;}   // 允许全部填 0（如实记录当天无产出）
   const note=$("#w_note").value.trim(), now=new Date().toISOString();
   const uname=((DB.users||[]).find(u=>u.id===uid0)||{}).name||CURRENT.name;
   DB.workLogs=DB.workLogs||[];
   let w=editWlId?DB.workLogs.find(x=>x.id===editWlId):null;
   if(!w)w=DB.workLogs.find(x=>x.userId===uid0&&x.date===date);   // 同人同日合并
-  if(w){ Object.assign(w,{calls,invites,visits,note,updatedAt:now}); toast("工作记录已更新"); }
-  else{ DB.workLogs.push({id:uid(),userId:uid0,userName:uname,date,calls,invites,visits,note,createdAt:now,updatedAt:now}); toast("已保存工作记录"); }
+  if(w){ Object.assign(w,{calls,invites,wechat,visits,custNames:wlManualCusts.join("、"),note,updatedAt:now}); toast("工作记录已更新"); }
+  else{ DB.workLogs.push({id:uid(),userId:uid0,userName:uname,date,calls,invites,wechat,visits,custNames:wlManualCusts.join("、"),note,createdAt:now,updatedAt:now}); toast("已保存工作记录"); }
   save();closeModal("worklogModal");renderWorklog();
 }
 function delWorklog(id){
