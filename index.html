@@ -235,6 +235,7 @@
   <nav>
     <button data-view="home" class="active">🏠 首页</button>
     <button data-view="goals">🎯 计划目标</button>
+    <button data-view="worklog">📋 工作记录</button>
     <div class="nav-drop">
       <button type="button" class="nav-drop-btn" id="custGroupBtn">📂 客户数据 ▾</button>
       <div class="nav-drop-menu">
@@ -390,6 +391,20 @@
   <section id="view-goals" class="view">
     <div id="goalTeam"></div>
     <div class="panel" style="margin-top:16px"><h3>👤 成员目标（本月，每人自行填写）</h3><div id="goalList"></div></div>
+  </section>
+
+  <!-- ============ WORKLOG 基础工作记录 ============ -->
+  <section id="view-worklog" class="view">
+    <div class="toolbar">
+      <input type="month" id="wlMonth" onchange="renderWorklog()">
+      <select id="wlOwner" onchange="renderWorklog()" style="display:none"><option value="">全部成员</option></select>
+      <input type="text" id="wlSearch" placeholder="🔍 搜索成员 / 备注" oninput="renderWorklog()">
+      <div class="spacer"></div>
+      <button class="btn" onclick="openWorklog()">＋ 今日记录</button>
+      <div class="hint">每人每天一条：电话量 / 邀约量 / 拜访量；同天重复填写自动覆盖更新</div>
+    </div>
+    <div class="kpi-grid" id="wlStats" style="margin:0 0 14px"></div>
+    <div id="worklogList" class="tbl-wrap"></div>
   </section>
 
   <!-- ============ CUSTOMERS ============ -->
@@ -639,6 +654,27 @@
     <div class="modal-foot">
       <button class="btn ghost" onclick="closeModal('expReviewModal')">取消</button>
       <button class="btn" id="rv_ok" onclick="saveReview()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Worklog 基础工作记录 ===== -->
+<div class="modal-bg" id="worklogModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h3 id="wlModalTitle">新建工作记录</h3><button class="x" onclick="closeModal('worklogModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>日期 *</label><input id="w_date" type="date" onchange="wlDateFill()"></div>
+        <div class="field"><label>📞 电话量（通）</label><input id="w_calls" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="field"><label>🤝 邀约量（个）</label><input id="w_invites" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="field"><label>🚶 拜访量（次）</label><input id="w_visits" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="field full"><label>备注</label><input id="w_note" placeholder="选填，如 下午集中邀约 M+ 客户"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger sm" id="wlDeleteBtn" style="margin-right:auto;display:none" onclick="delWorklog(editWlId)">删除</button>
+      <button class="btn ghost" onclick="closeModal('worklogModal')">取消</button>
+      <button class="btn" onclick="saveWorklog()">保存</button>
     </div>
   </div>
 </div>
@@ -1012,8 +1048,10 @@ function expToRow(e){return{id:e.id,app_id:e.appId||null,user_id:e.userId||null,
 function rowToExp(r){return{id:r.id,appId:r.app_id||"",userId:r.user_id||"",userName:r.user_name||"",date:r.expense_date||"",customerId:r.customer_id||"",custName:r.customer_name||"",from:r.from_place||"",to:r.to_place||"",transport:r.transport||"",amount:+r.amount||0,reason:r.reason||"",note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewNote:r.review_note||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
 function appToRow(a){return{id:a.id,user_id:a.userId||null,user_name:a.userName||"",month:a.month||"",total:+a.total||0,note:a.note||"",status:a.status||"待审核",reviewed_by:a.reviewedBy||"",review_note:a.reviewNote||"",reviewed_at:a.reviewedAt||null};}
 function rowToApp(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",month:r.month||"",total:+r.total||0,note:r.note||"",status:r.status||"待审核",reviewedBy:r.reviewed_by||"",reviewNote:r.review_note||"",reviewedAt:r.reviewed_at||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
+function wlToRow(w){return{id:w.id,user_id:w.userId||null,user_name:w.userName||"",log_date:D(w.date),calls:+w.calls||0,invites:+w.invites||0,visits:+w.visits||0,note:w.note||""};}
+function rowToWl(r){return{id:r.id,userId:r.user_id||"",userName:r.user_name||"",date:r.log_date||"",calls:+r.calls||0,invites:+r.invites||0,visits:+r.visits||0,note:r.note||"",createdAt:r.created_at||"",updatedAt:r.updated_at||""};}
 
-const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map(),expenses:new Map(),expense_apps:new Map()};
+const _snap={customers:new Map(),visits:new Map(),pool:new Map(),cases:new Map(),expenses:new Map(),expense_apps:new Map(),work_logs:new Map()};
 // 分页拉取整表：PostgREST 单次最多返回 1000 行，需用 range 循环取完（否则超 1000 的数据丢失/导入撞唯一约束）
 async function fetchAllRows(table){
   const all=[], PAGE=1000;
@@ -1028,7 +1066,7 @@ async function fetchAllRows(table){
 }
 async function loadFromCloud(){
   if(!SB)return;
-  const [pf,cu,vi,po,ca,ex,ea,st]=await Promise.all([
+  const [pf,cu,vi,po,ca,ex,ea,wl,st]=await Promise.all([
     SB.from("profiles").select("*"),
     fetchAllRows("customers"),
     fetchAllRows("visits"),
@@ -1036,6 +1074,7 @@ async function loadFromCloud(){
     fetchAllRows("cases"),
     fetchAllRows("expenses"),
     fetchAllRows("expense_apps"),
+    fetchAllRows("work_logs"),
     SB.from("app_settings").select("*")
   ]);
   if(pf.error) throw new Error("profiles 拉取失败："+pf.error.message);
@@ -1048,12 +1087,14 @@ async function loadFromCloud(){
   DB.cases=(ca||[]).map(rowToCase);
   DB.expenses=(ex||[]).map(rowToExp);
   DB.expApps=(ea||[]).map(rowToApp);
+  DB.workLogs=(wl||[]).map(rowToWl);
   _snap.customers=new Map(DB.customers.map(c=>[c.id,JSON.stringify(custToRow(c))]));
   _snap.visits=new Map(DB.visits.map(v=>[v.id,JSON.stringify(visitToRow(v))]));
   _snap.pool=new Map(DB.pool.map(p=>[p.id,JSON.stringify(poolToRow(p))]));
   _snap.cases=new Map(DB.cases.map(c=>[c.id,JSON.stringify(caseToRow(c))]));
   _snap.expenses=new Map(DB.expenses.map(e=>[e.id,JSON.stringify(expToRow(e))]));
   _snap.expense_apps=new Map(DB.expApps.map(a=>[a.id,JSON.stringify(appToRow(a))]));
+  _snap.work_logs=new Map(DB.workLogs.map(w=>[w.id,JSON.stringify(wlToRow(w))]));
   try{ localStorage.setItem(lsKey(),JSON.stringify(DB)); }catch(e){}
 }
 let _syncing=false,_syncPending=false,_casesTableMissing=false,_casesNoIndustry=false;
@@ -1065,7 +1106,7 @@ async function cloudSync(){
   // 公海按公司名去重（去掉空名/重名，防唯一约束冲突）
   const seen=new Set(); DB.pool=(DB.pool||[]).filter(p=>{const k=(p.name||"").trim(); if(!k||seen.has(k))return false; seen.add(k); return true;});
   let errMsg=null;
-  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow],["expenses",DB.expenses||[],expToRow],["expense_apps",DB.expApps||[],appToRow]]){
+  for(const [tbl,arr,fn] of [["customers",DB.customers,custToRow],["visits",DB.visits,visitToRow],["pool",DB.pool,poolToRow],["cases",DB.cases||[],caseToRow],["expenses",DB.expenses||[],expToRow],["expense_apps",DB.expApps||[],appToRow],["work_logs",DB.workLogs||[],wlToRow]]){
     if(tbl==="cases" && _casesTableMissing) continue;
     try{ await syncTable(tbl,arr,fn); }catch(e){ const m=e.message||String(e);
       if(tbl==="cases" && /industry/i.test(m) && /does not exist|Could not find|schema cache/i.test(m)){ _casesNoIndustry=true; _snap.cases=new Map(); _syncPending=true; toast("⚠️ 案例库「行业」列未上云（暂仅存本机），请联系管理员"); /* 缺 industry 列：改为不带该列重新同步，案例照常保存(行业暂本地) */ }
@@ -1163,8 +1204,8 @@ function custName(id){const c=DB.customers.find(x=>x.id===id);return c?c.name:""
 
 /* ===================== 分页（每页20条） ===================== */
 let PAGE_SIZE=20;
-const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1, resigned:1, ygold:1, expense:1};
-const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases(), resigned:()=>renderResigned(), ygold:()=>renderYgold(), expense:()=>renderExpense()};
+const PAGE={customers:1, pool:1, visited:1, visits:1, won:1, mobai:1, cases:1, resigned:1, ygold:1, expense:1, worklog:1};
+const PAGE_RENDER={customers:()=>renderCustomers(), pool:()=>renderPool(), visited:()=>renderVisited(), visits:()=>renderVisits(), won:()=>renderWon(), mobai:()=>renderMobai(), cases:()=>renderCases(), resigned:()=>renderResigned(), ygold:()=>renderYgold(), expense:()=>renderExpense(), worklog:()=>renderWorklog()};
 function gotoPage(key,n){ PAGE[key]=n; PAGE_RENDER[key](); }
 function setPageSize(key,val){ PAGE_SIZE=parseInt(val)||20; Object.keys(PAGE).forEach(k=>PAGE[k]=1); PAGE_RENDER[key](); }
 
@@ -1329,6 +1370,7 @@ document.querySelectorAll("nav button[data-view]").forEach(b=>b.onclick=()=>{
   $("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="home"){renderHome();renderDash();}
   if(b.dataset.view==="goals")renderGoals();
+  if(b.dataset.view==="worklog")renderWorklog();
   if(b.dataset.view==="customers")renderCustomers();
   if(b.dataset.view==="pool")renderPool();
   if(b.dataset.view==="visits")renderVisits();
@@ -1372,8 +1414,8 @@ async function afterAuth(user){
   const {data:prof}=await SB.from("profiles").select("*").eq("id",user.id).single();
   CURRENT={id:user.id,name:(prof&&prof.name)||user.email,role:(prof&&prof.role)||"sales",manages:(prof&&prof.manages)||[]};
   // 切换账号防串号：先清空上一个用户残留的本地数据
-  DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[]; DB.expenses=[]; DB.expApps=[];
-  _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear(); _snap.expenses.clear(); _snap.expense_apps.clear();
+  DB.customers=[]; DB.visits=[]; DB.pool=[]; DB.cases=[]; DB.expenses=[]; DB.expApps=[]; DB.workLogs=[];
+  _snap.customers.clear(); _snap.visits.clear(); _snap.pool.clear(); _snap.cases.clear(); _snap.expenses.clear(); _snap.expense_apps.clear(); _snap.work_logs.clear();
   _casesTableMissing=false; _casesNoIndustry=false;   // 重置同步标志，避免上次会话的"缺表/缺列"状态卡住案例同步
   _delFail={};
   // 离线兜底：先恢复本机该账号的缓存；云端拉取成功后会整体覆盖
@@ -1394,7 +1436,7 @@ function enterApp(){
   // 若当前停留在无权限页，则回到仪表盘
   const active=document.querySelector('nav button.active');
   if(active && active.dataset.admin && !isAdmin()){ active.classList.remove('active'); document.querySelector('nav button[data-view=home]').classList.add('active'); document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); $("#view-home").classList.add('active'); }
-  refreshDynamic(); renderHome(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers(); renderExpense();
+  refreshDynamic(); renderHome(); renderDash(); renderCustomers(); renderMobai(); renderPool(); renderVisits(); renderVisited(); renderWon(); renderCases(); renderUsers(); renderExpense(); renderWorklog();
   syncThTop();
 }
 
@@ -3302,6 +3344,95 @@ function _expViewRender(a){
   }</tbody></table><div style="text-align:right;font-weight:700;margin-top:10px">合计：¥${fmtMoney(a.total)}</div>`;
 }
 
+/* ===================== 基础工作记录（电话 / 邀约 / 拜访，每人每天一条） ===================== */
+let editWlId=null;
+function visibleWorklogs(){
+  const all=DB.workLogs||[];
+  if(isAdmin())return all;
+  return all.filter(w=>w.userId===(CURRENT&&CURRENT.id)||managesName(w.userName));
+}
+function renderWorklog(){
+  if(!CURRENT||!$("#worklogList"))return;
+  const wm=$("#wlMonth");
+  if(wm&&!wm.dataset.init){ wm.value=today().slice(0,7); wm.dataset.init="1"; }   // 默认当月
+  const m=wm?wm.value:"", q=($("#wlSearch").value||"").toLowerCase();
+  const canSeeOthers=isAdmin()||isManager();
+  const wo=$("#wlOwner");
+  wo.style.display=canSeeOthers?"":"none";
+  const names=[...new Set(visibleWorklogs().map(w=>w.userName).filter(Boolean))].sort();
+  const curOw=wo.value;
+  wo.innerHTML=`<option value="">全部成员</option>`+names.map(n=>`<option${n===curOw?" selected":""}>${esc(n)}</option>`).join("");
+  const ow=wo.value;
+  let rows=visibleWorklogs();
+  if(m)rows=rows.filter(w=>(w.date||"").slice(0,7)===m);
+  if(ow)rows=rows.filter(w=>w.userName===ow);
+  if(q)rows=rows.filter(w=>[w.userName,w.note].join(" ").toLowerCase().includes(q));
+  rows.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(a.userName||"").localeCompare(b.userName||""));
+  const sum=k=>rows.reduce((x,w)=>x+(+w[k]||0),0);
+  const days=new Set(rows.map(w=>w.date)).size;
+  $("#wlStats").innerHTML=`
+    <div class="kpi"><div class="l">📞 电话量 <span class="tag">${m?m.replace("-"," 年 ")+" 月":""}</span></div><div class="v">${sum("calls")} 通</div><div class="s">${canSeeOthers?"可见范围汇总":"我的汇总"} · ${days} 天有记录</div></div>
+    <div class="kpi gold"><div class="l">🤝 邀约量</div><div class="v gold">${sum("invites")} 个</div><div class="s">日均 ${days?Math.round(sum("invites")/days*10)/10:0} 个 / 天</div></div>
+    <div class="kpi"><div class="l">🚶 拜访量</div><div class="v" style="color:var(--green)">${sum("visits")} 次</div><div class="s">日均 ${days?Math.round(sum("visits")/days*10)/10:0} 次 / 天</div></div>`;
+  const total=rows.length, pageRows=pageSlice(rows,"worklog");
+  $("#worklogList").innerHTML= total? `<div style="padding:8px 12px;color:var(--muted);font-size:12px">共 ${total} 条记录</div><table><thead><tr><th>日期</th><th>成员</th><th style="text-align:right">📞 电话量</th><th style="text-align:right">🤝 邀约量</th><th style="text-align:right">🚶 拜访量</th><th>备注</th><th></th></tr></thead><tbody>${
+    pageRows.map(w=>{
+      const canEdit=w.userId===(CURRENT&&CURRENT.id)||isAdmin();
+      return `<tr>
+      <td style="white-space:nowrap;font-weight:600">${esc(w.date||"")}</td>
+      <td>${esc(w.userName||"")}</td>
+      <td style="text-align:right">${+w.calls||0}</td>
+      <td style="text-align:right">${+w.invites||0}</td>
+      <td style="text-align:right">${+w.visits||0}</td>
+      <td><div class="clip" title="${esc(w.note||"")}">${esc(w.note||"—")}</div></td>
+      <td><div class="row-act">${canEdit?`<button class="btn ghost sm" onclick="openWorklog('${w.id}')">编辑</button><button class="btn ghost sm" style="color:#dc2626" onclick="delWorklog('${w.id}')">删除</button>`:""}</div></td>
+    </tr>`;}).join("")
+  }</tbody></table>`+pageBar(total,"worklog") : `<div class="empty">暂无工作记录，点右上角「＋ 今日记录」填写每天的电话 / 邀约 / 拜访量。</div>`;
+}
+function openWorklog(id){
+  editWlId=id||null;
+  const w=id?(DB.workLogs||[]).find(x=>x.id===id):null;
+  if(id&&!w){toast("记录不存在");return;}
+  if(w&&w.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能修改自己的记录");return;}
+  $("#wlModalTitle").textContent=w?"编辑工作记录":"新建工作记录";
+  $("#wlDeleteBtn").style.display=w?"":"none";
+  $("#w_date").value=w?w.date:today();
+  $("#w_calls").value=w?w.calls:"";
+  $("#w_invites").value=w?w.invites:"";
+  $("#w_visits").value=w?w.visits:"";
+  $("#w_note").value=w?w.note||"":"";
+  openModal("worklogModal");
+}
+// 改日期时：若自己当天已有记录则带出（每人每天一条，重复填写即修改）
+function wlDateFill(){
+  const d=$("#w_date").value; if(!d)return;
+  const ex=(DB.workLogs||[]).find(x=>x.date===d&&x.userId===(CURRENT&&CURRENT.id));
+  if(ex&&ex.id!==editWlId){ editWlId=ex.id; $("#wlModalTitle").textContent="编辑工作记录"; $("#wlDeleteBtn").style.display=""; $("#w_calls").value=ex.calls||""; $("#w_invites").value=ex.invites||""; $("#w_visits").value=ex.visits||""; $("#w_note").value=ex.note||""; toast("该日期已有记录，已带出修改"); }
+}
+function saveWorklog(){
+  const date=$("#w_date").value;
+  if(!date){toast("请选择日期");return;}
+  const calls=parseInt($("#w_calls").value)||0, invites=parseInt($("#w_invites").value)||0, visits=parseInt($("#w_visits").value)||0;
+  if(calls<0||invites<0||visits<0){toast("数量不能为负数");return;}
+  if(!calls&&!invites&&!visits){toast("请至少填写一项数量");return;}
+  const note=$("#w_note").value.trim(), now=new Date().toISOString();
+  DB.workLogs=DB.workLogs||[];
+  let w=editWlId?DB.workLogs.find(x=>x.id===editWlId):null;
+  if(w&&w.userId!==CURRENT.id&&!isAdmin()){toast("只能修改自己的记录");return;}
+  if(!w)w=DB.workLogs.find(x=>x.date===date&&x.userId===CURRENT.id);   // 同日同人合并
+  if(w){ Object.assign(w,{date,calls,invites,visits,note,updatedAt:now}); toast("工作记录已更新"); }
+  else{ DB.workLogs.push({id:uid(),userId:CURRENT.id,userName:CURRENT.name,date,calls,invites,visits,note,createdAt:now,updatedAt:now}); toast("已保存工作记录"); }
+  save();closeModal("worklogModal");renderWorklog();
+}
+function delWorklog(id){
+  const w=(DB.workLogs||[]).find(x=>x.id===id); if(!w)return;
+  if(w.userId!==(CURRENT&&CURRENT.id)&&!isAdmin()){toast("只能删除自己的记录");return;}
+  if(!confirm("确定删除 "+(w.date||"")+" 的工作记录？"))return;
+  DB.workLogs=DB.workLogs.filter(x=>x.id!==w.id);
+  editWlId=null;
+  save();closeModal("worklogModal");renderWorklog();toast("已删除");
+}
+
 /* 刷新「负责人 / 来源」动态下拉与筛选 */
 function refreshDynamic(){
   const base=CURRENT?visibleCustomers():DB.customers;
@@ -3807,7 +3938,7 @@ async function savePassword(){
 function clearAll(){
   if(!isAdmin()){toast("仅管理员可执行");return;}
   if(prompt("此操作只清空【本机浏览器】的缓存数据，云端团队数据不受影响（重新登录后会重新拉取）。\n\n如确认，请输入：清空")!=="清空")return;
-  DB={customers:[],visits:[],pool:[],cases:[],expenses:[],expApps:[],users:DB.users,seq:0};
+  DB={customers:[],visits:[],pool:[],cases:[],expenses:[],expApps:[],workLogs:[],users:DB.users,seq:0};
   localStorage.removeItem(LS_KEY);
   _snap.customers=new Map();_snap.visits=new Map();_snap.pool=new Map();_snap.cases=new Map();_snap.expenses=new Map();_snap.expense_apps=new Map();
   refreshDynamic();renderDash();renderCustomers();renderVisits();
@@ -3836,6 +3967,7 @@ function initSelects(){
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
 ["ygoldSearch","ygoldOwner","ygoldStar","ygoldOperation","ygoldVersion","ygoldStatus","ygoldRegion","ygoldQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.ygold=1;renderYgold();}}));
 ["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
+["wlSearch","wlMonth","wlOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.worklog=1;renderWorklog();}}));
 ["caseSearch","caseRegion","caseIndustry"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
 $("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
 $("#segKanban").onclick=()=>{custView="kanban";$("#segKanban").classList.add("active");$("#segList").classList.remove("active");renderCustomers();};
