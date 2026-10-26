@@ -75,6 +75,8 @@
   table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #f0f1f3}
   th{background:#fafbfc;font-weight:600;color:var(--muted);position:sticky;top:var(--thtop,100px);z-index:10;cursor:pointer;user-select:none}
+  /* 弹窗内的表格：表头吸附在弹窗滚动区顶部（不受页面工具栏高度影响），避免盖住明细行 */
+  .modal th{top:0}
   th:hover{color:var(--ink)}
   tbody tr:hover{background:#f8faff}
   .clip{display:block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -643,7 +645,7 @@
 <div class="modal-bg" id="expViewModal">
   <div class="modal" style="max-width:900px;width:94%">
     <div class="modal-head"><h3 id="expViewTitle">报销明细</h3><button class="x" onclick="closeModal('expViewModal')">×</button></div>
-    <div class="modal-body" id="expViewBody"></div>
+    <div class="modal-body" id="expViewBody" style="max-height:75vh"></div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal('expViewModal')">关闭</button></div>
   </div>
 </div>
