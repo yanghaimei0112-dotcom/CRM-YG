@@ -3538,7 +3538,8 @@ function delWorklog(id){
 /* 刷新「负责人 / 来源」动态下拉与筛选 */
 function refreshDynamic(){
   const base=CURRENT?visibleCustomers():DB.customers;
-  const owners=[...new Set(base.map(c=>c.owner).filter(Boolean))].sort();
+  const actSet=new Set((DB.users||[]).map(u=>u.name));
+  const owners=[...new Set(base.map(c=>c.owner).filter(o=>o&&actSet.has(o)))].sort();   // 只列系统内现有成员（已删除账号的遗留客户归公共潜在，不再出现）
   const sources=[...SOURCES,...new Set(base.map(c=>c.source).filter(Boolean))];
   const cur=$("#filterOwner").value;
   $("#filterOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
