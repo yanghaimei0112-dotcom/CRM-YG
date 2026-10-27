@@ -1794,8 +1794,9 @@ function renderDash(){
       <div class="bar-fill" style="width:${Math.max(n/max*100,n?6:0)}%;background:${ATTR_COLOR[a]}">${n||""}</div></div></div>`;
   }).join("") || `<div class="empty">暂无数据</div>`;
 
-  // 团队潜在客户数 by owner（仅「潜在客户」阶段）
-  const pot=cs.filter(c=>c.stage==="潜在客户");
+  // 团队潜在客户数 by owner（仅「潜在客户」阶段；只统计系统现有成员，已删除账号的遗留客户归公共潜在不参与）
+  const actSet=new Set((DB.users||[]).map(u=>u.name));
+  const pot=cs.filter(c=>c.stage==="潜在客户"&&c.owner&&actSet.has(c.owner));
   const owners=[...new Set(pot.map(c=>c.owner).filter(Boolean))];
   if(owners.length){
     const omax=Math.max(1,...owners.map(o=>pot.filter(c=>c.owner===o).length));
