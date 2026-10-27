@@ -1848,8 +1848,48 @@ function renderCustomers(){
     if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
     return true;
   });
-  if(custView==="list"){ $("#custList").style.display=""; $("#custKanban").style.display="none"; renderCustTable(rows.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交"&&c.stage!=="YG老客户")); }   // 已拜访是跟进状态仍留主列表；陌拜/成交/YG老客户各有类目不重复
+  if(custView==="list"){
+    const main=rows.filter(c=>c.stage!=="陌拜客户"&&c.stage!=="已成交"&&c.stage!=="YG老客户");
+    $("#custList").style.display=""; $("#custKanban").style.display="none";
+    if(q&&!main.length){ renderCrossHits(q); return; }   // 主列表搜不到 → 全类目兜底检索
+    renderCustTable(main);
+  }   // 已拜访是跟进状态仍留主列表；陌拜/成交/YG老客户各有类目不重复
   else { $("#custList").style.display="none"; $("#custKanban").style.display="flex"; renderKanban(rows); }
+}
+/* ===== 全局兜底检索：主列表搜不到时，跨全部类目找客户并可直接跳转打开 ===== */
+function globalCustHits(q){
+  const hits=[], actSet=new Set((DB.users||[]).map(u=>u.name));
+  const hay=o=>[o.name,o.owner,o.contact,o.phone,o.product,o.address].filter(Boolean).join(" ").toLowerCase();
+  (DB.customers||[]).forEach(c=>{
+    if(!hay(c).includes(q))return;
+    let cat="潜在客户",view="customers";
+    if(c.stage==="陌拜客户"){cat="陌拜客户";view="mobai";}
+    else if(c.stage==="已成交"){cat="成交客户";view="won";}
+    else if(c.stage==="YG老客户"){cat="YG老客户";view="ygold";}
+    else if(!c.owner||!actSet.has(c.owner)){cat="公共潜在";view="resigned";}
+    hits.push({c,cat,view,pool:false});
+  });
+  (DB.pool||[]).forEach(p=>{ if(hay(p).includes(q))hits.push({c:p,cat:"公海客户",view:"pool",pool:true}); });
+  return hits;
+}
+function jumpToCust(id,view,isPool){
+  const b=document.querySelector('nav button[data-view='+view+']'); if(b)b.click();
+  setTimeout(()=>{ if(isPool)openPool(id); else showDetail(id); },60);
+}
+function renderCrossHits(q){
+  const hits=globalCustHits(q);
+  $("#custKanban").style.display="none"; $("#custList").style.display="";
+  $("#custList").innerHTML= hits.length?
+    `<div class="panel" style="border-color:#fde68a;background:#fffbeb">
+      <h3 style="margin:0 0 6px">🔎 「${esc(q)}」不在潜在客户主列表，但在其他类目找到 ${hits.length} 条：</h3>
+      ${hits.map(h=>`<div style="padding:7px 0;border-bottom:1px dashed #f0e6c8">
+        <span class="link" style="font-weight:600" onclick="jumpToCust('${h.c.id}','${h.view}',${h.pool?1:0})">${esc(h.c.name)}</span>
+        <span class="tag" style="margin-left:8px">${h.cat}</span>
+        <span style="color:var(--muted);font-size:12px;margin-left:8px">${esc([h.c.owner,h.c.contact,h.c.phone].filter(Boolean).join(" · "))}</span>
+      </div>`).join("")}
+      <div class="hint" style="margin-top:8px">点客户名可直接跳转到对应类目并打开详情；类目互斥，客户只存在于其中一个类目。</div>
+    </div>`
+    :`<div class="empty">全系统都找不到「${esc(q)}」相关的客户，可点击右上角「＋ 新增客户」创建。</div>`;
 }
 function localDate(s){ if(!s)return ""; const d=new Date(s); if(isNaN(d))return String(s).slice(0,10);
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
