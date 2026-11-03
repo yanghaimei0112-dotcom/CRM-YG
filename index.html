@@ -63,7 +63,7 @@
 
   /* toolbar */
   .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:0;flex-wrap:wrap;position:sticky;top:var(--hdrtop,53px);z-index:30;background:var(--bg);padding:12px 0 10px}
-  .toolbar input[type=text],.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#fff}
+  .toolbar input[type=text],.toolbar input[type=date],.toolbar input[type=month],.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:7px;font-size:13px;background:#fff}
   .toolbar input[type=text]{min-width:200px}
   .spacer{flex:1}
   .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
@@ -422,6 +422,7 @@
       <select id="filterRegion"><option value="">全部区域</option></select>
       <select id="filterAttr"><option value="">全部属性</option></select>
       <select id="filterQuick"><option value="">快捷筛选</option><option value="key">📌 重点关注</option><option value="today">今日新增</option><option value="week">本周新增</option><option value="idle7">7 天未跟进</option><option value="idle15">15 天未跟进</option></select>
+      <input type="date" id="filterNewDate" title="按新增日期筛选：只看这一天新增的客户（建立日期或实际创建时间）">
       <div class="spacer"></div>
       <div class="seg"><button id="segList" class="active">列表</button><button id="segKanban">看板</button></div>
       <button class="btn ghost" onclick="openImport()">📥 导入资料</button>
@@ -1215,7 +1216,7 @@ function fillSelect(el,arr,blank){el.innerHTML=(blank?`<option value="">${blank}
 // 客户来源固定下拉：8个标准项 + 若记录有旧的非标准来源则保留为额外选项
 function setSourceSelect(sel,val){const el=$(sel);if(!el)return;el.innerHTML=`<option value="">未设置</option>`+SOURCES.map(s=>`<option>${esc(s)}</option>`).join("")+((val&&!SOURCES.includes(val))?`<option>${esc(val)}</option>`:"");el.value=val||"";}
 function pill(text,color){return text?`<span class="pill" style="background:${color}22;color:${color}">${esc(text)}</span>`:"";}
-function today(){return new Date().toISOString().slice(0,10);}
+function today(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }   // 本地时区的今天（勿用 toISOString，UTC 日期在早上8点前会差一天）
 function daysFromNow(d){if(!d)return null;return Math.round((new Date(d)-new Date(today()))/86400000);}
 function custName(id){const c=DB.customers.find(x=>x.id===id);return c?c.name:"";}
 
@@ -1833,7 +1834,7 @@ function collectFollowups(){
 let custView="list";
 function renderCustomers(){
   const q=($("#custSearch").value||"").toLowerCase();
-  const fo=$("#filterOwner").value, fs=$("#filterStage").value, fr=$("#filterRegion").value, fa=$("#filterAttr").value, fq=$("#filterQuick").value;
+  const fo=$("#filterOwner").value, fs=$("#filterStage").value, fr=$("#filterRegion").value, fa=$("#filterAttr").value, fq=$("#filterQuick").value, fnd=$("#filterNewDate").value;
   const actSet=new Set((DB.users||[]).map(u=>u.name));
   let rows=visibleCustomers().filter(c=>c.owner&&actSet.has(c.owner)).filter(c=>{   // 互斥：公共潜在（无负责人/负责人已注销）不在此重复
     if(fo&&(c.owner||"")!==fo)return false;
@@ -1847,6 +1848,7 @@ function renderCustomers(){
       if(fq==="week"){ const ws=weekStart(); const ok=[c.createDate,localDate(c.createdAt)].filter(Boolean).some(d=>d>=ws&&d<=t); if(!ok)return false; }
       if(fq==="idle7"||fq==="idle15"){ const lim=fq==="idle7"?7:15, base=custBaseDate(c); const days=base?Math.floor((new Date(t)-new Date(base))/86400000):9999; if(days<lim)return false; }
     }
+    if(fnd){ const ok=[c.createDate,localDate(c.createdAt)].filter(Boolean).some(d=>d===fnd); if(!ok)return false; }   // 按指定日期筛每日新增
     if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
     return true;
   });
@@ -4071,7 +4073,7 @@ function initSelects(){
   $("#cs_industryList").innerHTML=INDUSTRIES.map(x=>`<option value="${esc(x)}"></option>`).join("");
   refreshDynamic();
 }
-["custSearch","filterOwner","filterStage","filterRegion","filterAttr","filterQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
+["custSearch","filterOwner","filterStage","filterRegion","filterAttr","filterQuick","filterNewDate"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.customers=1;renderCustomers();}}));
 ["resignedSearch","resignedRegion","resignedAttr","resignedFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.resigned=1;renderResigned();}}));
 ["visitSearch","filterResult","filterType","visitVisitor","visitFrom","visitTo"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visits=1;renderVisits();}}));
 ["visitedSearch","visitedOwner","visitedQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.visited=1;renderVisited();}}));
