@@ -267,7 +267,7 @@
     <button data-view="data" data-admin="1">⚙️ 数据管理</button>
   </nav>
   <a class="btn ghost sm" href="https://bdqo2z7aihd6s.ok.kimi.link/" target="_blank" rel="noopener" style="align-self:center;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center">🎯 Q3目标计划</a>
-  <a class="btn ghost sm" href="https://op.globaldeepsea.com/auth/login" target="_blank" rel="noopener" style="align-self:center;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center">🌐 运营平台</a>
+  <a class="btn ghost sm" href="https://login.globaldeepsea.cn/" target="_blank" rel="noopener" style="align-self:center;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center">🌐 运营平台</a>
   <div class="top-actions" id="userBox"></div>
 </header>
 
@@ -569,6 +569,7 @@
     <div class="toolbar">
       <input type="text" id="mobaiSearch" placeholder="🔍 搜索公司 / 联系人 / 产品">
       <select id="mobaiOwner"><option value="">全部负责人</option></select>
+      <select id="mobaiQuick"><option value="">快捷筛选</option><option value="key">📌 重点关注</option><option value="today">今日新增</option><option value="week">本周新增</option><option value="idle7">7天未跟进</option><option value="idle15">15天未跟进</option></select>
       <div class="spacer"></div>
       <button class="btn" onclick="openCustomer(null,'陌拜客户')">＋ 新增陌拜客户</button>
       <div class="hint">陌拜客户＝客户阶段标记为「陌拜客户」的客户，自动归到此处；即使登记了拜访，也只保留在本类目，不会进入「已拜访客户」。</div>
@@ -1843,7 +1844,7 @@ function renderCustomers(){
       const t=today();
       if(fq==="key"&&!c.isKey)return false;   // 📌 重点关注
       if(fq==="today"&&c.createDate!==t&&localDate(c.createdAt)!==t)return false;
-      if(fq==="week"){ const ws=weekStart(), cd=c.createDate||localDate(c.createdAt); if((cd||"")<ws)return false; }
+      if(fq==="week"){ const ws=weekStart(); const ok=[c.createDate,localDate(c.createdAt)].filter(Boolean).some(d=>d>=ws&&d<=t); if(!ok)return false; }
       if(fq==="idle7"||fq==="idle15"){ const lim=fq==="idle7"?7:15, base=custBaseDate(c); const days=base?Math.floor((new Date(t)-new Date(base))/86400000):9999; if(days<lim)return false; }
     }
     if(q){const hay=[c.name,c.owner,c.contact,c.phone,c.product,c.address].join(" ").toLowerCase();if(!hay.includes(q))return false;}
@@ -3026,7 +3027,7 @@ function renderYgold(){
 
 function renderMobai(){
   if(!CURRENT)return;
-  const q=($("#mobaiSearch").value||"").toLowerCase(), fo=$("#mobaiOwner").value;
+  const q=($("#mobaiSearch").value||"").toLowerCase(), fo=$("#mobaiOwner").value, fq=($("#mobaiQuick")||{}).value||"";
   const actSet=new Set((DB.users||[]).map(u=>u.name));
   let rows=visibleCustomers().filter(c=>c.stage==="陌拜客户"&&c.owner&&actSet.has(c.owner));   // 互斥：公共潜在不在此重复
   const owners=[...new Set(rows.map(c=>c.owner).filter(Boolean))].sort();
@@ -3034,6 +3035,13 @@ function renderMobai(){
   $("#mobaiOwner").innerHTML=`<option value="">全部负责人</option>`+owners.map(o=>`<option>${esc(o)}</option>`).join("");
   $("#mobaiOwner").value=cur;
   if(fo)rows=rows.filter(c=>(c.owner||"")===fo);
+  if(fq){
+    const t=today();
+    if(fq==="key")rows=rows.filter(c=>c.isKey);   // 📌 重点关注
+    if(fq==="today")rows=rows.filter(c=>c.createDate===t||localDate(c.createdAt)===t);
+    if(fq==="week"){ const ws=weekStart(); rows=rows.filter(c=>[c.createDate,localDate(c.createdAt)].filter(Boolean).some(d=>d>=ws&&d<=t)); }
+    if(fq==="idle7"||fq==="idle15"){ const lim=fq==="idle7"?7:15; rows=rows.filter(c=>{ const base=custBaseDate(c); const days=base?Math.floor((new Date(t)-new Date(base))/86400000):9999; return days>=lim; }); }
+  }
   if(q)rows=rows.filter(c=>[c.name,c.contact,c.phone,c.product,c.region].join(" ").toLowerCase().includes(q));
   rows.sort((a,b)=>{const x=recency(a),y=recency(b);return x>y?-1:x<y?1:0;});
   DCTX.mobai=rows.map(c=>c.id);
@@ -4070,7 +4078,7 @@ function initSelects(){
 ["poolSearch","poolRegion","poolAttr","poolFollow"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.pool=1;renderPool();}}));
 ["wonSearch","wonOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.won=1;renderWon();}}));
 ["ygoldSearch","ygoldOwner","ygoldStar","ygoldOperation","ygoldVersion","ygoldStatus","ygoldRegion","ygoldQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.ygold=1;renderYgold();}}));
-["mobaiSearch","mobaiOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
+["mobaiSearch","mobaiOwner","mobaiQuick"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.mobai=1;renderMobai();}}));
 ["wlMonth","wlOwner"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.worklog=1;renderWorklog();}}));
 ["caseSearch","caseRegion","caseIndustry"].forEach(id=>document.addEventListener("input",e=>{if(e.target.id===id){PAGE.cases=1;renderCases();}}));
 $("#segList").onclick=()=>{custView="list";$("#segList").classList.add("active");$("#segKanban").classList.remove("active");renderCustomers();};
