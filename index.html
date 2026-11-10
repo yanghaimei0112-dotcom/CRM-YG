@@ -2709,6 +2709,7 @@ function parseNameListTxt(text){
       for(const l of lines.slice(0,6)){ const cn=l.split(NL_STATUS)[0].trim(); if(/(公司|厂|合伙|中心)/.test(cn)){ name=cn; break; } }
     } else { name=name.split(NL_STATUS)[0].trim(); }
     name=cleanCompanyName(name);   // 去掉开头/结尾多余标点（如前面多个逗号）
+    name=name.replace(/^公司中文名\s*[:：]\s*/,"").trim();   // 去掉"公司中文名："前缀，只保留公司名
     if(!/(公司|厂|合伙|中心)/.test(name))continue;
     let contact="",phone="",addr="",addr2="",plat="",site="",site2="",prod=[],coll=false,otherContact="",otherPhone="",mic="";
     for(const l of lines){
