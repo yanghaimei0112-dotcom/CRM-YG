@@ -1299,7 +1299,7 @@ function bulkReleaseToPool(view){
     const sameIds=new Set(DB.customers.filter(x=>x.name===c.name&&(x.owner||"")===(c.owner||"")).map(x=>x.id));
     const flog=customerVisitsToNote(sameIds);
     let p=(DB.pool||[]).find(x=>x.name===c.name);
-    if(!p){ p={id:uid(),origin:"手动放入"}; ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||""); DB.pool.push(p);}
+    if(!p){ p={id:uid(),origin:"手动放入"}; ["name","nameEn","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||""); DB.pool.push(p);}
     if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
     p.updatedAt=new Date().toISOString();
     sameIds.forEach(x=>removeIds.add(x));
@@ -1329,7 +1329,7 @@ async function bulkClaimPool(){
     let c=DB.customers.find(x=>x.name===p.name&&x.owner===CURRENT.name);
     if(!c){
       c={id:uid(),code:"",owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
-      ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c);
+      ["name","nameEn","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||""); DB.customers.push(c);
     }
     logCustEvents([{id:c.id,name:c.name,action:"捡入",detail:"来自公海"}]);
     if(p.note) poolNoteToVisits(p.note, c.id);   // 公海跟进记录 → 客户跟进记录
@@ -3565,7 +3565,7 @@ function refreshDynamic(){
 }
 
 /* ===================== 公海客户（独立资料库） ===================== */
-function poolFields(){return ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","peerCase","createDate","note","origin"];}
+function poolFields(){return ["name","nameEn","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","peerCase","createDate","note","origin"];}
 function renderPool(){
   if(!CURRENT)return;
   const q=($("#poolSearch").value||"").toLowerCase(), fr=$("#poolRegion").value, fa=$("#poolAttr").value, ff=$("#poolFollow").value;
@@ -3641,7 +3641,7 @@ async function claimPool(poolId){
   let c=DB.customers.find(x=>x.name===p.name && x.owner===CURRENT.name);
   if(!c){
     c={id:uid(),code:"",owner:CURRENT.name,stage:"潜在客户",visited:"未拜访",isPublic:false,updatedAt:new Date().toISOString()};
-    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||"");
+    ["name","nameEn","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","otherContact","otherPhone","peerCase","createDate"].forEach(k=>c[k]=p[k]||"");
     DB.customers.push(c);
   }
   logCustEvents([{id:c.id,name:c.name,action:"捡入",detail:"来自公海"}]);
@@ -3672,7 +3672,7 @@ function releaseToPool(id){
   let p=(DB.pool||[]).find(x=>x.name===c.name);
   if(!p){
     p={id:uid(),origin:"手动放入"};
-    ["name","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||"");
+    ["name","nameEn","region","attr","contact","phone","product","address","source","platformUrl","siteUrl","micUrl","tradeContact","tradePhone","shareholder","shareholderPhone","otherContact","otherPhone","peerCase","createDate","note"].forEach(k=>p[k]=c[k]||"");
     DB.pool.push(p);
   }
   if(flog) p.note=flog;   // 客户跟进/拜访记录 → 公海
