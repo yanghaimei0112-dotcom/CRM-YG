@@ -1210,7 +1210,7 @@ const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt
 // 多个网址（空格/换行分隔）分别成可点链接、各占一行；非 http(s) 一律强制补 http:// 前缀（防 javascript:/data: 注入）
 function urlLinks(s){ const parts=String(s||"").split(/[\s,，、;；]+/).filter(u=>/[a-zA-Z]\.[a-zA-Z]/.test(u)); if(!parts.length)return esc(s||""); return parts.map(u=>{const href=/^https?:\/\//i.test(u)?u:("http://"+u); return `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" style="word-break:break-all">${esc(u)}</a>`;}).join("<br>"); }
 // 清理公司名：去掉开头/结尾多余标点（逗号、顿号、句点、引号等），保留公司名本身
-function cleanCompanyName(n){ return String(n||"").replace(/^[\s,，、.。;；:：·・*\-—_"'’‘“”]+/,"").replace(/[\s,，、;；:：·・*"'’‘“”]+$/,"").trim(); }
+function cleanCompanyName(n){ return String(n||"").replace(/^[（(]\s*公司名称填这里\s*[)）]?/,"").replace(/^(企业名称|公司名称|公司中文名)\s*[:：]/,"").replace(/^[\s,，、.。;；:：·・*\-—_"'’‘“”]+/,"").replace(/[\s,，、;；:：·・*"'’‘“”]+$/,"").trim(); }   // 同时去掉「（公司名称填这里）」「企业名称：」等模板前缀
 // 公司名归一化用于去重：忽略空格 / 全半角括号 / 常见标点（不去结尾数字——"XX公司1/2"可能是分厂，不强制判重）
 function normName(n){ n=String(n||"").trim().replace(/\s+/g,"").replace(/（/g,"(").replace(/）/g,")").replace(/，/g,",").replace(/、/g,""); n=n.replace(/[()\[\]【】{}<>,.。·・\-—_*"'’‘“”~!！?？:：;；]/g,""); return n; }
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
