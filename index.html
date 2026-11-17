@@ -2706,13 +2706,18 @@ function parseNameListTxt(text){
   for(const b of blocks){
     const lines=b.split("\n").map(l=>l.trim()).filter(Boolean);
     if(!lines.length)continue;
-    let name=lines[0].replace(/^\d{1,3}[.、．]?\s*/,"").trim();
-    if(!/(公司|厂|合伙|中心)/.test(name)){   // 金品格式：首行是英文名，找含公司/厂的中文行
+    const firstLine=lines[0].replace(/^\d{1,3}[.、．]?\s*/,"").trim();
+    let name=firstLine, nameEn="";
+    const isEnHead=l=>/^[A-Za-z0-9\s.,&'()\-\/]{6,}$/.test(l)&&/[A-Za-z]{3,}/.test(l);
+    if(isEnHead(firstLine))nameEn=firstLine;   // 金品格式：首行是英文抬头，先收下
+    if(!/(公司|厂|合伙|中心)/.test(name)){   // 首行不是中文公司名，找含公司/厂的中文行
       for(const l of lines.slice(0,6)){ const cn=l.split(NL_STATUS)[0].trim(); if(/(公司|厂|合伙|中心)/.test(cn)){ name=cn; break; } }
     } else { name=name.split(NL_STATUS)[0].trim(); }
     name=cleanCompanyName(name);   // 去掉开头/结尾多余标点（如前面多个逗号）
     name=name.replace(/^公司中文名\s*[:：]\s*/,"").trim();   // 去掉"公司中文名："前缀，只保留公司名
     if(!/(公司|厂|合伙|中心)/.test(name))continue;
+    if(!nameEn){ for(const l of lines){ const m=l.match(/^(?:公司英文名|公司英文名称|英文名称|英文名)\s*[:：]\s*(.+)$/); if(m){ nameEn=m[1].split(NL_STATUS)[0].trim(); break; } } }   // 「公司英文名：」标注行
+    if(!nameEn){ const ni=lines.findIndex(l=>cleanCompanyName(l.split(NL_STATUS)[0].trim())===name); const nxt=ni>=0?lines[ni+1]:""; if(nxt&&isEnHead(nxt))nameEn=nxt; }   // 中文公司名的下一行是英文抬头
     let contact="",phone="",addr="",addr2="",plat="",site="",site2="",prod=[],coll=false,otherContact="",otherPhone="",mic="";
     for(const l of lines){
       if(l.startsWith("法定代表人")||l.startsWith("经营者")||l.startsWith("企业法人")){ const m=l.match(/[：:]\s*([^\s，,、%0-9]+)/); if(m&&!contact)contact=m[1]; const _bps=nlPhones(l); if(!phone&&_bps.length)phone=_bps[0]; if(_bps.length>1&&!otherPhone)otherPhone=_bps[1]; }
@@ -2747,7 +2752,7 @@ function parseNameListTxt(text){
     const sh=shWith||shAny||{label:"",ph:""};
     let product=prod.filter(Boolean).join("、").replace(/，/g,"、"); if(product.length>380)product=product.slice(0,380);
     const address=(addr||addr2).trim();
-    out.push({name,region:nlRegion(address||name),contact,phone,product,address,platformUrl:plat,siteUrl:(site||site2),micUrl:mic,
+    out.push({name,nameEn,region:nlRegion(address||name),contact,phone,product,address,platformUrl:plat,siteUrl:(site||site2),micUrl:mic,
       tradeContact,tradePhone,otherContact,otherPhone,shareholder:sh.label,shareholderPhone:sh.ph});
   }
   return out;
@@ -2761,19 +2766,29 @@ $("#poolTxtImportFile").addEventListener("change",async e=>{
     const recs=parseNameListTxt(text);
     if(!recs.length){toast("未从该文件解析出公司，请确认是「一段一家公司」的名单格式");e.target.value="";return;}
     const origin=file.name.replace(/\.(txt|docx|doc)$/i,"").replace(/\s+[0-9a-f]{32}$/i,"").trim();
-    const poolNames=new Set((DB.pool||[]).map(p=>normName(p.name))), custNames=new Set(DB.customers.map(c=>normName(c.name))), seen=new Set();
-    let added=0,skip=0;
+    const poolByNm={}; (DB.pool||[]).forEach(p=>poolByNm[normName(p.name)]=p);
+    const custByNm={}; DB.customers.forEach(c=>custByNm[normName(c.name)]=c);
+    const seen=new Set();
+    let added=0,skip=0,updated=0;
     recs.forEach(r=>{
       const nn=normName(r.name);
-      if(!r.name||poolNames.has(nn)||custNames.has(nn)||seen.has(nn)){skip++;return;}
+      if(!r.name||seen.has(nn)){skip++;return;}
       seen.add(nn);
+      const exP=poolByNm[nn], exC=custByNm[nn];
+      if(exP||exC){   // 已存在：回填缺失的英文名称
+        const t=exP||exC;
+        if(r.nameEn&&!t.nameEn){t.nameEn=r.nameEn;t.updatedAt=new Date().toISOString();updated++;}
+        else skip++;
+        return;
+      }
       DB.pool.push(Object.assign({id:uid(),origin,attr:"",updatedAt:new Date().toISOString()},r));
       added++;
     });
     save();renderPool();refreshDynamic();
     const docWarn=/\.doc$/i.test(file.name)?"。⚠️ .doc 老格式解析可能不完整，请核对条数（建议另存为 .docx 再导入）":"";
-    if(added===0 && skip>0){ toast("✅ 该名单 "+recs.length+" 家已全部在公海中，无需重复导入（数据已在系统里）"+docWarn); }
-    else { toast("✅ 导入完成：新增 "+added+" 家"+(skip?"（另有 "+skip+" 家已存在，已跳过）":"")+"，公海现共 "+(DB.pool||[]).length+" 家"+docWarn); }
+    if(added===0 && updated>0){ toast("✅ 已回填 "+updated+" 家客户的英文名称（名单内公司均已在系统中）"+docWarn); }
+    else if(added===0 && skip>0){ toast("✅ 该名单 "+recs.length+" 家已全部在公海中，无需重复导入（数据已在系统里）"+docWarn); }
+    else { toast("✅ 导入完成：新增 "+added+" 家"+(updated?"，回填英文名 "+updated+" 家":"")+(skip?"（另有 "+skip+" 家已存在，已跳过）":"")+"，公海现共 "+(DB.pool||[]).length+" 家"+docWarn); }
   }catch(err){toast("导入失败："+err.message);}
   e.target.value="";
 });
