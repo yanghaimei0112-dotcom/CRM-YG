@@ -3913,15 +3913,19 @@ async function saveUser(){
     closeModal("userModal");renderUsers();refreshDynamic();renderCustomers();toast("已保存");
     return;
   }
-  // 新增账号：用独立客户端注册，避免顶掉当前管理员登录
+  // 新增账号：走 admin-user 边缘函数（管理员身份校验在服务端），不再走公开注册接口，防止外部扫描器自助注册垃圾账号
   const email=$("#u_username").value.trim(), pass=$("#u_password").value;
   if(!email||!pass){toast("请填写登录邮箱和密码");return;}
   if(pass.length<6){toast("密码至少 6 位");return;}
   toast("正在创建账号…");
-  const tmp=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
-  const {data,error}=await tmp.auth.signUp({email,password:pass,options:{data:{name}}});
-  if(error){toast("创建失败："+error.message);return;}
-  const nid=data.user&&data.user.id;
+  const {data:{session}}=await SB.auth.getSession();
+  let cr,cj;
+  try{
+    cr=await fetch(SB_URL+"/functions/v1/admin-user",{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+(session?session.access_token:"")},body:JSON.stringify({action:"create",email,password:pass,name})});
+    cj=await cr.json().catch(()=>({}));
+  }catch(e){toast("创建失败："+e.message);return;}
+  if(!cr.ok||cj.error){toast("创建失败："+(cj.error||("HTTP "+cr.status)));return;}
+  const nid=cj.userId;
   if(!nid){toast("创建失败：未返回用户");return;}
   // 等待触发器建好 profiles 行（轮询，最长 5 秒）
   let prof=null;
